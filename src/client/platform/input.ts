@@ -8,7 +8,7 @@ import { ACTIONS, onSettingsChange, settings, type Action } from './settings';
 /** Actions that are held down and sent to the server as bits in the key mask. */
 const HOLD_BITS: Partial<Record<Action, number>> = {
   forward: Key.Forward, back: Key.Back, left: Key.Left, right: Key.Right, jump: Key.Jump, sprint: Key.Sprint,
-  fire: Key.Fire, aim: Key.Aim, reload: Key.Reload, grenade1: Key.Grenade1, grenade2: Key.Grenade2, interact: Key.Interact,
+  fire: Key.Fire, aim: Key.Aim, reload: Key.Reload, grenade1: Key.Grenade1, grenade2: Key.Grenade2, interact: Key.Interact, spray: Key.Spray,
 };
 
 /** Weapon-select actions and the weapon index they choose. */

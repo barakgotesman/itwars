@@ -97,6 +97,7 @@ export function restartMatch(sim: Sim): void {
   for (const p of sim.players.values()) {
     p.kills = 0;
     p.deaths = 0;
+    p.sprayReadyAt = 0;
     if (p.playing) spawn(sim, p);
   }
   sim.events.push({ k: 'matchStart' });

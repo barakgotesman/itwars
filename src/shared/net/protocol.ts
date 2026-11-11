@@ -5,12 +5,13 @@
 import { CHARACTERS, PLAYER_COLORS } from '@shared/core/characters';
 import { CODE_ALPHABET, CODE_LEN, KEY_MASK, MAX_NAME_LEN, MAX_PITCH } from '@shared/core/constants';
 import { sanitizeRules, type MatchRules } from '@shared/rules/modes';
+import { SPRAY_COUNT } from '@shared/rules/sprays';
 import type { PickupKind } from '@shared/rules/weapons';
 
 /** Client asks to create a room and join it. */
-export interface HostMsg { t: 'host'; name: string; model: number; color: number; rules: MatchRules }
+export interface HostMsg { t: 'host'; name: string; model: number; color: number; spray: number; rules: MatchRules }
 /** Client asks to join an existing room by code. */
-export interface JoinMsg { t: 'join'; code: string; name: string; model: number; color: number }
+export interface JoinMsg { t: 'join'; code: string; name: string; model: number; color: number; spray: number }
 /** One tick of player input; `seq` increases by one per message so the server can ack it. */
 export interface InputMsg {
   t: 'input';
@@ -34,6 +35,8 @@ export interface PlayerInfo {
   model: number;
   /** Shirt colour as 0xRRGGBB. */
   color: number;
+  /** Spray-paint design, index into `SPRAYS`. */
+  spray: number;
   kills: number;
   deaths: number;
 }
@@ -105,6 +108,8 @@ export type GameEvent =
   | { k: 'matchEnd'; winner: number; restartIn: number; reason: 'kills' | 'time' }
   | { k: 'door'; i: number; o: number; t: number }
   | { k: 'hole'; x: number; y: number; z: number; a: number; s: number }
+  /** A spray tag on a wall: surface point, face axis and sign, and `r` quarter turns so floor and ceiling tags face the sprayer. */
+  | { k: 'spray'; id: number; x: number; y: number; z: number; a: number; s: number; r: number }
   | { k: 'lootDrop'; id: number; from: number; x: number; y: number; z: number }
   | { k: 'lootTake'; id: number; by: number; from: number }
   | { k: 'lootGone'; id: number }
@@ -153,8 +158,12 @@ export interface SnapMsg {
 export type S2C = JoinedMsg | ErrorMsg | RosterMsg | SnapMsg;
 
 /** Reads the character and colour choice; colour -1 means "server picks". */
-function parseLook(m: Record<string, unknown>): { model: number; color: number } {
-  return { model: parseIndex(m.model, CHARACTERS.length, 0), color: parseIndex(m.color, PLAYER_COLORS.length, -1) };
+function parseLook(m: Record<string, unknown>): { model: number; color: number; spray: number } {
+  return {
+    model: parseIndex(m.model, CHARACTERS.length, 0),
+    color: parseIndex(m.color, PLAYER_COLORS.length, -1),
+    spray: parseIndex(m.spray, SPRAY_COUNT, 0),
+  };
 }
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

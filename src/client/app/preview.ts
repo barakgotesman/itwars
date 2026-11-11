@@ -148,7 +148,7 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     pulseMat.color.setHex(color);
     underglow.color.setHex(color);
     // Variant 0 keeps skin and hair stable while browsing styles; in game they vary by player id.
-    model = new PlayerModel({ id: 0, name: '', model: look.model, color, kills: 0, deaths: 0 }, 0);
+    model = new PlayerModel({ id: 0, name: '', model: look.model, color, spray: 0, kills: 0, deaths: 0 }, 0);
     model.tagVisible(false);
     model.root.position.y = 0.08;
     castShadows(model.root);

@@ -10,6 +10,7 @@ import { damage } from './damage';
 import { useDoor } from './doors';
 import { throwGrenade } from './grenades';
 import type { Player } from './player';
+import { useSpray } from './spray';
 import type { Sim } from './state';
 import { round2 } from './util';
 
@@ -55,6 +56,7 @@ export function tickWeapons(sim: Sim, p: Player): void {
 
   if (pressed(Key.Grenade1)) throwGrenade(sim, p, 0);
   if (pressed(Key.Grenade2)) throwGrenade(sim, p, 1);
+  if (pressed(Key.Spray)) useSpray(sim, p);
   p.prevKeys = keys;
 }
 

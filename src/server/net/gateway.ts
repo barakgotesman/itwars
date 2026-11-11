@@ -36,7 +36,7 @@ export function createGateway(server: Server, rooms: RoomManager): void {
 
   /** Attaches the socket to a room (hosting or joining) and records the session. */
   const enter = (ws: WebSocket, s: Session, room: Room, msg: HostMsg | JoinMsg): void => {
-    const id = room.join({ send: (m) => send(ws, m) }, msg.name, { model: msg.model, color: msg.color });
+    const id = room.join({ send: (m) => send(ws, m) }, msg.name, { model: msg.model, color: msg.color, spray: msg.spray });
     if (id === null) {
       send(ws, { t: 'error', reason: 'room-full' });
       rooms.prune(room);

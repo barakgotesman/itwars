@@ -208,6 +208,16 @@ export class Sfx {
     }
   }
 
+  /** A can of spray paint: a rattle, then a long hiss. */
+  spray(pos?: { x: number; z: number }): void {
+    const d = this.out(pos);
+    if (!d || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.burst(d, t, 0.12, 'highpass', 4500, 0.22);
+    this.burst(d, t + 0.16, 0.12, 'highpass', 4000, 0.22);
+    this.burst(d, t + 0.34, 0.8, 'highpass', 3200, 0.3, 0.4);
+  }
+
   /** A door sliding along its track, ending with a soft thud. */
   door(pos?: { x: number; z: number }): void {
     const d = this.out(pos);

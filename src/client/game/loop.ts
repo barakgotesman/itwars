@@ -137,6 +137,7 @@ export function startFrameLoop(d: LoopDeps): void {
     scene.grenadeVisuals.update(dt);
     scene.pickups.update(now / 1000);
     scene.bulletHoles.update(dt);
+    scene.sprays.update(dt);
     scene.lootBags.update(now / 1000);
     scene.doorVisuals.update(dt);
     scene.tracers.update(dt);

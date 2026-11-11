@@ -107,14 +107,14 @@ export class Room implements Sim {
    * Adds a player and tells everyone. They wait in the lobby until `enter`.
    * @param conn - Where to send this player's messages.
    * @param name - Already-sanitised callsign.
-   * @param look - Chosen character style and colour index (-1 or omitted = random colour).
+   * @param look - Chosen character style, colour index (-1 or omitted = random colour) and spray design.
    * @returns The new player's id, or null if the room is full.
    */
-  join(conn: Conn, name: string, look: { model?: number; color?: number } = {}): number | null {
+  join(conn: Conn, name: string, look: { model?: number; color?: number; spray?: number } = {}): number | null {
     if (this.isFull) return null;
     const id = this.nextPlayerId++;
     const color = PLAYER_COLORS[look.color ?? -1] ?? PLAYER_COLORS[Math.floor(this.rng() * PLAYER_COLORS.length)]!;
-    this.players.set(id, newPlayer(id, this.uniqueName(name), conn, look.model ?? 0, color));
+    this.players.set(id, newPlayer(id, this.uniqueName(name), conn, look.model ?? 0, color, look.spray ?? 0));
     conn.send({
       t: 'joined', id, code: this.code, players: roster(this), tick: this.tick,
       pickups: this.pickupReady.map((r) => (r <= this.tick ? '1' : '0')).join(''),

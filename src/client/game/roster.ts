@@ -42,6 +42,11 @@ export class RosterTracker {
     return this.players.find((p) => p.id === id)?.color;
   }
 
+  /** A player's spray-paint design index (0 if they are not in the roster). */
+  sprayOf(id: number): number {
+    return this.players.find((p) => p.id === id)?.spray ?? 0;
+  }
+
   /** Announces joins and leaves by comparing the new roster with the last one. */
   update(players: readonly PlayerInfo[]): void {
     this.players = [...players];

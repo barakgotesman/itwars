@@ -15,6 +15,7 @@ import type { Hud } from '@client/hud/hud';
 import { DoorVisuals } from '@client/render/door-visuals';
 import { GrenadeVisuals, LootVisuals, PickupVisuals } from '@client/render/items';
 import { BulletHoles } from '@client/render/bullet-holes';
+import { Sprays } from '@client/render/sprays';
 import { Blasts, Particles } from '@client/render/particles';
 import { createDust, createPostFx } from '@client/render/renderer';
 import { RemotePlayers, SKIN_TONES } from '@client/render/players';
@@ -36,6 +37,7 @@ export interface SceneHandle {
   grenadeVisuals: GrenadeVisuals;
   lootBags: LootVisuals;
   bulletHoles: BulletHoles;
+  sprays: Sprays;
   tracers: Tracers;
   doorVisuals: DoorVisuals;
   /** The same door simulation the server runs, so doors are predicted correctly. */
@@ -90,6 +92,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   const grenadeVisuals = new GrenadeVisuals(scene);
   const lootBags = new LootVisuals(scene);
   const bulletHoles = new BulletHoles(scene);
+  const sprays = new Sprays(scene);
   const doors = new Doors();
   doors.applyWire(joined.doors);
   const doorVisuals = new DoorVisuals(scene, doors);
@@ -133,6 +136,6 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
 
   return {
     camera, world, dust, viewmodel, fx, remotes, particles, blasts, pickups, grenadeVisuals, lootBags,
-    bulletHoles, tracers, doorVisuals, doors, solids, sfx, view, needsCalibration,
+    bulletHoles, sprays, tracers, doorVisuals, doors, solids, sfx, view, needsCalibration,
   };
 }

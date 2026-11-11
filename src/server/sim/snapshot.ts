@@ -10,7 +10,7 @@ import { round2, round3 } from './util';
 /** Public identity and scores of everyone in the room. */
 export function roster(sim: Sim): PlayerInfo[] {
   return [...sim.players.values()].map((p) => ({
-    id: p.id, name: p.name, model: p.model, color: p.color, kills: p.kills, deaths: p.deaths,
+    id: p.id, name: p.name, model: p.model, color: p.color, spray: p.spray, kills: p.kills, deaths: p.deaths,
   }));
 }
 

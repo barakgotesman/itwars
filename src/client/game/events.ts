@@ -43,7 +43,7 @@ export interface EventDeps {
  */
 export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
   const { myId, scene, local, input, hud, feed, roster, camFx } = d;
-  const { camera, viewmodel, remotes, particles, blasts, pickups, lootBags, bulletHoles, tracers, doors, sfx } = scene;
+  const { camera, viewmodel, remotes, particles, blasts, pickups, lootBags, bulletHoles, sprays, tracers, doors, sfx } = scene;
   const me = local.me;
   const who = (id: number) => roster.who(id);
 
@@ -153,6 +153,13 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         particles.emit(e.x, e.y, e.z, 3, 0x7a7f87, 1.6, 0.4, 9, push, 0.035);
         break;
       }
+      case 'spray': {
+        sprays.add(e.id, roster.sprayOf(e.id), e.x, e.y, e.z, e.a, e.s, e.r);
+        // A puff of paint in the sprayer's shirt colour, and the hiss (positional for other players).
+        particles.emit(e.x, e.y, e.z, 14, roster.colorOf(e.id) ?? 0xffffff, 1.6, 0.5, 4, undefined, 0.04);
+        sfx.spray(e.id === myId ? undefined : posOf(e.id));
+        break;
+      }
       case 'lootDrop':
         lootBags.add(e.id, e.x, e.y, e.z);
         // A little puff of brown and gold cubes where the bag lands.
@@ -206,6 +213,7 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
       case 'matchStart':
         doors.reset();
         bulletHoles.clear();
+        sprays.clear();
         feed.push([{ text: 'New match started' }]);
         hud.banner(null);
         break;

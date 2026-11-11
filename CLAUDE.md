@@ -62,13 +62,13 @@ src/server/   Node
   net/        gateway.ts: WebSocket on /ws, rate limit, validation, routing to the player's room
   rooms/      room.ts (Room: state + join/enter/leave/input/step, calls the systems), manager.ts (codes, lookup, prune)
   sim/        one system per file, plain functions over the room state (state.ts `Sim`):
-              movement, weapons, damage, grenades, pickups, loot, doors, match (spawn, clock, end, restart), snapshot (roster, snapshots, `me`), combat (pure ray/LOS/projectile geometry), player, util
+              movement, weapons, damage, grenades, pickups, loot, doors, spray, match (spawn, clock, end, restart), snapshot (roster, snapshots, `me`), combat (pure ray/LOS/projectile geometry), player, util
 src/client/   Vite + three.js + Tailwind
   main.ts     entry: touch notice or wire menu + room panel + settings; config.ts (server URL, `VITE_SERVER_URL`)
   app/        menu.ts (callsign, character picker, host/join), room-panel.ts (room code, pause, Input, starts the game), setup-ui.ts, settings-ui.ts, preview.ts, appearance.ts, player-name.ts, dom.ts
   platform/   input.ts, settings.ts, quality.ts, audio.ts, net.ts (browser plumbing, no game rules)
   render/     three.js: world.ts, lighting.ts, renderer.ts (bloom, dust, composer), players.ts, viewmodel.ts, weapon-fx.ts, items.ts, door-visuals.ts, particles.ts, bullet-holes.ts
-  hud/        hud.ts, feed.ts, gun-icons.ts, style.css
+  hud/        hud.ts, feed.ts, gun-icons.ts, style.css (design tokens: one ground, one ink, one yellow accent; red only for danger; flat, square, no gradients except vignettes and the scope)
   game/       in-room game: index.ts (startGame wiring + message routing), scene.ts (renderer + all visuals), prediction.ts (LocalPlayer), roster.ts, events.ts (server events to effects/HUD), loop.ts (frame)
 tests/        verify-map.ts sim-test.ts smoke-test.ts settings-test.ts quality-test.ts physics-check.ts
 tools/        make-icons.ts, check-deps.ts
@@ -89,9 +89,9 @@ To host the client apart from the server (later, for an online game), build with
 
 ### Messages
 
-C2S: `host {name, model, color, rules}`, `join {code, name, model, color}`, `enter`, `input {...}` (key bits include `Interact`).
+C2S: `host {name, model, color, spray, rules}`, `join {code, name, model, color, spray}`, `enter`, `input {...}` (key bits include `Interact` and `Spray`).
 S2C: `joined {id, code, players, rules, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped).
-Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `throw`, `boom`, `reload`, `hole {x,y,z,a,s}`, `door {i,o,t}`, `lootDrop`, `lootTake`, `lootGone`, `matchEnd`, `matchStart`.
+Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `throw`, `boom`, `reload`, `hole {x,y,z,a,s}`, `spray {id,x,y,z,a,s,r}`, `door {i,o,t}`, `lootDrop`, `lootTake`, `lootGone`, `matchEnd`, `matchStart`.
 
 ### Rooms, codes and the lobby
 
@@ -128,6 +128,11 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 ### Pickups and loot
 - HP box (+35), ammo box (half of each weapon's max reserve), grenade crate (+1 per slot). Each has a light beam. A box is **left alone** unless it would help (full HP / ammo / grenades means it stays).
 - **Loot bags:** a dead player (or a self-kill) drops a bag at their body with `LOOT_FRACTION` (half, rounded down; grenades rounded up) of their ammo. Walking over it loots automatically what fits under the usual maximums; the rest stays. Bags expire after 30 s, max 24 per room, cleared on a new match.
+
+### Spray paint
+- `T` (rebindable, `spray`) tags the wall you face, like CS:GO. The server (`server/sim/spray.ts`) casts a ray of `SPRAY_RANGE` (3 m) and emits a `spray` event (point, face axis/sign, `r` quarter turns so floor/ceiling tags face the sprayer) only for a static surface: never a door panel, open air, the intermission or a lobby player. Cooldown `SPRAY_COOLDOWN_TICKS` (10 s), reset on a new match.
+- The design is a 16x16 pixel-art entry in `SPRAYS` (`shared/rules/sprays.ts`), chosen in the main menu next to the colour, saved in `itwars.look`, sent in `host`/`join` and echoed in the roster (`PlayerInfo.spray`). Never sent per press, so a client cannot choose arbitrary art. Add a design by adding an entry (palette keys in `SPRAY_PALETTE`).
+- Client: `render/sprays.ts` draws flat nearest-filtered decals; each player keeps at most 3 (the oldest is replaced); cleared on `matchStart`. Players who join mid-match do not see earlier tags (same as bullet holes).
 
 ### Doors
 - 10 sliding doors (north-row room doors plus Break room, Storage, Conference), defined in `shared/world/map/door-layout.ts`. A panel hangs just in front of the wall on the open-plan side and slides along it, so collision stays a simple box. Four start half-closed (0.5), the rest open. `E` (rebindable, `interact`) toggles the door you face: fully open closes it, otherwise it opens. 2 s travel, 0.3 s cooldown.
@@ -196,6 +201,7 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 
 - Pressing Esc only pauses the local screen: the player stays in the match and can be shot. A real "pause out of the match" would need a server message like `enter`.
 - Not verified visually or by ear in a live two-player match (the automated browser cannot use the mouse): mouse firing and aim-down-sights feel, hit markers, audio, loot pickup, bullet-hole decals, and the gun part animations (slide, bolt, pump, casings), including the sniper bolt handle fix.
+- Spray paint: the server rules are tested headlessly (range, cooldown, doors, lobby, validation) and the decals were checked in a small rendered scene, but spraying in a live match, the hiss and the paint puff were not tried. No tags for late joiners.
 - Doors: the logic is covered headlessly (blocking, pushing, wedged players, bullets, reset) and the models were checked in a rendered scene, but pressing `E` in a live match, the feel of being pushed, and the door sound were not tried.
 - Graphics calibration has only been exercised on simulated machines and a 1 FPS automation tab, not on the owner's slow computer.
 - Public demo deploy not done. No bots, no lag compensation.

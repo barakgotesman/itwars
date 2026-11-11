@@ -2,7 +2,8 @@
  * Headless server simulation tests: drives `Room` directly with fake connections (no sockets, no browser).
  * Run with `npm run test:sim`; exits non-zero on any failure.
  */
-import { INTERMISSION_TICKS, Key, KILLS_TO_WIN, MAX_HP, MAX_PLAYERS, RESPAWN_TICKS, TICK_DT } from '@shared/core/constants';
+import { INTERMISSION_TICKS, Key, KILLS_TO_WIN, MAX_HP, MAX_PLAYERS, RESPAWN_TICKS, SPRAY_COOLDOWN_TICKS, TICK_DT } from '@shared/core/constants';
+import { SPRAYS, SPRAY_GRID, SPRAY_PALETTE } from '@shared/rules/sprays';
 import { PLAYER_COLORS } from '@shared/core/characters';
 import type { Aabb } from '@shared/core/physics';
 import { parseC2S, type GameEvent, type S2C, type SnapMsg } from '@shared/net/protocol';
@@ -135,7 +136,7 @@ const aimPitch = (dist: number, h: number) => Math.atan2(h - 1.62, dist);
   check('parse: NaN rejected', parseC2S({ t: 'input', seq: 1, keys: 3, yaw: NaN, pitch: 0, weapon: 0 }) === null);
   check('parse: string seq rejected', parseC2S({ t: 'input', seq: '1', keys: 3, yaw: 0, pitch: 0, weapon: 0 }) === null);
   const m = parseC2S({ t: 'input', seq: 1, keys: 0xffffff, yaw: 0, pitch: 99, weapon: 9 });
-  check('parse: keys masked, pitch/weapon clamped', m?.t === 'input' && m.keys < 4096 && m.pitch < 1.6 && m.weapon === 3);
+  check('parse: keys masked, pitch/weapon clamped', m?.t === 'input' && m.keys < 8192 && m.pitch < 1.6 && m.weapon === 3);
   check('parse: bad code rejected', parseC2S({ t: 'join', code: 'AB0I', name: 'x' }) === null);
   const j = parseC2S({ t: 'join', code: ' abcd ', name: '  <b>Eve</b>\n' });
   check('parse: code normalised, name sanitised', j?.t === 'join' && j.code === 'ABCD' && j.name === 'bEveb');
@@ -643,6 +644,79 @@ const doorOf = (room: Room, i = 0) => (room as unknown as DoorPeek).doors.states
   check('the target is always taken from the server', d.states[0]!.target === 0);
   d.applyWire([90, 100]);
   check('without a tolerance the server state is applied exactly (server and tests)', d.states[0]!.open === 0.9);
+}
+
+// ---------------------------------------------------------------- spray paint: tags on walls
+
+type SprayEv = Extract<GameEvent, { k: 'spray' }>;
+const spraysSeen = (c: FakeConn): SprayEv[] => c.events().filter((e): e is SprayEv => e.k === 'spray');
+
+{
+  const wall: Aabb = { minX: -5, maxX: 5, minY: 0, maxY: 4, minZ: -3.5, maxZ: -2.5 };
+  const { room, add } = makeRoom([FLOOR, wall]);
+  const a = add('Sprayer');
+  const b = add('Watcher');
+  warm(room);
+  place(room, a.id, 0, 0, 0, 0);
+  place(room, b.id, 30, 30);
+  run(room, a, 2, { keys: Key.Spray });
+  const tags = spraysSeen(a.conn);
+  check('spraying a wall in range sends one spray event', tags.length === 1, `tags=${tags.length}`);
+  const t = tags[0]!;
+  check('the tag is on the wall face, facing the sprayer', t && Math.abs(t.z + 2.5) < 0.01 && t.a === 2 && t.s === 1, JSON.stringify(t));
+  check('the event names the sprayer', t?.id === a.id);
+  check('other players get the same tag', spraysSeen(b.conn).length === 1);
+
+  // Cooldown: pressing again straight away does nothing; after 10 s it works.
+  run(room, a, 2, { keys: 0 });
+  run(room, a, 2, { keys: Key.Spray });
+  check('a second spray inside the cooldown is ignored', spraysSeen(a.conn).length === 1);
+  idle(room, SPRAY_COOLDOWN_TICKS);
+  run(room, a, 2, { keys: 0 });
+  run(room, a, 2, { keys: Key.Spray });
+  check('spraying works again after the cooldown', spraysSeen(a.conn).length === 2);
+}
+{
+  // Too far, open air, and a lobby player all produce nothing.
+  const wall: Aabb = { minX: -5, maxX: 5, minY: 0, maxY: 4, minZ: -9, maxZ: -8 };
+  const { room, add } = makeRoom([FLOOR, wall]);
+  const a = add('Far');
+  warm(room);
+  place(room, a.id, 0, 0, 0, 0);
+  run(room, a, 2, { keys: Key.Spray });
+  check('a wall out of range is not sprayed', spraysSeen(a.conn).length === 0);
+  place(room, a.id, 0, 0, 0, 1.4);
+  run(room, a, 2, { keys: 0, pitch: 1.4 });
+  run(room, a, 2, { keys: Key.Spray, pitch: 1.4 });
+  check('open sky is not sprayed', spraysSeen(a.conn).length === 0);
+}
+{
+  const { room } = makeRoom([FLOOR]);
+  const conn = new FakeConn();
+  const id = room.join(conn, 'Lobby')!;
+  const lobby = { id, conn };
+  idle(room, 4);
+  room.input(id, { t: 'input', seq: 1, keys: Key.Spray, yaw: 0, pitch: -1.2, weapon: 1 });
+  idle(room, 4);
+  check('a lobby player cannot spray', spraysSeen(lobby.conn).length === 0);
+}
+{
+  // A door panel is never sprayed (the tag would be left floating when it moves).
+  const { room, add } = makeRoom([FLOOR], [], [testDoor(0)]);
+  const a = add('Door sprayer');
+  warm(room);
+  place(room, a.id, 0, -3, 0, 0);
+  run(room, a, 2, { keys: Key.Spray });
+  check('a sliding door is not sprayed', spraysSeen(a.conn).length === 0);
+}
+{
+  // The look sent at join is sanitised and travels in the roster.
+  const parsed = parseC2S({ t: 'join', code: 'ABCD', name: 'x', model: 0, color: 0, spray: 999 });
+  check('an out-of-range spray design falls back to 0', parsed?.t === 'join' && parsed.spray === 0);
+  const ok = parseC2S({ t: 'join', code: 'ABCD', name: 'x', model: 0, color: 0, spray: 3 });
+  check('a valid spray design is kept', ok?.t === 'join' && ok.spray === 3);
+  check('every design fits the 16 x 16 grid', SPRAYS.every((s) => s.rows.length <= SPRAY_GRID && s.rows.every((r) => r.length <= SPRAY_GRID)));
+  check('every design uses only palette colours', SPRAYS.every((s) => s.rows.every((r) => [...r].every((c) => c === '.' || c in SPRAY_PALETTE))));
 }
 
 // ---------------------------------------------------------------- match rules: kill limit and time limit

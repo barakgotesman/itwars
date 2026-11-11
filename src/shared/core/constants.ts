@@ -33,9 +33,15 @@ export const Key = {
   Grenade1: 1 << 9,
   Grenade2: 1 << 10,
   Interact: 1 << 11,
+  Spray: 1 << 12,
 } as const;
 /** Bits the server accepts from clients; anything else is stripped. */
-export const KEY_MASK = (1 << 12) - 1;
+export const KEY_MASK = (1 << 13) - 1;
+
+/** How far (m) from the eye a player can spray a wall. */
+export const SPRAY_RANGE = 3;
+/** Ticks before a player can spray again (10 s). */
+export const SPRAY_COOLDOWN_TICKS = 600;
 
 /** Server sends a snapshot every this many ticks (60 Hz / 2 = 30 Hz). */
 export const SNAPSHOT_EVERY = 2;

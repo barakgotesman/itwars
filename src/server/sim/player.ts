@@ -17,6 +17,8 @@ export interface Player {
   name: string;
   model: number;
   color: number;
+  /** Spray-paint design, index into `SPRAYS`. */
+  spray: number;
   conn: Conn;
   state: PlayerState;
   hp: number;
@@ -33,6 +35,8 @@ export interface Player {
   reloadEnd: number;
   nextFire: number;
   nextThrow: number;
+  /** Tick the player may spray again. */
+  sprayReadyAt: number;
   /** Semi-auto trigger pull waiting for the weapon to be ready. */
   fireLatch: boolean;
   protectUntil: number;
@@ -53,10 +57,11 @@ export interface Player {
  * @param conn - Where to send this player's messages.
  * @param model - Character style index.
  * @param color - Shirt colour as 0xRRGGBB.
+ * @param spray - Spray-paint design index.
  */
-export function newPlayer(id: number, name: string, conn: Conn, model: number, color: number): Player {
+export function newPlayer(id: number, name: string, conn: Conn, model: number, color: number, spray = 0): Player {
   return {
-    id, name, conn, model, color,
+    id, name, conn, model, color, spray, sprayReadyAt: 0,
     state: newPlayerState(0, 0, 0), hp: MAX_HP, alive: false, playing: false, kills: 0, deaths: 0, weapon: 1,
     mag: [], reserve: [], gren: [], reloadEnd: 0, nextFire: 0, nextThrow: 0, fireLatch: false,
     protectUntil: 0, respawnAt: 0, blindEnd: 0, blindMax: 0, queue: [], lastCmd: null, prevKeys: 0,
