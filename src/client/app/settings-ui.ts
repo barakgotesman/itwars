@@ -22,15 +22,15 @@ export interface SettingsUi {
 /** One labelled row with a control on the right. */
 function row(label: string, control: HTMLElement, hint?: string): HTMLElement {
   const r = document.createElement('div');
-  r.className = 'flex items-center justify-between gap-6 rounded px-3 py-2 hover:bg-white/5';
+  r.className = 'flex items-center justify-between gap-6 px-3 py-2.5 hover:bg-panel';
   const left = document.createElement('div');
   const name = document.createElement('div');
-  name.className = 'text-sm';
+  name.className = 'text-sm font-bold';
   name.textContent = label;
   left.append(name);
   if (hint) {
     const h = document.createElement('div');
-    h.className = 'text-xs text-white/40';
+    h.className = 'text-xs text-dim';
     h.textContent = hint;
     left.append(h);
   }
@@ -41,7 +41,7 @@ function row(label: string, control: HTMLElement, hint?: string): HTMLElement {
 /** Section heading inside a tab. */
 function heading(text: string): HTMLElement {
   const h = document.createElement('div');
-  h.className = 'mt-4 px-3 text-xs uppercase tracking-widest text-white/50';
+  h.className = 'mt-6 px-3 text-lg font-black';
   h.textContent = text;
   return h;
 }
@@ -56,9 +56,9 @@ function slider(min: number, max: number, step: number, value: number, format: (
   input.max = String(max);
   input.step = String(step);
   input.value = String(value);
-  input.className = 'w-52 cursor-pointer accent-white';
+  input.className = 'w-52 cursor-pointer';
   const label = document.createElement('span');
-  label.className = 'w-14 text-right text-sm tabular-nums text-white/70';
+  label.className = 'w-14 text-right text-sm font-bold tabular-nums';
   label.textContent = format(value);
   input.addEventListener('input', () => {
     const v = Number(input.value);
@@ -75,7 +75,8 @@ function toggle(value: boolean, onChange: (v: boolean) => void): HTMLElement {
   b.type = 'button';
   const paint = (on: boolean) => {
     b.textContent = on ? 'On' : 'Off';
-    b.className = `w-20 cursor-pointer rounded border px-3 py-1 text-sm ${on ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200' : 'border-white/20 bg-white/5 text-white/60'}`;
+    b.className = 'choice w-20';
+    b.setAttribute('aria-pressed', String(on));
   };
   let state = value;
   paint(state);
@@ -90,7 +91,7 @@ function toggle(value: boolean, onChange: (v: boolean) => void): HTMLElement {
 /** Segmented choice buttons. */
 function choice<T extends string | number>(options: readonly { label: string; value: T }[], value: T, onChange: (v: T) => void): HTMLElement {
   const wrap = document.createElement('div');
-  wrap.className = 'flex gap-1';
+  wrap.className = 'flex gap-1.5';
   const buttons = options.map((o) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -104,7 +105,8 @@ function choice<T extends string | number>(options: readonly { label: string; va
   });
   const paint = (current: T) => {
     for (const { b, value: v } of buttons) {
-      b.className = `cursor-pointer rounded border px-3 py-1 text-sm ${v === current ? 'border-white/70 bg-white/20' : 'border-white/20 bg-white/5 text-white/60 hover:bg-white/10'}`;
+      b.className = 'choice';
+      b.setAttribute('aria-pressed', String(v === current));
     }
   };
   paint(value);
@@ -140,7 +142,7 @@ export function createSettingsUi(): SettingsUi {
       name.textContent = `${TIERS[currentTier()]!.name} (${currentTier() + 1} of ${TIERS.length})`;
       const again = document.createElement('button');
       again.type = 'button';
-      again.className = 'cursor-pointer whitespace-nowrap rounded border border-white/25 bg-white/5 px-3 py-1 text-xs text-white/70 hover:bg-white/15';
+      again.className = 'btn-quiet whitespace-nowrap !px-3 !py-1.5 !text-xs';
       again.textContent = 'Re-detect';
       again.addEventListener('click', () => {
         redetect();
@@ -181,7 +183,7 @@ export function createSettingsUi(): SettingsUi {
       for (const a of ACTIONS.filter((x) => x.group === group)) {
         const b = document.createElement('button');
         b.type = 'button';
-        b.className = 'min-w-36 cursor-pointer rounded border border-white/25 bg-white/10 px-3 py-1 text-sm hover:bg-white/20';
+        b.className = 'keycap !min-w-36 cursor-pointer !px-3 !py-1.5 !text-sm hover:!bg-accent hover:!text-ground';
         b.textContent = bindingLabel(settings.bindings[a.id]);
         b.addEventListener('click', () => listen(a.id, a.label));
         body.append(row(a.label, b));
@@ -189,7 +191,7 @@ export function createSettingsUi(): SettingsUi {
     }
     const reset = document.createElement('button');
     reset.type = 'button';
-    reset.className = 'mt-4 cursor-pointer self-start rounded border border-white/25 bg-white/5 px-3 py-1.5 text-sm text-white/70 hover:bg-white/15';
+    reset.className = 'btn-quiet mt-6 self-start';
     reset.textContent = 'Reset controls to defaults';
     reset.addEventListener('click', () => {
       resetBindings();
@@ -204,7 +206,8 @@ export function createSettingsUi(): SettingsUi {
       const b = document.createElement('button');
       b.type = 'button';
       b.textContent = t;
-      b.className = `cursor-pointer rounded px-4 py-1.5 text-sm uppercase tracking-widest ${t === tab ? 'bg-white/20' : 'text-white/60 hover:bg-white/10'}`;
+      b.className = 'choice !px-5 !py-2 !text-base';
+      b.setAttribute('aria-pressed', String(t === tab));
       b.addEventListener('click', () => {
         tab = t;
         render();
@@ -218,7 +221,7 @@ export function createSettingsUi(): SettingsUi {
     if (tab !== 'Controls') {
       const reset = document.createElement('button');
       reset.type = 'button';
-      reset.className = 'mt-4 cursor-pointer self-start rounded border border-white/25 bg-white/5 px-3 py-1.5 text-sm text-white/70 hover:bg-white/15';
+      reset.className = 'btn-quiet mt-6 self-start';
       reset.textContent = 'Reset graphics, audio and mouse to defaults';
       reset.addEventListener('click', () => {
         resetOptions();

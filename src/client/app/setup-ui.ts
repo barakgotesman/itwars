@@ -43,12 +43,13 @@ function saveRules(rules: MatchRules): void {
 /** A row of choice buttons, with the current value highlighted. */
 function chips(choices: readonly number[], value: number, unit: string, disabled: boolean, onPick: (v: number) => void): HTMLElement {
   const wrap = document.createElement('div');
-  wrap.className = `flex flex-wrap gap-2 ${disabled ? 'pointer-events-none opacity-35' : ''}`;
+  wrap.className = `flex flex-wrap gap-1.5 ${disabled ? 'pointer-events-none opacity-35' : ''}`;
   for (const c of choices) {
     const b = document.createElement('button');
     b.type = 'button';
     b.disabled = disabled;
-    b.className = `min-w-16 cursor-pointer rounded border px-3 py-2 text-sm ${c === value ? 'border-white bg-white/25 font-bold' : 'border-white/20 bg-white/5 text-white/70 hover:bg-white/15'}`;
+    b.className = 'choice min-w-16';
+    b.setAttribute('aria-pressed', String(c === value));
     b.textContent = `${c}`;
     b.title = `${c} ${unit}`;
     b.addEventListener('click', () => onPick(c));
@@ -75,11 +76,11 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
   /** Draws one option block (label, hint and controls). */
   const option = (opt: OptionDef): HTMLElement => {
     const block = document.createElement('div');
-    block.className = 'flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-4';
+    block.className = 'flex flex-col gap-2 bg-panel p-4';
     const head = document.createElement('div');
     head.className = 'flex items-center justify-between gap-4';
     const label = document.createElement('div');
-    label.className = 'text-sm font-bold uppercase tracking-widest';
+    label.className = 'text-base font-black';
     label.textContent = opt.label;
     head.append(label);
 
@@ -88,7 +89,8 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
       const sw = document.createElement('button');
       sw.type = 'button';
       sw.textContent = on ? 'On' : 'Off';
-      sw.className = `w-20 cursor-pointer rounded border px-3 py-1 text-sm ${on ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200' : 'border-white/20 bg-white/5 text-white/60'}`;
+      sw.className = 'choice w-20';
+      sw.setAttribute('aria-pressed', String(on));
       sw.addEventListener('click', () => {
         rules = { ...rules, [opt.key]: on ? 0 : lastTime };
         render();
@@ -96,7 +98,7 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
       head.append(sw);
     }
     const hint = document.createElement('div');
-    hint.className = 'text-xs text-white/50';
+    hint.className = 'text-xs text-dim';
     hint.textContent = opt.hint;
     block.append(head, hint);
 
@@ -115,12 +117,12 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
     modeList.replaceChildren(...MODES.map((m) => {
       const card = document.createElement('button');
       card.type = 'button';
-      card.className = `cursor-pointer rounded-lg border p-4 text-left ${m.id === rules.mode ? 'border-white bg-white/15' : 'border-white/15 bg-white/5 hover:bg-white/10'}`;
+      card.className = `cursor-pointer p-4 text-left ${m.id === rules.mode ? 'bg-accent text-ground' : 'bg-panel hover:bg-raised'}`;
       const name = document.createElement('div');
-      name.className = 'text-lg font-bold';
+      name.className = 'text-lg font-black';
       name.textContent = m.name;
       const blurb = document.createElement('div');
-      blurb.className = 'mt-1 text-xs text-white/60';
+      blurb.className = `mt-1 text-xs ${m.id === rules.mode ? 'text-ground/80' : 'text-dim'}`;
       blurb.textContent = m.blurb;
       card.append(name, blurb);
       card.addEventListener('click', () => {
@@ -130,7 +132,7 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
       return card;
     }));
     const soon = document.createElement('div');
-    soon.className = 'rounded-lg border border-dashed border-white/15 p-4 text-xs text-white/40';
+    soon.className = 'p-2 text-xs text-faint';
     soon.textContent = 'More game modes and mods are coming.';
     modeList.append(soon);
 

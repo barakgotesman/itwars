@@ -1,14 +1,67 @@
 @import "tailwindcss";
 
-@layer components {
-  .btn {
-    @apply cursor-pointer rounded border border-white/30 bg-white/10 px-6 py-3 text-lg font-bold tracking-wider hover:bg-white/20;
+/*
+ * IT Wars UI design tokens. One ground, one ink, one accent (hazard yellow, the colour of the office's
+ * warning labels). Red is reserved for damage and danger, so it always means "something is wrong".
+ * Everything is flat and square-cornered to match the voxel look of the game itself.
+ */
+@theme {
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --color-ground: #0b0d12;
+  --color-panel: #141821;
+  --color-raised: #1d2330;
+  --color-ink: #f4f4f1;
+  --color-dim: #9aa3b2;
+  --color-faint: #5d6678;
+  --color-accent: #ffd23f;
+  --color-danger: #ff4a4a;
+  --color-warn: #ff9a2e;
+  --color-ok: #5be37d;
+}
+
+@layer base {
+  body {
+    font-family: var(--font-sans);
+  }
+  /* A visible keyboard focus ring everywhere; the game UI is also driven by Tab and Enter. */
+  :focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  input[type="range"] {
+    accent-color: var(--color-accent);
   }
 }
 
 @layer components {
-  .btn:disabled {
+  /* Primary action: solid accent block, dark text. */
+  .btn {
+    @apply cursor-pointer bg-accent px-6 py-3 text-lg font-extrabold uppercase tracking-wider text-ground transition-transform hover:brightness-110 active:translate-y-px;
+  }
+  /* Secondary action: raised block, no outline. */
+  .btn-quiet {
+    @apply cursor-pointer bg-raised px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-ink transition-colors hover:bg-faint/60 active:translate-y-px;
+  }
+  .btn:disabled,
+  .btn-quiet:disabled {
     @apply cursor-wait opacity-50;
+  }
+  /* A keycap: how a bound key is shown everywhere (HUD, settings, controls cheat sheet). */
+  .keycap {
+    @apply inline-flex min-w-7 items-center justify-center bg-raised px-1.5 py-0.5 text-xs font-extrabold uppercase text-ink;
+  }
+  /* A selectable choice (kill limit, character): flat block, accent fill when chosen. */
+  .choice {
+    @apply cursor-pointer bg-raised px-3 py-2 text-sm font-bold text-dim transition-colors hover:text-ink;
+  }
+  .choice[aria-pressed="true"] {
+    @apply bg-accent text-ground;
+  }
+  .field {
+    @apply w-full bg-ground px-3 py-2.5 text-ink outline-none placeholder:text-faint focus:bg-black;
+  }
+  .label {
+    @apply text-sm font-bold text-dim;
   }
 }
 
@@ -19,4 +72,28 @@
 }
 .scope-glint {
   animation: scope-glint 5s ease-in-out infinite alternate;
+}
+
+/* Low health: the screen edge pulses red until you heal. Opacity only, so it costs nothing per frame. */
+@keyframes low-hp {
+  from { opacity: 0.35; }
+  to { opacity: 0.8; }
+}
+.low-hp {
+  animation: low-hp 0.7s ease-in-out infinite alternate;
+}
+
+/* A feed line slides in from the right edge. */
+@keyframes feed-in {
+  from { transform: translateX(16px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.feed-in {
+  animation: feed-in 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .low-hp { animation: none; opacity: 0.5; }
+  .feed-in { animation: none; }
+  .scope-glint { animation: none; }
 }

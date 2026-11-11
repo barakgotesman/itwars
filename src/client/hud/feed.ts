@@ -1,5 +1,5 @@
 /**
- * Event feed in the top-left corner: joins, leaves and kills, newest at the bottom, fading out.
+ * Event feed in the top-right corner: joins, leaves and kills, newest at the bottom, fading out.
  * A kill reads "X [gun icon] Y".
  */
 import { iconElement, type IconKind } from './gun-icons';
@@ -23,10 +23,10 @@ export interface Feed {
 }
 
 const TONE: Record<Tone, string> = {
-  name: 'text-white',
-  me: 'text-amber-300',
-  dim: 'text-white/60',
-  kill: 'text-red-400',
+  name: 'text-ink',
+  me: 'text-accent',
+  dim: 'text-dim',
+  kill: 'text-danger',
 };
 
 /** Binds to the `#feed` element in `index.html`. */
@@ -35,7 +35,7 @@ export function createFeed(): Feed {
   return {
     push(parts) {
       const line = document.createElement('div');
-      line.className = 'flex items-center gap-1.5 rounded bg-black/45 px-2 py-0.5 text-sm transition-opacity duration-700';
+      line.className = 'feed-in flex items-center gap-2 bg-ground/75 px-2.5 py-1 text-sm font-bold transition-opacity duration-700';
       for (const p of parts) {
         if ('icon' in p) {
           line.append(iconElement(p.icon, 'inline-block h-5 w-10 shrink-0'));
@@ -46,6 +46,8 @@ export function createFeed(): Feed {
         span.textContent = p.text;
         line.append(span);
       }
+      // A line that involves you gets an accent edge so you spot your own kills and deaths.
+      if (parts.some((p) => 'tone' in p && p.tone === 'me')) line.classList.add('border-r-4', 'border-accent');
       root.append(line);
       while (root.childElementCount > MAX_LINES) root.firstElementChild?.remove();
       setTimeout(() => {

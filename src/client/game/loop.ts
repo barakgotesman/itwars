@@ -68,6 +68,7 @@ export function startFrameLoop(d: LoopDeps): void {
     fpsTime += dt;
     if (fpsTime >= 0.5) {
       if (settings.showFps) hud.fps(`${Math.round(fpsFrames / fpsTime)} FPS`);
+      hud.standings(roster.players, myId);
       fpsFrames = 0;
       fpsTime = 0;
     }

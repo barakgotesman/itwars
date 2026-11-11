@@ -58,6 +58,7 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
       case 'spawn':
         if (e.id !== myId) break;
         local.onSpawn();
+        hud.killedBy(null);
         input.yaw = e.yaw;
         input.pitch = 0;
         break;
@@ -121,7 +122,10 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
           hud.hitMarker('kill');
           sfx.hitMarker('kill');
         }
-        if (e.to === myId) sfx.death();
+        if (e.to === myId) {
+          sfx.death();
+          hud.killedBy(e.by === myId ? 'yourself' : (roster.nameOf(e.by) ?? 'someone'), e.w);
+        }
         // The victim bursts into cubes of their shirt colour.
         {
           const at = e.to === myId ? new THREE.Vector3(me.x, me.y + 1.1, me.z) : remotes.eyeOf(e.to)?.sub(new THREE.Vector3(0, 0.5, 0));

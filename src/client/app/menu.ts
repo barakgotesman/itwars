@@ -8,6 +8,8 @@ import type { ErrorMsg, HostMsg, JoinedMsg, JoinMsg } from '@shared/net/protocol
 import { SERVER_HTTP } from '@client/config';
 import { Net } from '@client/platform/net';
 import { loadLook, saveLook } from './appearance';
+import { createBackdrop } from './backdrop';
+import { renderLogo } from './logo';
 import { $, setShown } from './dom';
 import { commitName, initialName } from './player-name';
 import { createPreview } from './preview';
@@ -38,18 +40,20 @@ export function createMenu(hooks: MenuHooks): void {
   const codeField = $<HTMLInputElement>('code');
   const errorLine = $('menu-error');
   nameField.value = initialName();
+  renderLogo($('logo'));
 
   // ---- character picker ----
   const look = loadLook();
+  const backdrop = createBackdrop($<HTMLCanvasElement>('backdrop'));
   const preview = createPreview($<HTMLCanvasElement>('preview'), look);
   const charButtons: HTMLButtonElement[] = [];
   const swatches: HTMLButtonElement[] = [];
   /** Highlights the current choice, updates the labels and the 3D preview, and remembers it. */
   const applyLook = () => {
-    charButtons.forEach((b, i) => b.classList.toggle('bg-white/25', i === look.model));
+    charButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(i === look.model)));
     swatches.forEach((b, i) => {
-      b.classList.toggle('ring-2', i === look.color);
-      b.classList.toggle('ring-white', i === look.color);
+      b.setAttribute('aria-pressed', String(i === look.color));
+      b.classList.toggle('outline-3', i === look.color);
     });
     $('char-name').textContent = CHARACTERS[look.model]!.name;
     $('char-blurb').textContent = CHARACTERS[look.model]!.blurb;
@@ -60,7 +64,7 @@ export function createMenu(hooks: MenuHooks): void {
     const b = document.createElement('button');
     b.type = 'button';
     b.title = c.name;
-    b.className = 'cursor-pointer rounded border border-white/20 bg-white/5 px-1 py-1.5 text-[10px] uppercase tracking-wider hover:bg-white/15';
+    b.className = 'choice !px-1 !py-2 text-[11px] uppercase tracking-wide';
     b.textContent = c.name.split(' ')[0]!;
     b.addEventListener('click', () => { look.model = i; applyLook(); });
     charButtons.push(b);
@@ -70,7 +74,7 @@ export function createMenu(hooks: MenuHooks): void {
     const b = document.createElement('button');
     b.type = 'button';
     b.title = `Colour ${i + 1}`;
-    b.className = 'h-6 w-6 cursor-pointer rounded-full ring-offset-2 ring-offset-black';
+    b.className = 'h-7 w-7 cursor-pointer outline-offset-2 outline-ink';
     b.style.backgroundColor = `#${hex.toString(16).padStart(6, '0')}`;
     b.addEventListener('click', () => { look.color = i; applyLook(); });
     swatches.push(b);
@@ -124,6 +128,7 @@ export function createMenu(hooks: MenuHooks): void {
     try {
       const { net, joined } = await request({ ...msg, name, model: look.model, color: look.color });
       preview.dispose();
+      backdrop.dispose();
       setShown('menu', false);
       setup.close();
       hooks.onJoined(net, joined, lanUrl);

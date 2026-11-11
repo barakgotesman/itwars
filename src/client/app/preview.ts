@@ -62,6 +62,9 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // Filmic tone mapping keeps the bright rim lights from clipping to flat white.
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0c111a);
@@ -81,26 +84,57 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
   podium.position.y = 0.04;
   podium.receiveShadow = true;
   scene.add(podium);
-  const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.1, 48), ringMat);
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.085;
   scene.add(ring);
+  // A wider, fainter second ring that pulses outward from the first, like a scanner sweep.
+  const pulseMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.4, depthWrite: false, toneMapped: false });
+  const pulse = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.06, 48), pulseMat);
+  pulse.rotation.x = -Math.PI / 2;
+  pulse.position.y = 0.09;
+  scene.add(pulse);
+
+  // A square-sided light shaft from the spotlight down onto the podium (four sides keep it blocky).
+  const beamMat = new THREE.MeshBasicMaterial({
+    color: 0xfff0d8, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+  const beam = new THREE.Mesh(new THREE.ConeGeometry(1.25, 4.4, 4, 1, true), beamMat);
+  beam.rotation.y = Math.PI / 4;
+  beam.position.y = 2.3;
+  scene.add(beam);
+
+  // Drifting cubes rising through the beam in the shirt colour: dust and sparks in the game's own blocky language.
+  const motes = Array.from({ length: 28 }, (_, i) => ({
+    mesh: new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.045), ringMat),
+    angle: (i / 28) * Math.PI * 2 * 3.7,
+    radius: 0.35 + ((i * 37) % 10) / 10 * 0.8,
+    speed: 0.18 + ((i * 53) % 10) / 10 * 0.22,
+    phase: (i * 0.61) % 1,
+  }));
+  for (const m of motes) scene.add(m.mesh);
 
   // Lighting: soft fill, a warm key spotlight casting a shadow, and cool/warm rim lights from behind.
   scene.add(new THREE.HemisphereLight(0xaec4ff, 0x2a2f3a, 1.1));
-  const key = new THREE.SpotLight(0xfff0d8, 70, 14, 0.55, 0.65, 1.6);
+  const key = new THREE.SpotLight(0xfff0d8, 95, 14, 0.5, 0.7, 1.6);
   key.position.set(2.2, 4.6, 3.4);
   key.target.position.set(0, 0.9, 0);
   key.castShadow = true;
-  key.shadow.mapSize.set(1024, 1024);
-  key.shadow.bias = -0.0005;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.02;
+  key.shadow.radius = 3;
   scene.add(key, key.target);
   const rimCool = new THREE.DirectionalLight(0x5aa0ff, 2.4);
   rimCool.position.set(-3, 2.5, -3);
   const rimWarm = new THREE.DirectionalLight(0xffa060, 1.8);
   rimWarm.position.set(3, 2, -3);
   scene.add(rimCool, rimWarm);
+  // An underglow in the shirt colour, so the podium lights the character from below and ties the colour pick to the scene.
+  const underglow = new THREE.PointLight(0xffffff, 1.2, 3.2, 1.6);
+  underglow.position.set(0, 0.25, 0.6);
+  scene.add(underglow);
 
   const camera = new THREE.PerspectiveCamera(28, canvas.clientWidth / canvas.clientHeight, 0.1, 30);
   camera.position.set(0, 1.15, 4.8);
@@ -111,6 +145,8 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     if (model) scene.remove(model.root);
     const color = PLAYER_COLORS[look.color]!;
     ringMat.color.setHex(color);
+    pulseMat.color.setHex(color);
+    underglow.color.setHex(color);
     // Variant 0 keeps skin and hair stable while browsing styles; in game they vary by player id.
     model = new PlayerModel({ id: 0, name: '', model: look.model, color, kills: 0, deaths: 0 }, 0);
     model.tagVisible(false);
@@ -194,6 +230,19 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     if (model) {
       model.root.rotation.y = spin;
       model.idle(now / 1000);
+    }
+    const t = now / 1000;
+    // Scanner pulse: grows from the podium edge outward while fading, every 2.4 s.
+    const p = (t % 2.4) / 2.4;
+    pulse.scale.setScalar(1 + p * 0.5);
+    pulseMat.opacity = 0.45 * (1 - p);
+    ring.scale.setScalar(1 + Math.sin(t * 2.6) * 0.012);
+    for (const m of motes) {
+      const f = (t * m.speed + m.phase) % 1;
+      const a = m.angle + t * 0.35;
+      m.mesh.position.set(Math.cos(a) * m.radius, 0.15 + f * 2.6, Math.sin(a) * m.radius);
+      m.mesh.scale.setScalar(Math.sin(f * Math.PI));
+      m.mesh.rotation.set(t + m.phase * 6, t * 0.7, 0);
     }
     renderer.render(scene, camera);
   };
