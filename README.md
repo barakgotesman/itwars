@@ -84,11 +84,13 @@ SITE_URL=https://your-domain.example npm run build
 ### Tests
 
 ```bash
+npm test               # everything below, plus the layering check
 npm run test:sim       # headless server simulation (movement, combat, grenades, pickups, loot, lobby...)
 npm run test:smoke     # real server with two WebSocket clients
 npm run test:settings  # key rebinding rules
 npm run test:quality   # graphics calibration
 npm run verify:map     # every spawn and pickup is reachable and not inside a wall
+npm run check:deps     # shared/server/client import only what their layer allows
 ```
 
 Visuals and game feel can only be judged in a real browser with two windows.
@@ -96,13 +98,14 @@ Visuals and game feel can only be judged in a real browser with two windows.
 ### Project layout
 
 ```
-src/shared/   code used by both sides: constants, weapon tables, movement physics, protocol, the office map
-src/server/   Node server: rooms, the authoritative simulation, combat geometry, static files
-src/client/   browser game: rendering, input, HUD, menus, settings, audio, effects
-scripts/      tests and map checks
+src/shared/   code used by both sides (no DOM, no Node): core (constants, physics), net (protocol), rules (weapons, modes), world (doors, the office map)
+src/server/   Node server: http (static files, /api/info), net (WebSocket gateway), rooms (room + manager), sim (movement, weapons, grenades, pickups, loot, match, snapshots)
+src/client/   browser game: app (menus), platform (input, settings, audio, quality, net), render (three.js world, players, guns, effects), hud, game (prediction, events, loop)
+tests/        headless tests and the map check
+tools/        icon generator and the layering check
 ```
 
-The server owns all game state and runs at 60 Hz, sending snapshots at 30 Hz. Clients send inputs, predict their own movement with the same shared code, and interpolate other players. More detail for contributors is in [`CLAUDE.md`](CLAUDE.md).
+The server owns all game state and runs at 60 Hz, sending snapshots at 30 Hz. Clients send inputs, predict their own movement with the same shared code, and interpolate other players. To host the page on a different address than the game server, build with `VITE_SERVER_URL` (see `.env.example`). More detail for contributors is in [`CLAUDE.md`](CLAUDE.md).
 
 ## Known limitations
 

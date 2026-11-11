@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -24,6 +25,13 @@ function siteUrlTags(): Plugin {
 
 export default defineConfig({
   plugins: [tailwindcss(), siteUrlTags()],
+  resolve: {
+    alias: {
+      '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
+      '@server': fileURLToPath(new URL('./src/server', import.meta.url)),
+      '@client': fileURLToPath(new URL('./src/client', import.meta.url)),
+    },
+  },
   server: {
     port: 5173,
     host: true,

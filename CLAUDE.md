@@ -12,7 +12,7 @@ Playable. Milestones 1-5 are built and the game runs end to end on a LAN (host, 
 - Stack: **TypeScript, Tailwind, three.js** (server: Node + `ws`). TypeScript only, no jQuery or UI framework.
 - **Desktop only** (keyboard + mouse, pointer lock). Show a "desktop only" notice on touch devices.
 - **LAN multiplayer**: a player hosts a room and gets a **room code**; others on the same network join with it.
-- Mode: **Deathmatch (DM)**; the host picks the kill limit (10/20/30/40/50, default 50) and an optional time limit (off by default; 5/10/15/20/30 min, 10 when switched on). Max 8 players per room, match restarts 10 s after it ends. Modes are a registry (`shared/modes.ts`) so future modes/mods plug in.
+- Mode: **Deathmatch (DM)**; the host picks the kill limit (10/20/30/40/50, default 50) and an optional time limit (off by default; 5/10/15/20/30 min, 10 when switched on). Max 8 players per room, match restarts 10 s after it ends. Modes are a registry (`shared/rules/modes.ts`) so future modes/mods plug in.
 - **4 gun types**, **2 grenade slots**, **100 HP**.
 - **Map**: a big office with rooms *and* open-plan space. **3D pickups**: ammo, HP, grenades.
 - **Main menu** with a **settings screen**; **rebindable controls**.
@@ -23,16 +23,18 @@ Playable. Milestones 1-5 are built and the game runs end to end on a LAN (host, 
 
 ```
 npm run dev            # game server (tsx watch, :3000) + Vite client (:5173, LAN-exposed, proxies /ws and /api)
-npm run build          # tsc --noEmit && vite build
+npm run build          # typecheck (client + server configs) && vite build
 npm start              # one Node process serves dist/ + WebSocket on :3000 and prints LAN URLs
 npm run play           # build + start (use this to host for friends)
-npm run typecheck
+npm run typecheck      # tsc for the whole repo, then again with no DOM types for shared + server
+npm test               # check:deps, verify:map, test:sim, test:smoke, test:settings, test:quality
+npm run check:deps     # layering rule: shared is pure, server never imports client, client never imports server
 npm run verify:map     # spawns and pickups are not inside solids and are reachable on foot
 npm run test:sim       # headless server simulation tests (no browser)
 npm run test:smoke     # real server + two WebSocket clients
 npm run test:settings  # key rebinding rules and option defaults
 npm run test:quality   # graphics calibration and hardware guess
-npm run make:icons     # regenerate public/ icons and the og-image from the pixel-art sprite (scripts/make-icons.ts)
+npm run make:icons     # regenerate public/ icons and the og-image from the pixel-art sprite (tools/make-icons.ts)
 ```
 
 SEO and sharing: `index.html` carries the title, description, Open Graph/Twitter tags and JSON-LD; `public/` holds the manifest, `robots.txt` and icons. Build with `SITE_URL=https://domain npm run build` to add the canonical link and absolute `og:image` URLs (a small Vite plugin in `vite.config.ts`). Without it those tags are left out on purpose, because they need a real address.
@@ -43,37 +45,37 @@ Players open `http://<host-LAN-IP>:3000`. The server binds `0.0.0.0` and prints 
 
 ## Architecture
 
-One repo, one `tsconfig`, three folders:
+One package, three source folders, path aliases `@shared/*`, `@server/*`, `@client/*` (tsconfig `paths` + Vite `resolve.alias`; tsx reads the tsconfig). Use an alias for imports that cross a folder, a relative path for siblings.
+
+**Layering rule (enforced by `npm run check:deps` and `tsconfig.server.json`, which has no DOM types):** `shared` imports nothing from `client`/`server`, no `three`, no Node. `server` never imports `client` or `three`. `client` never imports `server`. Anything both sides need goes in `shared`.
 
 ```
 src/shared/   used by BOTH sides (no DOM, no Node APIs)
-  constants.ts   tick rate, player size, movement tuning, input key bits, match rules
-  weapons.ts     weapon / grenade / pickup / loot tuning tables (all balance lives here)
-  modes.ts       game mode registry, MatchRules (mode, kill limit, time limit), sanitizeRules, option definitions the setup screen is built from
-  physics.ts     stepMovement (fixed-step AABB), rayVsAabb, rayVsAabbFace (hit face normal), overlaps, lookDir
-  doors.ts       Doors: door state, live collision boxes, pushing players, picking the door you face (used by server AND client)
-  characters.ts  the 7 selectable character styles and the shirt colour palette
-  protocol.ts    typed C2S / S2C messages, GameEvent union, parseC2S validator, name/code sanitising
-  map/           office generated from boxes (index, builder, furniture, shell, dressing, pickups, doors (door layout), rooms/*)
+  core/       constants.ts (tick rate, player size, movement tuning, key bits, match rules), physics.ts (stepMovement, rayVsAabb, overlaps, lookDir), characters.ts
+  net/        protocol.ts: typed C2S / S2C messages, GameEvent union, parseC2S validator, name/code sanitising
+  rules/      weapons.ts (weapon / grenade / pickup / loot tables, all balance), modes.ts (mode registry, MatchRules, sanitizeRules, setup-screen options)
+  world/      doors.ts (Doors simulation: used by server AND client), map/ (office generated from boxes: index, builder, furniture, shell, dressing, pickups, door-layout, rooms/*)
 src/server/   Node
-  index.ts       http (static + /api/info) + ws on /ws, rate limiting, fixed 60 Hz loop
-  room.ts        Room = the authoritative simulation (input, weapons, grenades, pickups, loot, match flow, snapshots)
-  combat.ts      pure geometry: castRay (world + players), line of sight, grenade stepping
-  rooms.ts lan.ts static.ts (static.ts serves dist/ with correct content types, including .webmanifest and .txt)
+  index.ts    bootstrap only: http server + gateway + loop
+  loop.ts     fixed 60 Hz step of every room
+  http/       api.ts (/api/info), static.ts (serves dist/), lan.ts (LAN addresses)
+  net/        gateway.ts: WebSocket on /ws, rate limit, validation, routing to the player's room
+  rooms/      room.ts (Room: state + join/enter/leave/input/step, calls the systems), manager.ts (codes, lookup, prune)
+  sim/        one system per file, plain functions over the room state (state.ts `Sim`):
+              movement, weapons, damage, grenades, pickups, loot, doors, match (spawn, clock, end, restart), snapshot (roster, snapshots, `me`), combat (pure ray/LOS/projectile geometry), player, util
 src/client/   Vite + three.js + Tailwind
-  main.ts        menu flow: callsign, character picker, host/join, room panel, pause, settings buttons
-  setup-ui.ts    the host's Game setup screen, generated from the mode registry
-  game.ts        in-room loop: prediction, reconciliation, event handling, effects, audio, HUD wiring
-  net.ts input.ts settings.ts settings-ui.ts quality.ts appearance.ts player-name.ts preview.ts
-  world.ts lighting.ts effects.ts (bloom, dust, composer)
-  players.ts     remote player models (7 styles), procedural animation, snapshot interpolation
-  viewmodel.ts   first-person guns with moving parts, glass, casings; weapon-fx.ts (flash/tracer per gun)
-  items.ts       pickups, loot bags, grenades in flight; door-visuals.ts door models
-  particles.ts   blocky cube debris + stepped cube blasts; bullet-holes.ts decals
-  hud.ts feed.ts gun-icons.ts audio.ts style.css
-scripts/      verify-map.ts sim-test.ts smoke-test.ts settings-test.ts quality-test.ts physics-check.ts make-icons.ts
+  main.ts     entry: touch notice or wire menu + room panel + settings; config.ts (server URL, `VITE_SERVER_URL`)
+  app/        menu.ts (callsign, character picker, host/join), room-panel.ts (room code, pause, Input, starts the game), setup-ui.ts, settings-ui.ts, preview.ts, appearance.ts, player-name.ts, dom.ts
+  platform/   input.ts, settings.ts, quality.ts, audio.ts, net.ts (browser plumbing, no game rules)
+  render/     three.js: world.ts, lighting.ts, renderer.ts (bloom, dust, composer), players.ts, viewmodel.ts, weapon-fx.ts, items.ts, door-visuals.ts, particles.ts, bullet-holes.ts
+  hud/        hud.ts, feed.ts, gun-icons.ts, style.css
+  game/       in-room game: index.ts (startGame wiring + message routing), scene.ts (renderer + all visuals), prediction.ts (LocalPlayer), roster.ts, events.ts (server events to effects/HUD), loop.ts (frame)
+tests/        verify-map.ts sim-test.ts smoke-test.ts settings-test.ts quality-test.ts physics-check.ts
+tools/        make-icons.ts, check-deps.ts
 public/       copied to the site root: favicon (svg/ico), app icons, og-image.png, manifest.webmanifest, robots.txt
 ```
+
+To host the client apart from the server (later, for an online game), build with `VITE_SERVER_URL=https://server` (see `.env.example`); by default the client uses its own origin.
 
 ### Networking model: authoritative server
 
@@ -118,7 +120,7 @@ Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `thr
 | 3 | Paper Shredder | **shotgun** (8 pellets) | pump racks each shot, paper-confetti impacts |
 | 4 | Laser Pointer | sniper, scope | glass scope overlay, red beam that fades, bolt is worked after each shot |
 
-Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash, tracer and impact style per gun are data in `weapon-fx.ts`. Tune there, not in logic. Keep anything tall off the centre line of a gun's ADS pose so it never hides the crosshair.
+Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; muzzle flash, tracer and impact style per gun are data in `client/render/weapon-fx.ts`. Tune there, not in logic. Keep anything tall off the centre line of a gun's ADS pose so it never hides the crosshair.
 
 ### Grenades (2 slots, default G / H)
 - **Coffee Bomb** (frag, radius damage with falloff, needs line of sight) and **Fire Alarm** (flashbang). Each slot holds up to 2, start with 1.
@@ -128,8 +130,8 @@ Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash,
 - **Loot bags:** a dead player (or a self-kill) drops a bag at their body with `LOOT_FRACTION` (half, rounded down; grenades rounded up) of their ammo. Walking over it loots automatically what fits under the usual maximums; the rest stays. Bags expire after 30 s, max 24 per room, cleared on a new match.
 
 ### Doors
-- 10 sliding doors (north-row room doors plus Break room, Storage, Conference), defined in `shared/map/doors.ts`. A panel hangs just in front of the wall on the open-plan side and slides along it, so collision stays a simple box. Four start half-closed (0.5), the rest open. `E` (rebindable, `interact`) toggles the door you face: fully open closes it, otherwise it opens. 2 s travel, 0.3 s cooldown.
-- **Shared simulation:** `shared/doors.ts` runs identically on the server (authoritative, in `room.ts`) and on every client (prediction). The doors' collision boxes are appended to the solids list and mutated in place, so movement, bullets, grenades and line of sight all respect them (a closed door blocks bullets).
+- 10 sliding doors (north-row room doors plus Break room, Storage, Conference), defined in `shared/world/map/door-layout.ts`. A panel hangs just in front of the wall on the open-plan side and slides along it, so collision stays a simple box. Four start half-closed (0.5), the rest open. `E` (rebindable, `interact`) toggles the door you face: fully open closes it, otherwise it opens. 2 s travel, 0.3 s cooldown.
+- **Shared simulation:** `shared/world/doors.ts` runs identically on the server (authoritative, `server/sim/doors.ts`) and on every client (prediction). The doors' collision boxes are appended to the solids list and mutated in place, so movement, bullets, grenades and line of sight all respect them (a closed door blocks bullets).
 - **Pushing:** a moving door nudges players out along the wall's normal; if a player cannot be moved (wall behind them) the door **stops** instead of crushing them.
 - Wire: `joined.doors` and `snap.doors` are `[open, target, ...]` in whole percent; `door` events announce a toggle. Doors reset on a new match.
 - Adding a door: add an entry to `DOORS`, run `npm run verify:map` (it checks the panel never cuts into furniture or covers a spawn/pickup at any point of its travel).
@@ -142,7 +144,7 @@ Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash,
 - Generated from boxes; the client merges them per material. Keep decorative-only boxes `solid: false`. Every spawn and pickup must pass `npm run verify:map`.
 
 ### Controls and settings
-- All actions are rebindable in Settings > Controls (`settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
+- All actions are rebindable in Settings > Controls (`client/platform/settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
 - Other settings: mouse sensitivity, invert Y, FOV, master volume, FPS counter, graphics (below). Saved in `localStorage` (always try/catch).
 - Keyboard and mouse input only act **while the pointer is locked** (so menus and pause never move the player). Pointer lock needs a click: after joining, the room panel shows "Enter the office"; Esc pauses and shows Enter/Resume, **Settings**, Leave room.
 
@@ -157,7 +159,7 @@ Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash,
 
 - Strict TypeScript. No `any` unless commented. Small modules with one job. TypeScript only, plain DOM + Tailwind.
 - Tailwind utility classes for DOM UI. Write full class names (no string-built fragments) so Tailwind can see them.
-- Game balance and tuning live in `shared/*.ts` and `weapon-fx.ts` data, never as magic numbers in logic.
+- Game balance and tuning live in `shared/rules/*.ts` and `client/render/weapon-fx.ts` data, never as magic numbers in logic.
 - Coordinate system: x east, z south, y up. `yaw 0` faces -Z, positive yaw turns left; `pitch > 0` looks up. In the gun/viewmodel, -Z is forward.
 - Server timers use integer ticks, not wall-clock time. Tell other players about things with **events**, keep snapshots small.
 - Comments explain why, not what. **All code is documented with JSDoc**: every exported function, class, method, interface, type and non-trivial constant gets a `/** ... */` summary (plus `@param`/`@returns` where useful); each module has a file-header comment describing its single job.
@@ -167,11 +169,11 @@ Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash,
 
 ## How to...
 
-- **Add a weapon**: entry in `WEAPONS` (`weapons.ts`) and `WEAPON_FX` (`weapon-fx.ts`); a model in `buildGun` (`viewmodel.ts`, with moving `parts`, `port`, `casing`); icon in `gun-icons.ts`; held-gun look in `players.ts` (`GUN_LOOK`, `addGunDetails`); sound in `audio.ts`; an `Action` if you go past 4 slots. Server logic is data-driven.
-- **Add a character**: entry in `CHARACTERS` and a `buildX` method plus a `case` in `PlayerModel` (`players.ts`); the picker, protocol and preview pick it up.
-- **Add a keybind action**: `Action` type, `ACTIONS`, `DEFAULT_BINDINGS` in `settings.ts`; handle it in `input.ts` (`HOLD_BITS`/`press`); if it is sent to the server also add a `Key` bit in `constants.ts` and handle it in `room.ts`. The settings UI picks it up automatically.
-- **Add a message or event**: extend `C2S` / `S2C` / `GameEvent` in `protocol.ts` first so both sides get compile errors until handled; add a case in `parseC2S` for client messages.
-- **Change the map**: edit `shared/map/*`, run `npm run verify:map`, then play it.
+- **Add a weapon**: entry in `WEAPONS` (`shared/rules/weapons.ts`) and `WEAPON_FX` (`render/weapon-fx.ts`); a model in `buildGun` (`render/viewmodel.ts`, with moving `parts`, `port`, `casing`); icon in `hud/gun-icons.ts`; held-gun look in `render/players.ts` (`GUN_LOOK`, `addGunDetails`); sound in `platform/audio.ts`; an `Action` if you go past 4 slots. Server logic is data-driven.
+- **Add a character**: entry in `CHARACTERS` and a `buildX` method plus a `case` in `PlayerModel` (`render/players.ts`); the picker, protocol and preview pick it up.
+- **Add a keybind action**: `Action` type, `ACTIONS`, `DEFAULT_BINDINGS` in `platform/settings.ts`; handle it in `platform/input.ts` (`HOLD_BITS`/`press`); if it is sent to the server also add a `Key` bit in `shared/core/constants.ts` and handle it in the matching `server/sim/*` system (e.g. `weapons.ts`). The settings UI picks it up automatically.
+- **Add a message or event**: extend `C2S` / `S2C` / `GameEvent` in `shared/net/protocol.ts` first so both sides get compile errors until handled; add a case in `parseC2S` for client messages; handle server events in `client/game/events.ts`.
+- **Change the map**: edit `shared/world/map/*`, run `npm run verify:map`, then play it.
 
 ## Testing
 

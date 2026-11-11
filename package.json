@@ -5,16 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,client -c blue,green \"tsx watch src/server/index.ts\" \"vite --host\"",
-    "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit",
-    "verify:map": "tsx scripts/verify-map.ts",
-    "test:sim": "tsx scripts/sim-test.ts",
+    "build": "npm run typecheck && vite build",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "check:deps": "tsx tools/check-deps.ts",
+    "verify:map": "tsx tests/verify-map.ts",
+    "test:sim": "tsx tests/sim-test.ts",
     "start": "tsx src/server/index.ts",
-    "test:smoke": "tsx scripts/smoke-test.ts",
+    "test:smoke": "tsx tests/smoke-test.ts",
+    "test:settings": "tsx tests/settings-test.ts",
+    "test:quality": "tsx tests/quality-test.ts",
+    "test": "npm run check:deps && npm run verify:map && npm run test:sim && npm run test:smoke && npm run test:settings && npm run test:quality",
     "play": "npm run build && npm start",
-    "test:settings": "tsx scripts/settings-test.ts",
-    "test:quality": "tsx scripts/quality-test.ts",
-    "make:icons": "tsx scripts/make-icons.ts"
+    "make:icons": "tsx tools/make-icons.ts"
   },
   "dependencies": {
     "three": "^0.187.0",
