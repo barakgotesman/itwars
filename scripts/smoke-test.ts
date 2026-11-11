@@ -70,6 +70,7 @@ try {
   const joined = await waitFor(host, (m) => m.t === 'joined');
   check('host gets joined message with a code', joined?.t === 'joined' && /^[A-HJ-NP-Z2-9]{4}$/.test(joined.code));
   const code = joined?.t === 'joined' ? joined.code : '';
+  check('joined message carries the door states (10 doors, some half-closed)', joined?.t === 'joined' && joined.doors.length === 20 && joined.doors.includes(50) && joined.doors.includes(100));
 
   const bad = await connect();
   bad.ws.send(JSON.stringify({ t: 'join', code: 'ZZZZ', name: 'X' }));

@@ -100,6 +100,7 @@ export type GameEvent =
   | { k: 'boom'; s: number; x: number; y: number; z: number }
   | { k: 'reload'; id: number }
   | { k: 'matchEnd'; winner: number; restartIn: number }
+  | { k: 'door'; i: number; o: number; t: number }
   | { k: 'hole'; x: number; y: number; z: number; a: number; s: number }
   | { k: 'lootDrop'; id: number; from: number; x: number; y: number; z: number }
   | { k: 'lootTake'; id: number; by: number; from: number }
@@ -124,6 +125,8 @@ export interface JoinedMsg {
   pickups: string;
   /** Loot bags already on the floor. */
   loot: LootInfo[];
+  /** Every door as `[open, target, ...]` in whole percent (see `Doors.wire`). */
+  doors: number[];
   tick: number;
 }
 /** Join/host failure. */
@@ -138,6 +141,8 @@ export interface SnapMsg {
   grenades: SnapGrenade[];
   me: MeState;
   ev: GameEvent[];
+  /** Door states, present only while a door is moving or just stopped. */
+  doors?: number[];
 }
 /** Everything the server may send. */
 export type S2C = JoinedMsg | ErrorMsg | RosterMsg | SnapMsg;

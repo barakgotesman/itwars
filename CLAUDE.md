@@ -32,7 +32,10 @@ npm run test:sim       # headless server simulation tests (no browser)
 npm run test:smoke     # real server + two WebSocket clients
 npm run test:settings  # key rebinding rules and option defaults
 npm run test:quality   # graphics calibration and hardware guess
+npm run make:icons     # regenerate public/ icons and the og-image from the pixel-art sprite (scripts/make-icons.ts)
 ```
+
+SEO and sharing: `index.html` carries the title, description, Open Graph/Twitter tags and JSON-LD; `public/` holds the manifest, `robots.txt` and icons. Build with `SITE_URL=https://domain npm run build` to add the canonical link and absolute `og:image` URLs (a small Vite plugin in `vite.config.ts`). Without it those tags are left out on purpose, because they need a real address.
 
 Players open `http://<host-LAN-IP>:3000`. The server binds `0.0.0.0` and prints its LAN addresses (real adapters first, virtual WSL/Hyper-V ones last). Windows may show a firewall prompt on first run.
 
@@ -46,15 +49,16 @@ One repo, one `tsconfig`, three folders:
 src/shared/   used by BOTH sides (no DOM, no Node APIs)
   constants.ts   tick rate, player size, movement tuning, input key bits, match rules
   weapons.ts     weapon / grenade / pickup / loot tuning tables (all balance lives here)
-  physics.ts     stepMovement (fixed-step AABB), rayVsAabb, rayVsAabbFace (hit face normal), lookDir
+  physics.ts     stepMovement (fixed-step AABB), rayVsAabb, rayVsAabbFace (hit face normal), overlaps, lookDir
+  doors.ts       Doors: door state, live collision boxes, pushing players, picking the door you face (used by server AND client)
   characters.ts  the 7 selectable character styles and the shirt colour palette
   protocol.ts    typed C2S / S2C messages, GameEvent union, parseC2S validator, name/code sanitising
-  map/           office generated from boxes (index, builder, furniture, shell, dressing, pickups, rooms/*)
+  map/           office generated from boxes (index, builder, furniture, shell, dressing, pickups, doors (door layout), rooms/*)
 src/server/   Node
   index.ts       http (static + /api/info) + ws on /ws, rate limiting, fixed 60 Hz loop
   room.ts        Room = the authoritative simulation (input, weapons, grenades, pickups, loot, match flow, snapshots)
   combat.ts      pure geometry: castRay (world + players), line of sight, grenade stepping
-  rooms.ts lan.ts static.ts
+  rooms.ts lan.ts static.ts (static.ts serves dist/ with correct content types, including .webmanifest and .txt)
 src/client/   Vite + three.js + Tailwind
   main.ts        menu flow: callsign, character picker, host/join, room panel, pause, settings buttons
   game.ts        in-room loop: prediction, reconciliation, event handling, effects, audio, HUD wiring
@@ -62,10 +66,11 @@ src/client/   Vite + three.js + Tailwind
   world.ts lighting.ts effects.ts (bloom, dust, composer)
   players.ts     remote player models (7 styles), procedural animation, snapshot interpolation
   viewmodel.ts   first-person guns with moving parts, glass, casings; weapon-fx.ts (flash/tracer per gun)
-  items.ts       pickups, loot bags, grenades in flight
+  items.ts       pickups, loot bags, grenades in flight; door-visuals.ts door models
   particles.ts   blocky cube debris + stepped cube blasts; bullet-holes.ts decals
   hud.ts feed.ts gun-icons.ts audio.ts style.css
-scripts/      verify-map.ts sim-test.ts smoke-test.ts settings-test.ts quality-test.ts physics-check.ts
+scripts/      verify-map.ts sim-test.ts smoke-test.ts settings-test.ts quality-test.ts physics-check.ts make-icons.ts
+public/       copied to the site root: favicon (svg/ico), app icons, og-image.png, manifest.webmanifest, robots.txt
 ```
 
 ### Networking model: authoritative server
@@ -80,9 +85,9 @@ scripts/      verify-map.ts sim-test.ts smoke-test.ts settings-test.ts quality-t
 
 ### Messages
 
-C2S: `host {name, model, color}`, `join {code, name, model, color}`, `enter`, `input {...}`.
-S2C: `joined {id, code, players, pickups, loot, tick}`, `error`, `roster`, `snap`.
-Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `throw`, `boom`, `reload`, `hole {x,y,z,a,s}`, `lootDrop`, `lootTake`, `lootGone`, `matchEnd`, `matchStart`.
+C2S: `host {name, model, color}`, `join {code, name, model, color}`, `enter`, `input {...}` (key bits include `Interact`).
+S2C: `joined {id, code, players, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped).
+Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `throw`, `boom`, `reload`, `hole {x,y,z,a,s}`, `door {i,o,t}`, `lootDrop`, `lootTake`, `lootGone`, `matchEnd`, `matchStart`.
 
 ### Rooms, codes and the lobby
 
@@ -117,6 +122,13 @@ Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash,
 - HP box (+35), ammo box (half of each weapon's max reserve), grenade crate (+1 per slot). Each has a light beam. A box is **left alone** unless it would help (full HP / ammo / grenades means it stays).
 - **Loot bags:** a dead player (or a self-kill) drops a bag at their body with `LOOT_FRACTION` (half, rounded down; grenades rounded up) of their ammo. Walking over it loots automatically what fits under the usual maximums; the rest stays. Bags expire after 30 s, max 24 per room, cleared on a new match.
 
+### Doors
+- 10 sliding doors (north-row room doors plus Break room, Storage, Conference), defined in `shared/map/doors.ts`. A panel hangs just in front of the wall on the open-plan side and slides along it, so collision stays a simple box. Four start half-closed (0.5), the rest open. `E` (rebindable, `interact`) toggles the door you face: fully open closes it, otherwise it opens. 2 s travel, 0.3 s cooldown.
+- **Shared simulation:** `shared/doors.ts` runs identically on the server (authoritative, in `room.ts`) and on every client (prediction). The doors' collision boxes are appended to the solids list and mutated in place, so movement, bullets, grenades and line of sight all respect them (a closed door blocks bullets).
+- **Pushing:** a moving door nudges players out along the wall's normal; if a player cannot be moved (wall behind them) the door **stops** instead of crushing them.
+- Wire: `joined.doors` and `snap.doors` are `[open, target, ...]` in whole percent; `door` events announce a toggle. Doors reset on a new match.
+- Adding a door: add an entry to `DOORS`, run `npm run verify:map` (it checks the panel never cuts into furniture or covers a spawn/pickup at any point of its travel).
+
 ### Bullet holes
 - The server emits a `hole` event for **every** pellet that hits a surface (position + face normal), so all players see the same holes. Client draws black blocky decals that last ~15 s and shrink away in steps. No holes on players or open air.
 
@@ -125,7 +137,7 @@ Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash,
 - Generated from boxes; the client merges them per material. Keep decorative-only boxes `solid: false`. Every spawn and pickup must pass `npm run verify:map`.
 
 ### Controls and settings
-- All actions are rebindable in Settings > Controls (`settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
+- All actions are rebindable in Settings > Controls (`settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
 - Other settings: mouse sensitivity, invert Y, FOV, master volume, FPS counter, graphics (below). Saved in `localStorage` (always try/catch).
 - Keyboard and mouse input only act **while the pointer is locked** (so menus and pause never move the player). Pointer lock needs a click: after joining, the room panel shows "Enter the office"; Esc pauses and shows Enter/Resume, **Settings**, Leave room.
 
@@ -177,6 +189,7 @@ Damage, falloff, reload, recoil and zoom are data in `weapons.ts`; muzzle flash,
 
 - Pressing Esc only pauses the local screen: the player stays in the match and can be shot. A real "pause out of the match" would need a server message like `enter`.
 - Not verified visually or by ear in a live two-player match (the automated browser cannot use the mouse): mouse firing and aim-down-sights feel, hit markers, audio, loot pickup, bullet-hole decals, and the gun part animations (slide, bolt, pump, casings), including the sniper bolt handle fix.
+- Doors: the logic is covered headlessly (blocking, pushing, wedged players, bullets, reset) and the models were checked in a rendered scene, but pressing `E` in a live match, the feel of being pushed, and the door sound were not tried.
 - Graphics calibration has only been exercised on simulated machines and a 1 FPS automation tab, not on the owner's slow computer.
 - Public demo deploy not done. No bots, no lag compensation.
 

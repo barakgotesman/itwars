@@ -36,6 +36,7 @@ Windows may ask to let Node through the firewall the first time; allow it on pri
 - **Deathmatch**, first to 50 kills, automatic restart, scoreboard on `Tab`, kill feed (`X [gun icon] Y`).
 - **4 guns**, each with its own moving parts, muzzle flash, tracer and sound: Stapler .45 (pistol), Label Gun SMG, Paper Shredder (shotgun) and Laser Pointer (sniper with a glass scope).
 - **2 grenades**: Coffee Bomb (explosive) and Fire Alarm (flashbang).
+- **Sliding doors** on the main rooms: some start half-closed, press `E` to open or close. Doors are solid (they block movement and bullets), and one that closes on you pushes you out of the way.
 - **Pickups** across the map (HP, ammo, grenades) with light beams, and **loot bags** that dead players drop with half of their ammo.
 - **Bullet holes** that every player sees, then fade away.
 - **7 selectable characters** (Sysadmin, Hoodie Dev, Manager, Intern, HR, CTO, CFO) with a rotating 3D preview and shirt colours.
@@ -55,6 +56,7 @@ These are the defaults; everything can be rebound in **Settings → Controls**.
 | Reload | `R` |
 | Weapons | `1`-`4` or mouse wheel |
 | Coffee Bomb / Fire Alarm | `G` / `H` |
+| Open / close a door | `E` (face the door) |
 | Scoreboard | hold `Tab` |
 | Pause and settings | `Esc` |
 
@@ -67,6 +69,16 @@ npm run typecheck
 ```
 
 `npm run dev` starts both servers. Running plain `vite` on its own shows "Cannot reach the game server", because the page server forwards the game connection to the server on port 3000.
+
+### Publishing and SEO
+
+The page ships with a descriptive title and meta description, Open Graph and Twitter share tags, structured data, a web manifest, `robots.txt` and generated pixel-art icons (`public/`). Once you have a public address, build with it so the canonical link and absolute share-image URLs are added:
+
+```bash
+SITE_URL=https://your-domain.example npm run build
+```
+
+`npm run make:icons` regenerates the favicon, app icons and the 1200x630 share image from a small pixel-art sprite (no image tools needed).
 
 ### Tests
 

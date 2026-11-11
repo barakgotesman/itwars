@@ -7,6 +7,7 @@ import { PLAYER_COLORS } from '../src/shared/characters';
 import type { Aabb } from '../src/shared/physics';
 import { parseC2S, type GameEvent, type S2C, type SnapMsg } from '../src/shared/protocol';
 import { GRENADES, LOOT_FRACTION, LOOT_LIFETIME_TICKS, PICKUP_DEFS, WEAPONS } from '../src/shared/weapons';
+import type { DoorDef } from '../src/shared/map/doors';
 import { Room, type Conn } from '../src/server/room';
 
 let failed = 0;
@@ -48,8 +49,8 @@ interface Mutable {
 }
 
 /** New empty room with a floor, plus a helper to add players with fake connections. */
-function makeRoom(solids: Aabb[] = [FLOOR], pickups: { kind: 'hp' | 'ammo' | 'grenade'; x: number; z: number }[] = []) {
-  const room = new Room('TEST', { seed: 7, solids, spawns: SPAWNS, pickups });
+function makeRoom(solids: Aabb[] = [FLOOR], pickups: { kind: 'hp' | 'ammo' | 'grenade'; x: number; z: number }[] = [], doors: DoorDef[] = []) {
+  const room = new Room('TEST', { seed: 7, solids, spawns: SPAWNS, pickups, doors });
   const add = (name: string) => {
     const conn = new FakeConn();
     const id = room.join(conn, name)!;
@@ -132,7 +133,7 @@ const aimPitch = (dist: number, h: number) => Math.atan2(h - 1.62, dist);
   check('parse: NaN rejected', parseC2S({ t: 'input', seq: 1, keys: 3, yaw: NaN, pitch: 0, weapon: 0 }) === null);
   check('parse: string seq rejected', parseC2S({ t: 'input', seq: '1', keys: 3, yaw: 0, pitch: 0, weapon: 0 }) === null);
   const m = parseC2S({ t: 'input', seq: 1, keys: 0xffffff, yaw: 0, pitch: 99, weapon: 9 });
-  check('parse: keys masked, pitch/weapon clamped', m?.t === 'input' && m.keys < 2048 && m.pitch < 1.6 && m.weapon === 3);
+  check('parse: keys masked, pitch/weapon clamped', m?.t === 'input' && m.keys < 4096 && m.pitch < 1.6 && m.weapon === 3);
   check('parse: bad code rejected', parseC2S({ t: 'join', code: 'AB0I', name: 'x' }) === null);
   const j = parseC2S({ t: 'join', code: ' abcd ', name: '  <b>Eve</b>\n' });
   check('parse: code normalised, name sanitised', j?.t === 'join' && j.code === 'ABCD' && j.name === 'bEveb');
@@ -499,6 +500,133 @@ const holesSeen = (c: FakeConn): HoleEv[] => c.events().filter((e): e is HoleEv 
   run(room, a, 2, { weapon: 0 });
   run(room, a, 1, { keys: Key.Fire | Key.Aim, weapon: 0, pitch: 0.4 });
   check('a shot into open air leaves no hole', holesSeen(a.conn).length === 0);
+}
+
+// ---------------------------------------------------------------- sliding doors
+
+/** A test door across a doorway at x 0, z -5: 3.2 m wide, slides toward +x, panel on the +z side. */
+const testDoor = (initial: number): DoorDef => ({ name: 'Test door', x: 0, z: -5, axis: 'x', gap: 3.2, dir: 1, side: 1, initial, style: 'wood', color: 0x886644 });
+type DoorPeek = { doors: { states: { open: number; target: number }[] } };
+const doorOf = (room: Room, i = 0) => (room as unknown as DoorPeek).doors.states[i]!;
+
+{
+  // A closed door is solid; an open one is not.
+  const { room, add } = makeRoom([FLOOR], [], [testDoor(0)]);
+  const a = add('Walker');
+  warm(room);
+  place(room, a.id, 0, 0, 0, 0);
+  run(room, a, 120, { keys: Key.Forward });
+  check('a closed door stops a player walking into it', mut(room, a.id).state.z > -4.75, `z=${mut(room, a.id).state.z.toFixed(2)}`);
+
+  // Using the door while facing it opens it, and everyone is told.
+  const b = add('Watcher');
+  place(room, a.id, 0, -3, 0, 0);
+  place(room, b.id, 30, 30);
+  run(room, a, 2, { keys: Key.Interact });
+  const ev = a.conn.events().filter((e) => e.k === 'door');
+  check('using a door toggles it and sends a door event', ev.length === 1 && doorOf(room).target === 1);
+  check('other players get the same door event', b.conn.events().filter((e) => e.k === 'door').length === 1);
+  idle(room, 150);
+  check('the door slides fully open over about 2 seconds', doorOf(room).open === 1, `open=${doorOf(room).open}`);
+  place(room, a.id, 0, -3, 0, 0);
+  run(room, a, 100, { keys: Key.Forward });
+  check('an open door lets a player through', mut(room, a.id).state.z < -6, `z=${mut(room, a.id).state.z.toFixed(2)}`);
+}
+{
+  // A half-closed door leaves half the doorway open.
+  const { room, add } = makeRoom([FLOOR], [], [testDoor(0.5)]);
+  const a = add('Walker');
+  warm(room);
+  check('a half-closed door starts at 50%', doorOf(room).open === 0.5 && doorOf(room).target === 0.5);
+  place(room, a.id, -1, 0, 0, 0);
+  run(room, a, 120, { keys: Key.Forward });
+  check('you can squeeze through the open half', mut(room, a.id).state.z < -6);
+  place(room, a.id, 1.5, 0, 0, 0);
+  run(room, a, 120, { keys: Key.Forward });
+  check('the closed half still blocks', mut(room, a.id).state.z > -4.75);
+  // Using a half-closed door opens it fully; using an open one closes it.
+  place(room, a.id, 1.5, -3, 0, 0);
+  run(room, a, 2, { keys: Key.Interact });
+  check('using a half-closed door opens it', doorOf(room).target === 1);
+  run(room, a, 2, { weapon: 1 });
+  run(room, a, 2, { keys: Key.Interact });
+  check('using it again before it settles is ignored for a moment (no stutter)', doorOf(room).target === 1);
+}
+{
+  // Doors push players out of their way.
+  const { room, add } = makeRoom([FLOOR], [], [testDoor(1)]);
+  const a = add('InTheWay');
+  warm(room);
+  place(room, a.id, 0.5, -4.95, 0, 0);
+  run(room, a, 2, { keys: Key.Interact });
+  idle(room, 160);
+  check('a closing door finishes closing', doorOf(room).open === 0, `open=${doorOf(room).open}`);
+  check('it pushed the player out in front of it, not through it', mut(room, a.id).state.z > -4.7 && mut(room, a.id).state.z < -4.5, `z=${mut(room, a.id).state.z.toFixed(2)}`);
+  check('the pushed player is fine', mut(room, a.id).alive && mut(room, a.id).hp === MAX_HP);
+}
+{
+  // A player who cannot be pushed (wall behind them) stops the door instead of being crushed.
+  const wall: Aabb = { minX: -3, maxX: 3, minY: 0, maxY: 4, minZ: -4.6, maxZ: -4.0 };
+  const { room, add } = makeRoom([FLOOR, wall], [], [testDoor(1)]);
+  const a = add('Wedged');
+  warm(room);
+  place(room, a.id, 0.5, -4.95, 0, 0);
+  run(room, a, 2, { keys: Key.Interact });
+  idle(room, 200);
+  const stuck = doorOf(room).open;
+  check('a wedged player blocks the door part-way', stuck > 0.1 && stuck < 0.9, `open=${stuck}`);
+  check('and is not moved or hurt', Math.abs(mut(room, a.id).state.z + 4.95) < 0.01 && mut(room, a.id).hp === MAX_HP);
+  place(room, a.id, 0.5, 5, 0, 0);
+  idle(room, 200);
+  check('once they step away the door finishes closing', doorOf(room).open === 0);
+}
+{
+  // Closed doors stop bullets; open ones do not.
+  const { room, add } = makeRoom([FLOOR], [], [testDoor(0)]);
+  const a = add('Shooter');
+  const b = add('Target');
+  warm(room);
+  place(room, a.id, 0, 0, 0, aimPitch(10, 1.0));
+  place(room, b.id, 0, -10);
+  run(room, a, 1, { keys: Key.Fire | Key.Aim, weapon: 0, pitch: aimPitch(10, 1.0) });
+  check('a closed door blocks bullets', mut(room, b.id).hp === MAX_HP);
+  check('and the bullet leaves a hole on the door', a.conn.events().some((e) => e.k === 'hole' && e.a === 2 && Math.abs(e.z + 4.95) < 0.02));
+  doorOf(room).target = 1;
+  idle(room, 150);
+  run(room, a, 2, { weapon: 0 });
+  run(room, a, 1, { keys: Key.Fire | Key.Aim, weapon: 0, pitch: aimPitch(10, 1.0) });
+  check('an open door lets bullets through', mut(room, b.id).hp < MAX_HP);
+}
+{
+  // Door state reaches late joiners and snapshots only while something moves; a new match resets it.
+  const { room, add } = makeRoom([FLOOR], [], [testDoor(0)]);
+  const a = add('Opener');
+  warm(room);
+  check('snapshots carry no door data while nothing moves', a.conn.snap?.doors === undefined);
+  place(room, a.id, 0, -3, 0, 0);
+  run(room, a, 2, { keys: Key.Interact });
+  idle(room, 10);
+  check('snapshots carry door data while a door moves', Array.isArray(a.conn.snap?.doors) && a.conn.snap!.doors!.length === 2);
+  idle(room, 150);
+  check('the final state is sent once the door stops', a.conn.snap?.doors?.[0] === 100 || a.conn.msgs.filter((m) => m.t === 'snap').some((m) => (m as { doors?: number[] }).doors?.[0] === 100));
+  const late = new FakeConn();
+  room.join(late, 'Late');
+  check('late joiners learn the current door states', (late.msgs[0] as { doors: number[] }).doors[0] === 100);
+  (room as unknown as { restartMatch(): void }).restartMatch();
+  check('a new match puts doors back to their starting state', doorOf(room).open === 0 && doorOf(room).target === 0);
+}
+{
+  // The facing check: you cannot use a door behind you or far away.
+  const { room, add } = makeRoom([FLOOR], [], [testDoor(0)]);
+  const a = add('Looker');
+  warm(room);
+  place(room, a.id, 0, -3, Math.PI, 0);
+  run(room, a, 2, { keys: Key.Interact, yaw: Math.PI });
+  check('a door behind you cannot be used', doorOf(room).target === 0);
+  run(room, a, 2, { weapon: 1, yaw: 0 });
+  place(room, a.id, 0, 20, 0, 0);
+  run(room, a, 2, { keys: Key.Interact });
+  check('a door far away cannot be used', doorOf(room).target === 0);
 }
 
 // ---------------------------------------------------------------- pickups are left alone when they would not help

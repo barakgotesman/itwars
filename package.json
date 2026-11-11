@@ -13,7 +13,8 @@
     "test:smoke": "tsx scripts/smoke-test.ts",
     "play": "npm run build && npm start",
     "test:settings": "tsx scripts/settings-test.ts",
-    "test:quality": "tsx scripts/quality-test.ts"
+    "test:quality": "tsx scripts/quality-test.ts",
+    "make:icons": "tsx scripts/make-icons.ts"
   },
   "dependencies": {
     "three": "^0.187.0",

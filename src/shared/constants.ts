@@ -32,9 +32,10 @@ export const Key = {
   Reload: 1 << 8,
   Grenade1: 1 << 9,
   Grenade2: 1 << 10,
+  Interact: 1 << 11,
 } as const;
 /** Bits the server accepts from clients; anything else is stripped. */
-export const KEY_MASK = (1 << 11) - 1;
+export const KEY_MASK = (1 << 12) - 1;
 
 /** Server sends a snapshot every this many ticks (60 Hz / 2 = 30 Hz). */
 export const SNAPSHOT_EVERY = 2;

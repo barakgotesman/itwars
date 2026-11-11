@@ -7,7 +7,9 @@ import {
   CHEST_Y, EYE_HEIGHT, INTERMISSION_TICKS, KILLS_TO_WIN, MAX_HP, MAX_NAME_LEN, MAX_PLAYERS, RESPAWN_TICKS,
   SNAPSHOT_EVERY, SPAWN_PROTECT_TICKS, SWITCH_TICKS, THROW_COOLDOWN_TICKS, TICK_DT, Key,
 } from '../shared/constants';
+import { Doors } from '../shared/doors';
 import { SOLIDS, SPAWNS, PICKUP_SPOTS } from '../shared/map';
+import { DOORS, type DoorDef } from '../shared/map/doors';
 import { lookDir, newPlayerState, stepMovement, type Aabb, type InputCmd, type PlayerState } from '../shared/physics';
 import type {
   GameEvent, InputMsg, MeState, PlayerInfo, S2C, SnapGrenade, SnapPlayer,
@@ -92,6 +94,8 @@ export interface RoomOptions {
   solids?: readonly Aabb[];
   /** Spawn points as `[x, z]`; defaults to the office spawns. */
   spawns?: readonly (readonly [number, number])[];
+  /** Sliding doors; defaults to the office doors, or none when custom `solids` are given. */
+  doors?: readonly DoorDef[];
   /** Pickup spots; defaults to the office pickups. */
   pickups?: readonly { kind: PickupKind; x: number; z: number }[];
 }
@@ -123,6 +127,10 @@ export class Room {
 
   private readonly players = new Map<number, Player>();
   private readonly solids: readonly Aabb[];
+  /** Sliding doors; their collision boxes are part of `solids` and move in place. */
+  private readonly doors: Doors;
+  /** A door moved since the last snapshot, so the next one carries door states. */
+  private doorsDirty = false;
   private readonly spawns: readonly (readonly [number, number])[];
   private readonly spots: readonly { kind: PickupKind; x: number; z: number }[];
   /** Tick each pickup becomes active again (0 = active now). */
@@ -144,7 +152,8 @@ export class Room {
   constructor(code: string, opts: RoomOptions = {}) {
     this.code = code;
     this.rng = makeRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
-    this.solids = opts.solids ?? SOLIDS;
+    this.doors = new Doors(opts.doors ?? (opts.solids ? [] : DOORS));
+    this.solids = [...(opts.solids ?? SOLIDS), ...this.doors.boxes];
     this.spawns = opts.spawns ?? SPAWNS;
     this.spots = opts.pickups ?? PICKUP_SPOTS;
     this.pickupReady = this.spots.map(() => 0);
@@ -188,6 +197,7 @@ export class Room {
       t: 'joined', id, code: this.code, players: this.roster(), tick: this.tick,
       pickups: this.pickupReady.map((r) => (r <= this.tick ? '1' : '0')).join(''),
       loot: this.loot.map((l) => ({ id: l.id, from: l.from, x: l.x, y: l.y, z: l.z })),
+      doors: this.doors.wire(),
     });
     this.rosterDirty = true;
     return id;
@@ -246,6 +256,7 @@ export class Room {
     this.tick++;
     if (this.phase === 'over' && this.tick >= this.restartAt) this.restartMatch();
 
+    this.stepDoors();
     for (const p of this.players.values()) {
       this.applyInputs(p);
       if (p.playing && !p.alive && this.phase === 'play' && this.tick >= p.respawnAt) this.spawn(p);
@@ -304,6 +315,9 @@ export class Room {
       p.reloadEnd = 0;
     }
 
+    // Using a door works any time you are alive, even between matches.
+    if ((keys & Key.Interact) !== 0 && (p.prevKeys & Key.Interact) === 0) this.useDoor(p);
+
     if (this.phase !== 'play') {
       p.prevKeys = keys;
       return;
@@ -330,6 +344,23 @@ export class Room {
     if (pressed(Key.Grenade1)) this.throwGrenade(p, 0);
     if (pressed(Key.Grenade2)) this.throwGrenade(p, 1);
     p.prevKeys = keys;
+  }
+
+  // ---- doors ----
+
+  /** Moves the doors one tick, pushing players out of their way, and flags a snapshot to carry the new state. */
+  private stepDoors(): void {
+    const bodies = [...this.players.values()].filter((p) => p.alive).map((p) => p.state);
+    if (this.doors.step(TICK_DT, bodies, this.solids) || this.doors.moving) this.doorsDirty = true;
+  }
+
+  /** Opens or closes the door the player is facing, if any, and tells everyone. */
+  private useDoor(p: Player): void {
+    const i = this.doors.pick(p.state.x, p.state.z, p.state.yaw);
+    if (i < 0 || !this.doors.toggle(i)) return;
+    const s = this.doors.states[i]!;
+    this.events.push({ k: 'door', i, o: Math.round(s.open * 100), t: Math.round(s.target * 100) });
+    this.doorsDirty = true;
   }
 
   /** Begins a reload if there is room in the magazine and spare ammo. */
@@ -641,6 +672,8 @@ export class Room {
 
   /** Ends the intermission: resets scores, pickups and grenades, and respawns everyone. */
   private restartMatch(): void {
+    this.doors.reset();
+    this.doorsDirty = true;
     this.phase = 'play';
     this.winner = -1;
     this.grenades = [];
@@ -681,8 +714,10 @@ export class Room {
     }));
     const ev = this.events;
     this.events = [];
+    const doors = this.doorsDirty ? this.doors.wire() : undefined;
+    this.doorsDirty = false;
     for (const p of this.players.values()) {
-      p.conn.send({ t: 'snap', tick: this.tick, players: snapPlayers, grenades: snapGrenades, me: this.meState(p), ev });
+      p.conn.send({ t: 'snap', tick: this.tick, players: snapPlayers, grenades: snapGrenades, me: this.meState(p), ev, doors });
     }
   }
 

@@ -8,7 +8,7 @@ export type Action =
   | 'forward' | 'back' | 'left' | 'right' | 'jump' | 'sprint'
   | 'fire' | 'aim' | 'reload' | 'grenade1' | 'grenade2'
   | 'weapon1' | 'weapon2' | 'weapon3' | 'weapon4' | 'nextWeapon' | 'prevWeapon'
-  | 'scoreboard';
+  | 'interact' | 'scoreboard';
 
 /** One row in the controls list. */
 export interface ActionInfo {
@@ -36,6 +36,7 @@ export const ACTIONS: readonly ActionInfo[] = [
   { id: 'weapon4', label: 'Laser Pointer', group: 'Weapons' },
   { id: 'nextWeapon', label: 'Next weapon', group: 'Weapons' },
   { id: 'prevWeapon', label: 'Previous weapon', group: 'Weapons' },
+  { id: 'interact', label: 'Use / open and close doors', group: 'Other' },
   { id: 'scoreboard', label: 'Scoreboard (hold)', group: 'Other' },
 ];
 
@@ -45,7 +46,7 @@ export const ACTIONS: readonly ActionInfo[] = [
  */
 export const DEFAULT_BINDINGS: Readonly<Record<Action, string>> = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', jump: 'Space', sprint: 'ShiftLeft',
-  fire: 'Mouse0', aim: 'Mouse2', reload: 'KeyR', grenade1: 'KeyG', grenade2: 'KeyH',
+  fire: 'Mouse0', aim: 'Mouse2', reload: 'KeyR', grenade1: 'KeyG', grenade2: 'KeyH', interact: 'KeyE',
   weapon1: 'Digit1', weapon2: 'Digit2', weapon3: 'Digit3', weapon4: 'Digit4',
   nextWeapon: 'WheelDown', prevWeapon: 'WheelUp', scoreboard: 'Tab',
 };

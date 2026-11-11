@@ -31,6 +31,8 @@ export interface Hud {
   scope(visible: boolean): void;
   /** Shows an FPS readout, or hides it with null. */
   fps(text: string | null): void;
+  /** Shows a short "press a key to..." prompt, or hides it with null. */
+  prompt(text: string | null): void;
 }
 
 /**
@@ -55,6 +57,7 @@ export function createHud(code: string): Hud {
   const board = $<HTMLElement>('scoreboard');
   const scopeEl = $<HTMLElement>('scope');
   const fpsEl = $<HTMLElement>('fps');
+  const promptEl = $<HTMLElement>('prompt');
   $<HTMLElement>('hud-code').textContent = code;
   $<HTMLElement>('score-goal').textContent = `First to ${KILLS_TO_WIN} kills`;
   let markerTimer = 0;
@@ -189,6 +192,10 @@ export function createHud(code: string): Hud {
     },
     scope: (visible) => {
       scopeEl.classList.toggle('hidden', !visible);
+    },
+    prompt: (text) => {
+      promptEl.classList.toggle('hidden', text === null);
+      if (text !== null) promptEl.textContent = text;
     },
     fps: (text) => {
       fpsEl.classList.toggle('hidden', text === null);

@@ -208,6 +208,17 @@ export class Sfx {
     }
   }
 
+  /** A door sliding along its track, ending with a soft thud. */
+  door(pos?: { x: number; z: number }): void {
+    const d = this.out(pos);
+    if (!d || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.burst(d, t, 0.9, 'lowpass', 380, 0.25, 0.5);
+    this.tone(d, t, 0.8, 'sine', 70, 55, 0.12);
+    this.burst(d, t + 1.7, 0.12, 'lowpass', 260, 0.35);
+    this.tone(d, t + 1.7, 0.15, 'sine', 90, 45, 0.3);
+  }
+
   /** Soft footstep thud. */
   step(): void {
     const d = this.out();

@@ -4,6 +4,7 @@
  */
 import * as THREE from 'three';
 import { EYE_HEIGHT, Key, TICK_DT, TICK_RATE } from '../shared/constants';
+import { Doors } from '../shared/doors';
 import { PICKUP_SPOTS, SOLIDS } from '../shared/map';
 import { newPlayerState, stepMovement } from '../shared/physics';
 import type { GameEvent, InputMsg, JoinedMsg, MeState, PlayerInfo, SnapMsg } from '../shared/protocol';
@@ -13,12 +14,13 @@ import { createDust, createPostFx } from './effects';
 import { createFeed } from './feed';
 import type { Hud } from './hud';
 import type { Input } from './input';
+import { DoorVisuals } from './door-visuals';
 import { GrenadeVisuals, LootVisuals, PickupVisuals } from './items';
 import type { Net } from './net';
 import { BulletHoles } from './bullet-holes';
 import { Blasts, Particles } from './particles';
 import { Calibration, effectiveGraphics, initQuality } from './quality';
-import { onSettingsChange, settings } from './settings';
+import { bindingLabel, onSettingsChange, settings } from './settings';
 import { RemotePlayers, SKIN_TONES } from './players';
 import { ViewModel } from './viewmodel';
 import { Tracers, WEAPON_FX } from './weapon-fx';
@@ -88,6 +90,13 @@ export function startGame(ctx: GameContext): GameHandle {
   const grenadeVisuals = new GrenadeVisuals(scene);
   const lootBags = new LootVisuals(scene);
   const bulletHoles = new BulletHoles(scene);
+  // Doors: the same shared simulation the server runs, so walking into and being pushed by a door is predicted correctly.
+  const doors = new Doors();
+  doors.applyWire(joined.doors);
+  const doorVisuals = new DoorVisuals(scene, doors);
+  /** Every collision box: the static office plus the doors' moving boxes. */
+  const solids = [...SOLIDS, ...doors.boxes];
+  let lastPrompt: string | null = null;
   for (const l of joined.loot) lootBags.add(l.id, l.x, l.y, l.z);
   const sfx = new Sfx();
 
@@ -177,7 +186,7 @@ export function startGame(ctx: GameContext): GameHandle {
     me.x = m.x; me.y = m.y; me.z = m.z;
     me.vx = m.vx; me.vy = m.vy; me.vz = m.vz;
     me.onGround = m.onGround;
-    if (m.alive) for (const cmd of pending) stepMovement(me, cmd, TICK_DT, SOLIDS);
+    if (m.alive) for (const cmd of pending) stepMovement(me, cmd, TICK_DT, solids);
     if (!gotSnapshot || Math.hypot(me.x - before.x, me.y - before.y, me.z - before.z) > SNAP_DISTANCE) {
       prev = { x: me.x, y: me.y, z: me.z };
     }
@@ -332,7 +341,14 @@ export function startGame(ctx: GameContext): GameHandle {
         feed.push([who(e.winner), { text: ' won the match!', tone: 'kill' }]);
         hud.banner(`${e.winner === myId ? 'You' : (names.get(e.winner) ?? 'Someone')} won!`, 'Next match starts shortly');
         break;
+      case 'door': {
+        doors.setState(e.i, e.o, e.t);
+        const def = doors.defs[e.i];
+        if (def) sfx.door({ x: def.x, z: def.z });
+        break;
+      }
       case 'matchStart':
+        doors.reset();
         bulletHoles.clear();
         feed.push([{ text: 'New match started' }]);
         hud.banner(null);
@@ -345,6 +361,7 @@ export function startGame(ctx: GameContext): GameHandle {
       remotes.setRoster(msg.players);
       onRoster(msg.players);
     } else if (msg.t === 'snap') {
+      if (msg.doors) doors.applyWire(msg.doors);
       msg.ev.forEach(onEvent);
       remotes.onSnapshot(msg.players, performance.now());
       grenadeVisuals.sync(msg.grenades);
@@ -380,7 +397,8 @@ export function startGame(ctx: GameContext): GameHandle {
       const cmd: InputMsg = { t: 'input', seq: ++seq, ...s };
       net.send(cmd);
       if (gotSnapshot) {
-        if (alive) stepMovement(me, cmd, TICK_DT, SOLIDS);
+        doors.step(TICK_DT, alive ? [me] : [], solids);
+        if (alive) stepMovement(me, cmd, TICK_DT, solids);
         pending.push(cmd);
         if (pending.length > MAX_PENDING) pending.shift();
       }
@@ -457,6 +475,14 @@ export function startGame(ctx: GameContext): GameHandle {
     pickups.update(now / 1000);
     bulletHoles.update(dt);
     lootBags.update(now / 1000);
+    doorVisuals.update();
+    // "Press E" prompt for the door you are facing; only touched when the text changes.
+    const facing = alive ? doors.pick(me.x, me.z, input.yaw) : -1;
+    const prompt = facing >= 0 ? `[${bindingLabel(settings.bindings.interact)}] ${doors.willClose(facing) ? 'Close' : 'Open'} door` : null;
+    if (prompt !== lastPrompt) {
+      lastPrompt = prompt;
+      hud.prompt(prompt);
+    }
     tracers.update(dt);
     world.update(now / 1000);
     dust.update(camera.position, now / 1000);

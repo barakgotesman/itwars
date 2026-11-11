@@ -124,7 +124,11 @@ export function rayVsAabbFace(
 
 const EPS = 1e-4;
 
-function overlaps(s: PlayerState, b: Aabb): boolean {
+/**
+ * True if a standing player at `s` (feet position) overlaps a box.
+ * @param s - Anything with a feet position, such as a `PlayerState`.
+ */
+export function overlaps(s: { x: number; y: number; z: number }, b: Aabb): boolean {
   return (
     s.x + PLAYER_RADIUS > b.minX && s.x - PLAYER_RADIUS < b.maxX &&
     s.z + PLAYER_RADIUS > b.minZ && s.z - PLAYER_RADIUS < b.maxZ &&
