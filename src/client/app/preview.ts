@@ -105,15 +105,6 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
   beam.position.y = 2.3;
   scene.add(beam);
 
-  // Drifting cubes rising through the beam in the shirt colour: dust and sparks in the game's own blocky language.
-  const motes = Array.from({ length: 28 }, (_, i) => ({
-    mesh: new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.045), ringMat),
-    angle: (i / 28) * Math.PI * 2 * 3.7,
-    radius: 0.35 + ((i * 37) % 10) / 10 * 0.8,
-    speed: 0.18 + ((i * 53) % 10) / 10 * 0.22,
-    phase: (i * 0.61) % 1,
-  }));
-  for (const m of motes) scene.add(m.mesh);
 
   // Lighting: soft fill, a warm key spotlight casting a shadow, and cool/warm rim lights from behind.
   scene.add(new THREE.HemisphereLight(0xaec4ff, 0x2a2f3a, 1.1));
@@ -237,13 +228,6 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     pulse.scale.setScalar(1 + p * 0.5);
     pulseMat.opacity = 0.45 * (1 - p);
     ring.scale.setScalar(1 + Math.sin(t * 2.6) * 0.012);
-    for (const m of motes) {
-      const f = (t * m.speed + m.phase) % 1;
-      const a = m.angle + t * 0.35;
-      m.mesh.position.set(Math.cos(a) * m.radius, 0.15 + f * 2.6, Math.sin(a) * m.radius);
-      m.mesh.scale.setScalar(Math.sin(f * Math.PI));
-      m.mesh.rotation.set(t + m.phase * 6, t * 0.7, 0);
-    }
     renderer.render(scene, camera);
   };
   raf = requestAnimationFrame(frame);
