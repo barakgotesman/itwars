@@ -13,8 +13,7 @@ import { renderLogo } from './logo';
 import { $, setShown } from './dom';
 import { commitName, initialName } from './player-name';
 import { createPreview } from './preview';
-import { SPRAYS } from '@shared/rules/sprays';
-import { drawSpray } from '@client/render/sprays';
+import { createSprayPicker } from './spray-picker';
 import { createSetupUi, type SetupUi } from './setup-ui';
 
 /** Player-facing text for each server error. */
@@ -50,7 +49,6 @@ export function createMenu(hooks: MenuHooks): void {
   const preview = createPreview($<HTMLCanvasElement>('preview'), look);
   const charButtons: HTMLButtonElement[] = [];
   const swatches: HTMLButtonElement[] = [];
-  const sprayButtons: HTMLButtonElement[] = [];
   /** Highlights the current choice, updates the labels and the 3D preview, and remembers it. */
   const applyLook = () => {
     charButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(i === look.model)));
@@ -58,7 +56,6 @@ export function createMenu(hooks: MenuHooks): void {
       b.setAttribute('aria-pressed', String(i === look.color));
       b.classList.toggle('outline-3', i === look.color);
     });
-    sprayButtons.forEach((b, i) => b.setAttribute('aria-pressed', String(i === look.spray)));
     $('char-name').textContent = CHARACTERS[look.model]!.name;
     $('char-blurb').textContent = CHARACTERS[look.model]!.blurb;
     preview.setLook(look);
@@ -84,19 +81,8 @@ export function createMenu(hooks: MenuHooks): void {
     swatches.push(b);
     $('color-list').append(b);
   });
-  SPRAYS.forEach((s, i) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.title = s.name;
-    b.setAttribute('aria-label', `Spray design: ${s.name}`);
-    b.className = 'choice !p-1';
-    const art = drawSpray(i);
-    art.className = 'h-8 w-8 [image-rendering:pixelated]';
-    b.append(art);
-    b.addEventListener('click', () => { look.spray = i; applyLook(); });
-    sprayButtons.push(b);
-    $('spray-list').append(b);
-  });
+  // The spray design is a carousel (a highlighted button would hide yellow designs on a yellow highlight).
+  const sprayPicker = createSprayPicker($('spray-list'), look.spray, (i) => { look.spray = i; applyLook(); });
   applyLook();
 
   let lanUrl = location.origin;

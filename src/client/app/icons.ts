@@ -4,7 +4,7 @@
  */
 
 /** Names of the available icons. */
-export type IconName = 'copy' | 'check' | 'settings' | 'exit';
+export type IconName = 'copy' | 'check' | 'settings' | 'exit' | 'prev' | 'next';
 
 /** SVG paths for each icon, stroked at 2 px on a 16 x 16 grid. */
 const PATHS: Record<IconName, string> = {
@@ -14,6 +14,8 @@ const PATHS: Record<IconName, string> = {
   // A gear built from a square ring with four teeth.
   settings: '<path d="M5 5h6v6H5z"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.5 1.5M11.5 11.5L13 13M13 3l-1.5 1.5M4.5 11.5L3 13"/>',
   exit: '<path d="M6 2H2v12h4"/><path d="M6 8h8M10.5 4.5L14 8l-3.5 3.5"/>',
+  prev: '<path d="M10.5 2.5L5 8l5.5 5.5"/>',
+  next: '<path d="M5.5 2.5L11 8l-5.5 5.5"/>',
 };
 
 /**
