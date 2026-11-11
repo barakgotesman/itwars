@@ -76,7 +76,7 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
   /** Draws one option block (label, hint and controls). */
   const option = (opt: OptionDef): HTMLElement => {
     const block = document.createElement('div');
-    block.className = 'flex flex-col gap-2 bg-panel p-4';
+    block.className = 'slab flex flex-col gap-2 bg-panel p-4';
     const head = document.createElement('div');
     head.className = 'flex items-center justify-between gap-4';
     const label = document.createElement('div');
@@ -117,7 +117,7 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
     modeList.replaceChildren(...MODES.map((m) => {
       const card = document.createElement('button');
       card.type = 'button';
-      card.className = `cursor-pointer p-4 text-left ${m.id === rules.mode ? 'bg-accent text-ground' : 'bg-panel hover:bg-raised'}`;
+      card.className = `slab cursor-pointer p-4 text-left ${m.id === rules.mode ? 'bg-accent text-ground' : 'bg-panel hover:bg-raised'}`;
       const name = document.createElement('div');
       name.className = 'text-lg font-black';
       name.textContent = m.name;

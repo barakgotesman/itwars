@@ -29,7 +29,7 @@ function renderPlayers(players: readonly PlayerInfo[], myId: number): void {
   });
   $('room-players').replaceChildren(...players.map((p) => {
     const li = document.createElement('li');
-    li.className = 'flex items-center justify-between gap-6 bg-raised px-3 py-2 font-bold';
+    li.className = 'plate flex items-center justify-between gap-6 bg-raised px-3 py-2 font-bold';
     const name = document.createElement('span');
     name.textContent = p.id === myId ? `${p.name} (you)` : p.name;
     if (p.id === myId) name.className = 'text-accent';

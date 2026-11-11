@@ -71,7 +71,7 @@ export function createSprayPicker(host: HTMLElement, initial: number, onChange: 
     g.clearRect(0, 0, 16, 16);
     g.drawImage(drawSpray(index), 0, 0);
     name.textContent = SPRAYS[index]!.name;
-    dotEls.forEach((d, i) => { d.className = `h-2.5 w-2.5 cursor-pointer ${i === index ? 'bg-accent' : 'bg-raised hover:bg-faint'}`; });
+    dotEls.forEach((d, i) => { d.className = `h-2.5 w-2.5 cursor-pointer ${i === index ? 'bg-accent' : 'bg-[#3a4766] hover:bg-faint'}`; });
   };
   const go = (i: number) => {
     index = (i + SPRAY_COUNT) % SPRAY_COUNT;

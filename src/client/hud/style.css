@@ -3,7 +3,8 @@
 /*
  * IT Wars UI design tokens. One ground, one ink, one accent (hazard yellow, the colour of the office's
  * warning labels). Red is reserved for damage and danger, so it always means "something is wrong".
- * Everything is flat and square-cornered to match the voxel look of the game itself.
+ * Everything is square-cornered and built like voxel blocks: a lit top edge, a shaded underside and a hard,
+ * unblurred slab below that squashes flat when pressed (the `--slab` shadows below are offsets with no blur).
  */
 @theme {
   --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
@@ -34,34 +35,81 @@
 }
 
 @layer components {
-  /* Primary action: solid accent block, dark text. */
+  /* Primary action: a chunky yellow block. Top edge lit, underside shaded, a dark-yellow slab beneath. */
   .btn {
-    @apply cursor-pointer bg-accent px-6 py-3 text-lg font-extrabold uppercase tracking-wider text-ground transition-transform hover:brightness-110 active:translate-y-px;
+    @apply cursor-pointer bg-accent px-6 py-3 text-lg font-extrabold uppercase tracking-wider text-ground;
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.5), inset 0 -4px 0 rgba(120, 80, 0, 0.28), 0 5px 0 #a47c0f, 0 6px 0 rgba(0, 0, 0, 0.5);
+    transition: transform 70ms, box-shadow 70ms;
   }
-  /* Secondary action: raised block, no outline. */
+  .btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.55), inset 0 -4px 0 rgba(120, 80, 0, 0.28), 0 7px 0 #a47c0f, 0 8px 0 rgba(0, 0, 0, 0.5);
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(5px);
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(120, 80, 0, 0.28), 0 0 0 #a47c0f, 0 1px 0 rgba(0, 0, 0, 0.5);
+  }
+  /* Secondary action: a lighter grey-blue block (clearly above the dark page), lit top, shaded underside, a mid-tone slab. */
   .btn-quiet {
-    @apply cursor-pointer bg-raised px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-ink transition-colors hover:bg-faint/60 active:translate-y-px;
+    @apply cursor-pointer bg-[#2c364d] px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-ink;
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.24), inset 0 -4px 0 rgba(0, 0, 0, 0.32), 0 5px 0 #161c2c, 0 6px 0 #04060a;
+    transition: transform 70ms, box-shadow 70ms, background-color 70ms;
+  }
+  .btn-quiet:hover:not(:disabled) {
+    @apply bg-[#3a4766];
+    transform: translateY(-2px);
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.28), inset 0 -4px 0 rgba(0, 0, 0, 0.32), 0 7px 0 #161c2c, 0 8px 0 #04060a;
+  }
+  .btn-quiet:active:not(:disabled) {
+    transform: translateY(5px);
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.14), inset 0 -2px 0 rgba(0, 0, 0, 0.32), 0 0 0 #161c2c, 0 1px 0 #04060a;
   }
   .btn:disabled,
   .btn-quiet:disabled {
     @apply cursor-wait opacity-50;
   }
-  /* A keycap: how a bound key is shown everywhere (HUD, settings, controls cheat sheet). */
+  /* A keycap: how a bound key is shown everywhere (HUD, settings, controls cheat sheet). A tiny raised block. */
   .keycap {
-    @apply inline-flex min-w-7 items-center justify-center bg-raised px-1.5 py-0.5 text-xs font-extrabold uppercase text-ink;
+    @apply inline-flex min-w-7 items-center justify-center bg-[#2c364d] px-1.5 py-0.5 text-xs font-extrabold uppercase text-ink;
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.22), inset 0 -2px 0 rgba(0, 0, 0, 0.3), 0 3px 0 #161c2c, 0 4px 0 #04060a;
   }
-  /* A selectable choice (kill limit, character): flat block, accent fill when chosen. */
+  /* A selectable choice (kill limit, character): a raised block when off, pressed in and yellow when chosen. */
   .choice {
-    @apply cursor-pointer bg-raised px-3 py-2 text-sm font-bold text-dim transition-colors hover:text-ink;
+    @apply cursor-pointer bg-[#2c364d] px-3 py-2 text-sm font-bold text-[#c3cbd9] hover:text-ink;
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.22), inset 0 -3px 0 rgba(0, 0, 0, 0.3), 0 4px 0 #161c2c, 0 5px 0 #04060a;
+    transition: transform 70ms, box-shadow 70ms, background-color 70ms;
+  }
+  .choice:hover:not([aria-pressed="true"]):not(:disabled) {
+    @apply bg-[#3a4766];
+    transform: translateY(-1px);
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.26), inset 0 -3px 0 rgba(0, 0, 0, 0.3), 0 5px 0 #161c2c, 0 6px 0 #04060a;
   }
   .choice[aria-pressed="true"] {
     @apply bg-accent text-ground;
+    transform: translateY(3px);
+    box-shadow: inset 0 4px 0 rgba(120, 80, 0, 0.5), inset 0 -2px 0 rgba(255, 255, 255, 0.4), 0 1px 0 #a47c0f, 0 2px 0 #04060a;
   }
+  /* A sunken text field. */
   .field {
     @apply w-full bg-ground px-3 py-2.5 text-ink outline-none placeholder:text-faint focus:bg-black;
+    box-shadow: inset 0 4px 0 rgba(0, 0, 0, 0.6), inset 0 -2px 0 rgba(255, 255, 255, 0.1);
   }
   .label {
     @apply text-sm font-bold text-dim;
+  }
+  /* A raised panel: a lit top edge and a visible side face beneath, like a block standing on the floor. */
+  .slab {
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.1), 0 6px 0 #232c42, 0 7px 0 #04060a;
+  }
+  /* HUD plates: a thin bevel so the numbers sit on solid blocks rather than flat tints. */
+  .plate {
+    box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.14), inset 0 -3px 0 rgba(0, 0, 0, 0.4), 0 3px 0 rgba(0, 0, 0, 0.55);
+  }
+  /* Full-screen menu pages: a barely-there checker, like floor tiles seen from above, so the page has texture. */
+  .voxel-bg {
+    background-color: #0b0d12;
+    background-image: conic-gradient(#0e1118 25%, transparent 0 50%, #0e1118 0 75%, transparent 0);
+    background-size: 48px 48px;
   }
 }
 
@@ -96,4 +144,5 @@
   .low-hp { animation: none; opacity: 0.5; }
   .feed-in { animation: none; }
   .scope-glint { animation: none; }
+  .btn, .btn-quiet, .choice { transition: none; }
 }

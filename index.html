@@ -139,7 +139,7 @@
       <!-- Bottom left: health first, then the grenades. -->
       <div class="absolute bottom-5 left-5 flex flex-col gap-2">
         <div id="grenade-bar" class="flex gap-2"></div>
-        <div class="w-72 bg-ground/75 p-3">
+        <div class="plate w-72 bg-ground/75 p-3">
           <div class="flex items-end justify-between">
             <span class="text-xs font-bold text-dim">HEALTH</span>
             <span id="hp-text" class="text-6xl font-black leading-none tabular-nums">100</span>
@@ -152,7 +152,7 @@
 
       <!-- Bottom right: ammo, then the gun slots. -->
       <div class="absolute bottom-5 right-5 flex flex-col items-end gap-2">
-        <div class="w-72 bg-ground/75 p-3">
+        <div class="plate w-72 bg-ground/75 p-3">
           <div class="flex items-end justify-between">
             <span id="weapon-name" class="text-xs font-bold text-dim"></span>
             <div class="leading-none">
@@ -169,7 +169,7 @@
       </div>
 
       <div id="scoreboard" class="absolute inset-0 hidden items-center justify-center bg-black/50">
-        <div class="w-[38rem] max-w-[92vw] bg-ground/95 p-5">
+        <div class="slab w-[38rem] max-w-[92vw] bg-ground/95 p-5">
           <div class="mb-3 flex items-baseline justify-between">
             <span class="text-2xl font-black uppercase tracking-wider">Scoreboard</span>
             <span id="score-goal" class="text-sm font-bold text-accent"></span>
@@ -218,7 +218,7 @@
         </section>
 
         <!-- Play: callsign, join a friend's room, or host one. -->
-        <section class="flex flex-col gap-4 bg-panel p-5 [@media(min-height:800px)]:gap-6 [@media(min-height:800px)]:p-6">
+        <section class="slab flex flex-col gap-4 bg-panel p-5 [@media(min-height:800px)]:gap-6 [@media(min-height:800px)]:p-6">
           <label class="flex flex-col gap-1.5">
             <span class="label">Callsign</span>
             <input id="name" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Leave blank for a guest name" class="field text-lg" />
@@ -255,7 +255,7 @@
     </div>
 
     <!-- Game setup: opened by "Host game"; built from the mode registry -->
-    <div id="setup" class="fixed inset-0 z-20 hidden overflow-y-auto bg-ground">
+    <div id="setup" class="voxel-bg fixed inset-0 z-20 hidden overflow-y-auto">
       <div class="mx-auto flex min-h-full max-w-3xl flex-col justify-center gap-6 px-8 py-10">
         <div class="flex items-center justify-between">
           <h2 class="text-4xl font-black uppercase tracking-wider">Game setup</h2>
@@ -271,7 +271,7 @@
             <div id="rule-list" class="flex flex-col gap-3"></div>
           </section>
         </div>
-        <div class="bg-panel p-4">
+        <div class="slab bg-panel p-4">
           <div class="label">This room</div>
           <div id="setup-summary" class="mt-1 text-xl font-black"></div>
         </div>
@@ -296,7 +296,7 @@
           <button id="copy-code" type="button" class="btn-quiet mt-2 inline-flex items-center gap-2">Copy invite</button>
         </section>
         <section class="flex flex-col gap-4">
-          <div class="bg-panel p-3">
+          <div class="slab bg-panel p-3">
             <div class="mb-2 flex justify-between text-xs font-bold text-dim"><span>Players</span><span id="room-count"></span></div>
             <ul id="room-players" class="flex flex-col gap-1 text-sm"></ul>
           </div>
@@ -310,7 +310,7 @@
         </section>
       </div>
     </div>
-    <div id="settings" class="fixed inset-0 z-30 hidden overflow-y-auto bg-ground">
+    <div id="settings" class="voxel-bg fixed inset-0 z-30 hidden overflow-y-auto">
       <div class="mx-auto flex min-h-full max-w-3xl flex-col gap-4 px-8 py-10">
         <div class="flex items-center justify-between">
           <h2 class="text-4xl font-black uppercase tracking-wider">Settings</h2>
@@ -325,7 +325,7 @@
       </div>
     </div>
 
-    <div id="disconnected" class="fixed inset-0 z-40 hidden flex-col items-center justify-center gap-4 bg-ground">
+    <div id="disconnected" class="voxel-bg fixed inset-0 z-40 hidden flex-col items-center justify-center gap-4">
       <p class="text-3xl font-black text-danger">Disconnected from the server</p>
       <button id="reload" class="btn">Back to menu</button>
     </div>
