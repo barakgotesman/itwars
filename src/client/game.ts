@@ -20,7 +20,7 @@ import type { Net } from './net';
 import { BulletHoles } from './bullet-holes';
 import { Blasts, Particles } from './particles';
 import { Calibration, effectiveGraphics, initQuality } from './quality';
-import { bindingLabel, onSettingsChange, settings } from './settings';
+import { onSettingsChange, settings } from './settings';
 import { RemotePlayers, SKIN_TONES } from './players';
 import { ViewModel } from './viewmodel';
 import { Tracers, WEAPON_FX } from './weapon-fx';
@@ -96,7 +96,6 @@ export function startGame(ctx: GameContext): GameHandle {
   const doorVisuals = new DoorVisuals(scene, doors);
   /** Every collision box: the static office plus the doors' moving boxes. */
   const solids = [...SOLIDS, ...doors.boxes];
-  let lastPrompt: string | null = null;
   for (const l of joined.loot) lootBags.add(l.id, l.x, l.y, l.z);
   const sfx = new Sfx();
 
@@ -338,8 +337,13 @@ export function startGame(ctx: GameContext): GameHandle {
         break;
       }
       case 'matchEnd':
-        feed.push([who(e.winner), { text: ' won the match!', tone: 'kill' }]);
-        hud.banner(`${e.winner === myId ? 'You' : (names.get(e.winner) ?? 'Someone')} won!`, 'Next match starts shortly');
+        if (e.winner < 0) {
+          feed.push([{ text: 'Time is up: it is a draw!', tone: 'kill' }]);
+          hud.banner('Draw!', 'Time is up and the top scores are tied');
+        } else {
+          feed.push([who(e.winner), { text: e.reason === 'time' ? ' won on time!' : ' won the match!', tone: 'kill' }]);
+          hud.banner(`${e.winner === myId ? 'You' : (names.get(e.winner) ?? 'Someone')} won!`, e.reason === 'time' ? 'Time is up. Most kills wins.' : 'Next match starts shortly');
+        }
         break;
       case 'door': {
         doors.setState(e.i, e.o, e.t);
@@ -361,7 +365,7 @@ export function startGame(ctx: GameContext): GameHandle {
       remotes.setRoster(msg.players);
       onRoster(msg.players);
     } else if (msg.t === 'snap') {
-      if (msg.doors) doors.applyWire(msg.doors);
+      if (msg.doors) doors.applyWire(msg.doors, 0.08);
       msg.ev.forEach(onEvent);
       remotes.onSnapshot(msg.players, performance.now());
       grenadeVisuals.sync(msg.grenades);
@@ -475,14 +479,7 @@ export function startGame(ctx: GameContext): GameHandle {
     pickups.update(now / 1000);
     bulletHoles.update(dt);
     lootBags.update(now / 1000);
-    doorVisuals.update();
-    // "Press E" prompt for the door you are facing; only touched when the text changes.
-    const facing = alive ? doors.pick(me.x, me.z, input.yaw) : -1;
-    const prompt = facing >= 0 ? `[${bindingLabel(settings.bindings.interact)}] ${doors.willClose(facing) ? 'Close' : 'Open'} door` : null;
-    if (prompt !== lastPrompt) {
-      lastPrompt = prompt;
-      hud.prompt(prompt);
-    }
+    doorVisuals.update(dt);
     tracers.update(dt);
     world.update(now / 1000);
     dust.update(camera.position, now / 1000);

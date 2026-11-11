@@ -209,12 +209,21 @@ export class Doors {
     return this.states.flatMap((s) => [Math.round(s.open * 100), Math.round(s.target * 100)]);
   }
 
-  /** Applies states received from the server (the inverse of `wire`). */
-  applyWire(w: readonly number[]): void {
+  /**
+   * Applies states received from the server (the inverse of `wire`).
+   * @param w - The `[open, target, ...]` list.
+   * @param tolerance - A door whose local openness is within this of the server's keeps its own value. A client
+   * runs the same simulation, so snapping every door to the server's slightly older value on every update would
+   * make it jitter back and forth; only real drift (a missed event, a different push) is corrected.
+   */
+  applyWire(w: readonly number[], tolerance = 0): void {
     this.states.forEach((s, i) => {
-      s.open = (w[i * 2] ?? s.open * 100) / 100;
+      const open = (w[i * 2] ?? s.open * 100) / 100;
       s.target = (w[i * 2 + 1] ?? s.target * 100) / 100;
-      this.boxAt(i, s.open, this.boxes[i]!);
+      if (Math.abs(s.open - open) > tolerance) {
+        s.open = open;
+        this.boxAt(i, s.open, this.boxes[i]!);
+      }
     });
   }
 }

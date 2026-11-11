@@ -4,12 +4,13 @@
  */
 import { PLAYER_COLORS } from '../shared/characters';
 import {
-  CHEST_Y, EYE_HEIGHT, INTERMISSION_TICKS, KILLS_TO_WIN, MAX_HP, MAX_NAME_LEN, MAX_PLAYERS, RESPAWN_TICKS,
+  CHEST_Y, EYE_HEIGHT, INTERMISSION_TICKS, MAX_HP, MAX_NAME_LEN, MAX_PLAYERS, RESPAWN_TICKS, TICK_RATE,
   SNAPSHOT_EVERY, SPAWN_PROTECT_TICKS, SWITCH_TICKS, THROW_COOLDOWN_TICKS, TICK_DT, Key,
 } from '../shared/constants';
 import { Doors } from '../shared/doors';
 import { SOLIDS, SPAWNS, PICKUP_SPOTS } from '../shared/map';
 import { DOORS, type DoorDef } from '../shared/map/doors';
+import { DEFAULT_RULES, type MatchRules } from '../shared/modes';
 import { lookDir, newPlayerState, stepMovement, type Aabb, type InputCmd, type PlayerState } from '../shared/physics';
 import type {
   GameEvent, InputMsg, MeState, PlayerInfo, S2C, SnapGrenade, SnapPlayer,
@@ -88,6 +89,8 @@ interface Grenade extends Projectile {
 
 /** Construction options; tests use them for determinism and custom maps. */
 export interface RoomOptions {
+  /** The host's match rules; defaults to Deathmatch to 50 with no time limit. */
+  rules?: MatchRules;
   /** Seed for the room's random numbers (spread, spawn colours). */
   seed?: number;
   /** Collision geometry; defaults to the office. */
@@ -118,6 +121,8 @@ const round2 = (v: number) => Math.round(v * 100) / 100;
 export class Room {
   /** Four-character join code. */
   readonly code: string;
+  /** Mode, kill limit and time limit for every match in this room. */
+  readonly rules: MatchRules;
   /** Current tick; all timers are integer ticks. */
   tick = 0;
   /** `play` during a round, `over` during the intermission. */
@@ -131,6 +136,8 @@ export class Room {
   private readonly doors: Doors;
   /** A door moved since the last snapshot, so the next one carries door states. */
   private doorsDirty = false;
+  /** Tick at which the match clock runs out, or 0 while it is not running (no limit, or waiting for a second player). */
+  private endsAt = 0;
   private readonly spawns: readonly (readonly [number, number])[];
   private readonly spots: readonly { kind: PickupKind; x: number; z: number }[];
   /** Tick each pickup becomes active again (0 = active now). */
@@ -152,6 +159,7 @@ export class Room {
   constructor(code: string, opts: RoomOptions = {}) {
     this.code = code;
     this.rng = makeRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
+    this.rules = opts.rules ?? DEFAULT_RULES;
     this.doors = new Doors(opts.doors ?? (opts.solids ? [] : DOORS));
     this.solids = [...(opts.solids ?? SOLIDS), ...this.doors.boxes];
     this.spawns = opts.spawns ?? SPAWNS;
@@ -198,6 +206,7 @@ export class Room {
       pickups: this.pickupReady.map((r) => (r <= this.tick ? '1' : '0')).join(''),
       loot: this.loot.map((l) => ({ id: l.id, from: l.from, x: l.x, y: l.y, z: l.z })),
       doors: this.doors.wire(),
+      rules: this.rules,
     });
     this.rosterDirty = true;
     return id;
@@ -213,6 +222,7 @@ export class Room {
     if (!p || p.playing) return;
     p.playing = true;
     if (this.phase === 'play') this.spawn(p);
+    this.startClockIfReady();
   }
 
   /** Appends a number if another player already uses the name, so the scoreboard stays unambiguous. */
@@ -257,6 +267,7 @@ export class Room {
     if (this.phase === 'over' && this.tick >= this.restartAt) this.restartMatch();
 
     this.stepDoors();
+    if (this.phase === 'play' && this.endsAt > 0 && this.tick >= this.endsAt) this.endByTime();
     for (const p of this.players.values()) {
       this.applyInputs(p);
       if (p.playing && !p.alive && this.phase === 'play' && this.tick >= p.respawnAt) this.spawn(p);
@@ -454,12 +465,48 @@ export class Room {
     if (attacker !== victim) attacker.kills++;
     this.rosterDirty = true;
     this.events.push({ k: 'kill', by: attacker.id, to: victim.id, w: weapon });
-    if (attacker !== victim && attacker.kills >= KILLS_TO_WIN) {
-      this.phase = 'over';
-      this.winner = attacker.id;
-      this.restartAt = this.tick + INTERMISSION_TICKS;
-      this.events.push({ k: 'matchEnd', winner: attacker.id, restartIn: INTERMISSION_TICKS });
+    if (attacker !== victim && attacker.kills >= this.rules.killLimit) this.endMatch(attacker.id, 'kills');
+  }
+
+  /** Ends the match and starts the intermission. @param winner - Winning player's id, or -1 for a draw. */
+  private endMatch(winner: number, reason: 'kills' | 'time'): void {
+    this.phase = 'over';
+    this.winner = winner;
+    this.endsAt = 0;
+    this.restartAt = this.tick + INTERMISSION_TICKS;
+    this.events.push({ k: 'matchEnd', winner, restartIn: INTERMISSION_TICKS, reason });
+  }
+
+  /** The time limit ran out: the player with the most kills wins; a tie for first is a draw. */
+  private endByTime(): void {
+    let best = -1;
+    let winner = -1;
+    for (const p of this.players.values()) {
+      if (!p.playing) continue;
+      if (p.kills > best) {
+        best = p.kills;
+        winner = p.id;
+      } else if (p.kills === best) {
+        winner = -1;
+      }
     }
+    this.endMatch(winner, 'time');
+  }
+
+  /** Starts the match clock once there is a game on: a time limit is set and two players are in the match. */
+  private startClockIfReady(): void {
+    if (this.rules.timeLimitMin <= 0 || this.endsAt > 0 || this.phase !== 'play') return;
+    let playing = 0;
+    for (const p of this.players.values()) if (p.playing) playing++;
+    if (playing >= 2) this.endsAt = this.tick + this.rules.timeLimitMin * 60 * TICK_RATE;
+  }
+
+  /** Seconds left for the HUD: -1 without a time limit, the full limit while the clock waits, 0 after the match ends. */
+  private timeLeft(): number {
+    if (this.rules.timeLimitMin <= 0) return -1;
+    if (this.phase === 'over') return 0;
+    if (this.endsAt === 0) return this.rules.timeLimitMin * 60;
+    return Math.max(0, Math.ceil((this.endsAt - this.tick) / TICK_RATE));
   }
 
   // ---- grenades ----
@@ -690,6 +737,7 @@ export class Room {
     }
     this.events.push({ k: 'matchStart' });
     this.rosterDirty = true;
+    this.startClockIfReady();
   }
 
   // ---- snapshots ----
@@ -730,7 +778,7 @@ export class Room {
       prot: Math.max(0, p.protectUntil - this.tick), w: p.weapon,
       mag: p.mag, reserve: p.reserve, gren: p.gren,
       reload: p.reloadEnd ? Math.max(0, p.reloadEnd - this.tick) : 0,
-      blind: Math.max(0, p.blindEnd - this.tick), blindMax: p.blindMax,
+      blind: Math.max(0, p.blindEnd - this.tick), blindMax: p.blindMax, timeLeft: this.timeLeft(),
     };
   }
 }

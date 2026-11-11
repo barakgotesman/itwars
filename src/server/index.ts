@@ -65,7 +65,7 @@ function enter(ws: WebSocket, s: Session, room: Room, msg: HostMsg | JoinMsg): v
 function handle(ws: WebSocket, s: Session, msg: C2S): void {
   switch (msg.t) {
     case 'host':
-      if (!s.room) enter(ws, s, rooms.create(), msg);
+      if (!s.room) enter(ws, s, rooms.create(msg.rules), msg);
       break;
     case 'join': {
       if (s.room) break;

@@ -7,6 +7,8 @@ import { PLAYER_COLORS } from '../src/shared/characters';
 import type { Aabb } from '../src/shared/physics';
 import { parseC2S, type GameEvent, type S2C, type SnapMsg } from '../src/shared/protocol';
 import { GRENADES, LOOT_FRACTION, LOOT_LIFETIME_TICKS, PICKUP_DEFS, WEAPONS } from '../src/shared/weapons';
+import { Doors } from '../src/shared/doors';
+import { DEFAULT_RULES, describeRules, sanitizeRules, type MatchRules } from '../src/shared/modes';
 import type { DoorDef } from '../src/shared/map/doors';
 import { Room, type Conn } from '../src/server/room';
 
@@ -49,8 +51,8 @@ interface Mutable {
 }
 
 /** New empty room with a floor, plus a helper to add players with fake connections. */
-function makeRoom(solids: Aabb[] = [FLOOR], pickups: { kind: 'hp' | 'ammo' | 'grenade'; x: number; z: number }[] = [], doors: DoorDef[] = []) {
-  const room = new Room('TEST', { seed: 7, solids, spawns: SPAWNS, pickups, doors });
+function makeRoom(solids: Aabb[] = [FLOOR], pickups: { kind: 'hp' | 'ammo' | 'grenade'; x: number; z: number }[] = [], doors: DoorDef[] = [], rules?: MatchRules) {
+  const room = new Room('TEST', { seed: 7, solids, spawns: SPAWNS, pickups, doors, rules });
   const add = (name: string) => {
     const conn = new FakeConn();
     const id = room.join(conn, name)!;
@@ -627,6 +629,101 @@ const doorOf = (room: Room, i = 0) => (room as unknown as DoorPeek).doors.states
   place(room, a.id, 0, 20, 0, 0);
   run(room, a, 2, { keys: Key.Interact });
   check('a door far away cannot be used', doorOf(room).target === 0);
+}
+
+// Clients keep their own door motion and only correct real drift, so doors do not jitter on every update.
+{
+  const d = new Doors([testDoor(0)]);
+  d.setState(0, 40, 100);
+  d.applyWire([44, 100], 0.08);
+  check('a server update close to the local state does not snap the door back', d.states[0]!.open === 0.4);
+  d.applyWire([60, 100], 0.08);
+  check('a real drift is corrected', Math.abs(d.states[0]!.open - 0.6) < 1e-9);
+  d.applyWire([60, 0], 0.08);
+  check('the target is always taken from the server', d.states[0]!.target === 0);
+  d.applyWire([90, 100]);
+  check('without a tolerance the server state is applied exactly (server and tests)', d.states[0]!.open === 0.9);
+}
+
+// ---------------------------------------------------------------- match rules: kill limit and time limit
+
+/** Shorthand for rules in tests. */
+const rulesOf = (killLimit: number, timeLimitMin = 0): MatchRules => ({ mode: 'dm', killLimit, timeLimitMin });
+type EndEv = Extract<GameEvent, { k: 'matchEnd' }>;
+const endEvent = (c: FakeConn): EndEv | undefined => c.events().find((e): e is EndEv => e.k === 'matchEnd');
+
+{
+  check('sanitizeRules keeps valid rules', JSON.stringify(sanitizeRules(rulesOf(30, 15))) === JSON.stringify(rulesOf(30, 15)));
+  check('sanitizeRules fixes a bad kill limit', sanitizeRules({ mode: 'dm', killLimit: 25, timeLimitMin: 0 }).killLimit === 50);
+  check('sanitizeRules fixes a bad time limit', sanitizeRules({ mode: 'dm', killLimit: 20, timeLimitMin: 7 }).timeLimitMin === 0);
+  check('sanitizeRules fixes an unknown mode', sanitizeRules({ mode: 'ctf', killLimit: 20, timeLimitMin: 0 }).mode === 'dm');
+  check('sanitizeRules survives junk', JSON.stringify(sanitizeRules(null)) === JSON.stringify(DEFAULT_RULES) && JSON.stringify(sanitizeRules('x')) === JSON.stringify(DEFAULT_RULES));
+  check('describeRules reads well', describeRules(rulesOf(30, 10)) === 'Deathmatch · first to 30 · 10 min' && describeRules(rulesOf(50)).includes('no time limit'));
+  const h = parseC2S({ t: 'host', name: 'x', rules: { mode: 'dm', killLimit: 20, timeLimitMin: 15 } });
+  check('parse: a host message carries validated rules', h?.t === 'host' && h.rules.killLimit === 20 && h.rules.timeLimitMin === 15);
+  const h2 = parseC2S({ t: 'host', name: 'x' });
+  check('parse: missing rules become the defaults', h2?.t === 'host' && JSON.stringify(h2.rules) === JSON.stringify(DEFAULT_RULES));
+}
+{
+  // A lower kill limit ends the match sooner.
+  const { room, add } = makeRoom([FLOOR], [], [], rulesOf(10));
+  const a = add('A');
+  const b = add('B');
+  check('the joined message tells the player the room rules', (a.conn.msgs[0] as { rules: MatchRules }).rules.killLimit === 10);
+  warm(room);
+  place(room, a.id, 0, 0, 0, aimPitch(10, 1.0));
+  place(room, b.id, 0, -10);
+  mut(room, a.id).kills = 8;
+  mut(room, b.id).hp = 1;
+  run(room, a, 1, { keys: Key.Fire | Key.Aim, weapon: 0, pitch: aimPitch(10, 1.0) });
+  check('9 kills does not end a first-to-10 match', room.phase === 'play');
+  idle(room, RESPAWN_TICKS + 130); // respawn, then let spawn protection run out
+  place(room, a.id, 0, 0, 0, aimPitch(10, 1.0));
+  place(room, b.id, 0, -10);
+  mut(room, b.id).hp = 1;
+  mut(room, b.id).state.y = 0;
+  run(room, a, 2, { weapon: 0 });
+  run(room, a, 1, { keys: Key.Fire | Key.Aim, weapon: 0, pitch: aimPitch(10, 1.0) });
+  check('the 10th kill ends a first-to-10 match', room.phase === 'over' && room.winner === a.id);
+  check('and the end is reported as a kill-limit win', endEvent(a.conn)?.reason === 'kills');
+}
+{
+  // The time limit: no clock without a limit, the clock waits for a second player, counts down, ends the match.
+  const none = makeRoom([FLOOR], [], [], rulesOf(50, 0));
+  const n1 = none.add('A');
+  none.add('B');
+  idle(none.room, 10);
+  check('without a time limit the clock reads -1', n1.conn.snap!.me.timeLeft === -1);
+
+  const { room, add } = makeRoom([FLOOR], [], [], rulesOf(50, 5));
+  const a = add('Solo');
+  idle(room, 700);
+  check('with a time limit the clock shows the full time while waiting for players', a.conn.snap!.me.timeLeft === 300);
+  const b = add('Second');
+  idle(room, 600);
+  const left = a.conn.snap!.me.timeLeft;
+  check('the clock starts when a second player enters and counts down', left <= 291 && left >= 288, `timeLeft=${left}`);
+  mut(room, a.id).kills = 3;
+  mut(room, b.id).kills = 1;
+  idle(room, 5 * 60 * 60 - 600 + 20); // just past the whistle, still inside the intermission
+  check('when time runs out the match ends', room.phase === 'over');
+  check('the player with the most kills wins on time', room.winner === a.id);
+  const ev = endEvent(a.conn);
+  check('and the end is reported as a time-out', ev?.reason === 'time' && ev.winner === a.id);
+  check('the clock shows 0 during the intermission', a.conn.snap!.me.timeLeft === 0);
+  idle(room, INTERMISSION_TICKS + 10);
+  check('the next match starts with a fresh clock', room.phase === 'play' && a.conn.snap!.me.timeLeft > 290, `timeLeft=${a.conn.snap!.me.timeLeft}`);
+}
+{
+  // A tie for first place is a draw.
+  const { room, add } = makeRoom([FLOOR], [], [], rulesOf(50, 5));
+  const a = add('A');
+  const b = add('B');
+  warm(room);
+  mut(room, a.id).kills = 2;
+  mut(room, b.id).kills = 2;
+  idle(room, 5 * 60 * 60 - 130 + 20);
+  check('equal kills at the whistle is a draw', room.phase === 'over' && room.winner === -1 && endEvent(a.conn)?.winner === -1);
 }
 
 // ---------------------------------------------------------------- pickups are left alone when they would not help

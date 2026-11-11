@@ -113,7 +113,10 @@
           </table>
         </div>
       </div>
-      <div id="prompt" class="absolute bottom-28 left-1/2 hidden -translate-x-1/2 rounded bg-black/65 px-4 py-1.5 text-sm text-white ring-1 ring-white/25"></div>
+      <div id="match-info" class="absolute left-1/2 top-3 flex -translate-x-1/2 items-center gap-3 rounded bg-black/45 px-3 py-1 text-sm">
+        <span id="match-goal" class="text-white/70"></span>
+        <span id="match-timer" class="hidden font-bold tabular-nums"></span>
+      </div>
       <div id="fps" class="absolute right-4 top-4 hidden text-xs text-white/70"></div>
       <div id="weapon-bar" class="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-end gap-2"></div>
       <div id="feed" class="absolute left-4 top-12 flex w-80 flex-col items-start gap-1"></div>
@@ -134,18 +137,19 @@
       </div>
     </div>
 
-    <!-- Main menu: character, callsign, host or join -->
-    <div id="menu" class="fixed inset-0 overflow-y-auto bg-black/75">
-      <div class="flex min-h-full flex-col items-center justify-center gap-5 px-6 py-8">
-        <div class="text-center">
-          <h1 class="text-5xl font-bold tracking-widest">IT WARS</h1>
-          <p class="mt-1 text-sm text-white/60">Have you tried turning them off?</p>
-        </div>
+    <!-- Main menu: your character on the left, play options on the right -->
+    <div id="menu" class="fixed inset-0 overflow-y-auto bg-black/80">
+      <div class="flex min-h-full flex-col items-center justify-center gap-6 px-6 py-8">
+        <header class="text-center">
+          <h1 class="text-6xl font-bold tracking-[0.25em]">IT WARS</h1>
+          <p class="mt-2 text-sm text-white/60">Have you tried turning them off?</p>
+        </header>
 
-        <div class="flex flex-wrap items-center justify-center gap-10">
-          <!-- Character picker -->
-          <section class="flex w-64 flex-col items-center gap-3">
-            <canvas id="preview" class="h-64 w-64 rounded-lg ring-1 ring-white/20"></canvas>
+        <div class="flex flex-wrap items-stretch justify-center gap-6">
+          <!-- Your character -->
+          <section class="flex w-72 flex-col items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-4">
+            <h2 class="text-xs uppercase tracking-widest text-white/50">Your character</h2>
+            <canvas id="preview" class="h-60 w-full rounded-lg ring-1 ring-white/20"></canvas>
             <div class="text-center">
               <div id="char-name" class="text-lg font-bold"></div>
               <div id="char-blurb" class="h-8 text-xs text-white/50"></div>
@@ -154,32 +158,60 @@
             <div id="color-list" class="flex flex-wrap justify-center gap-2"></div>
           </section>
 
-          <!-- Name and room -->
-          <section class="flex w-64 flex-col items-center gap-4">
-            <label class="flex flex-col items-center gap-1 text-xs uppercase tracking-widest text-white/60">
+          <!-- Play -->
+          <section class="flex w-72 flex-col items-center gap-4 rounded-lg border border-white/10 bg-white/5 p-4">
+            <h2 class="text-xs uppercase tracking-widest text-white/50">Play</h2>
+            <label class="flex w-full flex-col items-center gap-1 text-xs uppercase tracking-widest text-white/60">
               Callsign
               <input id="name" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Leave blank for a guest name"
-                class="w-64 rounded border border-white/30 bg-black/50 px-3 py-2 text-center text-lg normal-case tracking-normal text-white outline-none placeholder:text-sm placeholder:text-white/30 focus:border-white/70" />
+                class="w-full rounded border border-white/30 bg-black/50 px-3 py-2 text-center text-lg normal-case tracking-normal text-white outline-none placeholder:text-sm placeholder:text-white/30 focus:border-white/70" />
             </label>
 
-            <button id="host" class="btn w-64">Host room</button>
+            <button id="host" class="btn w-full">Host game</button>
+            <p class="-mt-2 text-center text-xs text-white/40">Choose the mode, kill limit and time limit, then share the room code.</p>
 
-            <div class="flex items-center gap-3 text-xs uppercase tracking-widest text-white/40">
-              <span class="h-px w-16 bg-white/20"></span>or<span class="h-px w-16 bg-white/20"></span>
+            <div class="flex w-full items-center gap-3 text-xs uppercase tracking-widest text-white/40">
+              <span class="h-px flex-1 bg-white/15"></span>or join<span class="h-px flex-1 bg-white/15"></span>
             </div>
 
-            <form id="join-form" class="flex gap-2">
+            <form id="join-form" class="flex w-full gap-2">
               <input id="code" type="text" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE"
-                class="w-28 rounded border border-white/30 bg-black/50 px-3 py-2 text-center text-2xl font-bold uppercase tracking-[0.3em] text-white outline-none placeholder:text-base placeholder:tracking-widest placeholder:text-white/30 focus:border-white/70" />
+                class="min-w-0 flex-1 rounded border border-white/30 bg-black/50 px-3 py-2 text-center text-2xl font-bold uppercase tracking-[0.3em] text-white outline-none placeholder:text-base placeholder:tracking-widest placeholder:text-white/30 focus:border-white/70" />
               <button id="join" type="submit" class="btn">Join</button>
             </form>
             <p id="menu-error" class="h-5 text-center text-sm text-red-400"></p>
-            <button id="menu-settings" type="button" class="cursor-pointer text-xs uppercase tracking-widest text-white/60 hover:text-white">Settings</button>
+            <button id="menu-settings" type="button" class="mt-auto cursor-pointer rounded border border-white/15 bg-white/5 px-4 py-1.5 text-xs uppercase tracking-widest text-white/70 hover:bg-white/15 hover:text-white">Settings</button>
           </section>
         </div>
 
         <p id="lan-hint" class="max-w-md text-center text-xs text-white/50"></p>
-        <p class="text-center text-xs text-white/40">WASD move · Space jump · Shift sprint · LMB fire · RMB aim · R reload · 1-4 weapons · G/H grenades</p>
+        <p class="max-w-xl text-center text-xs text-white/35">Controls are in Settings. Default: WASD move, Space jump, Shift sprint, mouse shoot and aim, R reload, 1-4 weapons, G / H grenades, E use.</p>
+      </div>
+    </div>
+
+    <!-- Game setup: opened by "Host game"; built from the mode registry -->
+    <div id="setup" class="fixed inset-0 z-20 hidden overflow-y-auto bg-black">
+      <div class="mx-auto flex min-h-full max-w-3xl flex-col justify-center gap-6 px-6 py-8">
+        <div class="flex items-center justify-between">
+          <h2 class="text-3xl font-bold tracking-widest">Game setup</h2>
+          <button id="setup-back" type="button" class="btn !px-4 !py-2 !text-sm">Back</button>
+        </div>
+        <div class="grid gap-6 md:grid-cols-[16rem_1fr]">
+          <section class="flex flex-col gap-2">
+            <h3 class="text-xs uppercase tracking-widest text-white/50">Mode</h3>
+            <div id="mode-list" class="flex flex-col gap-2"></div>
+          </section>
+          <section class="flex flex-col gap-2">
+            <h3 class="text-xs uppercase tracking-widest text-white/50">Rules</h3>
+            <div id="rule-list" class="flex flex-col gap-3"></div>
+          </section>
+        </div>
+        <div class="rounded-lg border border-white/15 bg-black/50 p-4 text-center">
+          <div class="text-xs uppercase tracking-widest text-white/50">This room</div>
+          <div id="setup-summary" class="mt-1 text-lg font-bold"></div>
+        </div>
+        <p id="setup-error" class="h-5 text-center text-sm text-red-400"></p>
+        <button id="setup-create" type="button" class="btn w-full max-w-sm self-center">Create room</button>
       </div>
     </div>
 
@@ -188,6 +220,7 @@
       <p class="text-xs uppercase tracking-widest text-white/60">Room code</p>
       <div id="room-code" class="select-all text-7xl font-bold tracking-[0.3em]"></div>
       <p id="room-share" class="max-w-md text-center text-sm text-white/60"></p>
+      <p id="room-rules" class="text-sm font-bold text-white/80"></p>
       <ul id="room-players" class="min-w-64 divide-y divide-white/10 rounded border border-white/20 bg-black/40 text-sm"></ul>
       <button id="enter" class="btn w-64">Enter the office</button>
       <button id="room-settings" type="button" class="btn w-64">Settings</button>

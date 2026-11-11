@@ -3,6 +3,7 @@
  */
 import './style.css';
 import { CHARACTERS, PLAYER_COLORS } from '../shared/characters';
+import { describeRules, type MatchRules } from '../shared/modes';
 import type { ErrorMsg, HostMsg, JoinedMsg, JoinMsg, PlayerInfo } from '../shared/protocol';
 import { loadLook, saveLook } from './appearance';
 import { startGame, type GameHandle } from './game';
@@ -12,6 +13,7 @@ import { Net } from './net';
 import { commitName, initialName } from './player-name';
 import { createPreview } from './preview';
 import { createSettingsUi } from './settings-ui';
+import { createSetupUi, type SetupUi } from './setup-ui';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -89,6 +91,7 @@ function boot(): void {
   let inRoom = false;
   let entered = false;
   let lanUrl = location.origin;
+  let setup: SetupUi;
 
   const input = new Input(canvas, (locked) => {
     $('crosshair').classList.toggle('hidden', !locked);
@@ -150,8 +153,9 @@ function boot(): void {
     if (!net) return;
     inRoom = true;
     preview.dispose();
-    hud = createHud(joined.code);
+    hud = createHud(joined.code, joined.rules);
     $('room-code').textContent = joined.code;
+    $('room-rules').textContent = describeRules(joined.rules);
     $('room-share').textContent = `Friends open ${lanUrl} and enter this code.`;
     renderPlayers(joined.players);
     net.on((m) => {
@@ -159,6 +163,7 @@ function boot(): void {
     });
     net.onClose(() => setShown('disconnected', true));
     setShown('menu', false);
+    setup.close();
     setShown('room', true);
     hud.show(false);
     $('cover').classList.remove('hidden');
@@ -174,7 +179,7 @@ function boot(): void {
   };
 
   /** Runs a host/join attempt, showing errors under the buttons. */
-  const attempt = async (msg: { t: 'host' } | { t: 'join'; code: string }) => {
+  const attempt = async (msg: { t: 'host'; rules: MatchRules } | { t: 'join'; code: string }) => {
     errorLine.textContent = '';
     const name = commitName(nameField.value);
     nameField.value = name;
@@ -182,7 +187,10 @@ function boot(): void {
     try {
       onJoined(await request({ ...msg, name, model: look.model, color: look.color }));
     } catch (e) {
-      errorLine.textContent = e instanceof Error ? e.message : 'Could not connect.';
+      const message = e instanceof Error ? e.message : 'Could not connect.';
+      // A failed host attempt is reported on the setup screen, where the host is looking.
+      if (msg.t === 'host') setup.showError(message);
+      else errorLine.textContent = message;
       setBusy(false);
     }
   };
@@ -190,9 +198,12 @@ function boot(): void {
   /** Disables the menu buttons while a request is in flight. */
   const setBusy = (busy: boolean) => {
     for (const id of ['host', 'join']) $<HTMLButtonElement>(id).disabled = busy;
+    setup.setBusy(busy);
   };
 
-  $('host').addEventListener('click', () => void attempt({ t: 'host' }));
+  // Host game opens the setup screen; its Create button sends the chosen rules to the server.
+  setup = createSetupUi((rules) => void attempt({ t: 'host', rules }));
+  $('host').addEventListener('click', () => setup.open());
   $('join-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const code = codeField.value.trim();

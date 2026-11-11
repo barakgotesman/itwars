@@ -78,6 +78,8 @@ function buildPanel(def: DoorDef, length: number): THREE.Group {
 /** All the door models, kept in step with the door state. */
 export class DoorVisuals {
   private readonly panels: THREE.Group[];
+  /** Drawn position of each panel along its slide axis, eased toward the real box so motion looks smooth at any frame rate. */
+  private readonly shown: { x: number; z: number }[];
 
   /**
    * @param scene - Scene to add the doors to.
@@ -92,14 +94,23 @@ export class DoorVisuals {
       scene.add(g);
       return g;
     });
-    this.update();
+    this.shown = doors.boxes.map((b) => ({ x: (b.minX + b.maxX) / 2, z: (b.minZ + b.maxZ) / 2 }));
+    this.update(0);
   }
 
-  /** Moves every model to its door's current box. Call once a frame. */
-  update(): void {
+  /**
+   * Moves every model toward its door's current box. Call once a frame.
+   * @param dt - Seconds since last frame; 0 jumps straight to the box.
+   */
+  update(dt: number): void {
+    // The collision box moves in 60 Hz steps; easing the drawing hides that, whatever the frame rate.
+    const k = dt > 0 ? 1 - Math.exp(-dt * 30) : 1;
     this.panels.forEach((g, i) => {
       const b = this.doors.boxes[i]!;
-      g.position.set((b.minX + b.maxX) / 2, 0, (b.minZ + b.maxZ) / 2);
+      const p = this.shown[i]!;
+      p.x += ((b.minX + b.maxX) / 2 - p.x) * k;
+      p.z += ((b.minZ + b.maxZ) / 2 - p.z) * k;
+      g.position.set(p.x, 0, p.z);
     });
   }
 }

@@ -24,7 +24,7 @@ The server prints the addresses it is listening on, for example:
   network: http://192.168.1.20:3000
 ```
 
-1. Open the **local** address, pick a character and a callsign, and click **Host room**. You get a 4-letter room code.
+1. Open the **local** address, pick a character and a callsign, and click **Host game**. Choose the kill limit and an optional time limit, then **Create room**. You get a 4-letter room code.
 2. Your friend opens the **network** address on the same Wi-Fi or LAN, types the code and clicks **Join**.
 3. Everyone clicks **Enter the office** to start playing. **Esc** pauses and opens Settings.
 
@@ -33,7 +33,8 @@ Windows may ask to let Node through the firewall the first time; allow it on pri
 ## Features
 
 - **LAN multiplayer** with room codes, up to 8 players per room, an authoritative server and client-side prediction.
-- **Deathmatch**, first to 50 kills, automatic restart, scoreboard on `Tab`, kill feed (`X [gun icon] Y`).
+- **Deathmatch** with host-chosen rules: kill limit of 10, 20, 30, 40 or 50, and an optional time limit (5 to 30 minutes, 10 by default when switched on; the clock starts once two players are in, and the most kills wins). Automatic restart, scoreboard on `Tab`, kill feed (`X [gun icon] Y`).
+- A **Game setup** screen when you host, built from a mode registry so future game modes and mods plug in.
 - **4 guns**, each with its own moving parts, muzzle flash, tracer and sound: Stapler .45 (pistol), Label Gun SMG, Paper Shredder (shotgun) and Laser Pointer (sniper with a glass scope).
 - **2 grenades**: Coffee Bomb (explosive) and Fire Alarm (flashbang).
 - **Sliding doors** on the main rooms: some start half-closed, press `E` to open or close. Doors are solid (they block movement and bullets), and one that closes on you pushes you out of the way.

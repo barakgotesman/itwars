@@ -12,7 +12,7 @@ Playable. Milestones 1-5 are built and the game runs end to end on a LAN (host, 
 - Stack: **TypeScript, Tailwind, three.js** (server: Node + `ws`). TypeScript only, no jQuery or UI framework.
 - **Desktop only** (keyboard + mouse, pointer lock). Show a "desktop only" notice on touch devices.
 - **LAN multiplayer**: a player hosts a room and gets a **room code**; others on the same network join with it.
-- Mode: **Deathmatch (DM)**, first to **50 kills** wins. Max 8 players per room, match restarts 10 s after a win.
+- Mode: **Deathmatch (DM)**; the host picks the kill limit (10/20/30/40/50, default 50) and an optional time limit (off by default; 5/10/15/20/30 min, 10 when switched on). Max 8 players per room, match restarts 10 s after it ends. Modes are a registry (`shared/modes.ts`) so future modes/mods plug in.
 - **4 gun types**, **2 grenade slots**, **100 HP**.
 - **Map**: a big office with rooms *and* open-plan space. **3D pickups**: ammo, HP, grenades.
 - **Main menu** with a **settings screen**; **rebindable controls**.
@@ -49,6 +49,7 @@ One repo, one `tsconfig`, three folders:
 src/shared/   used by BOTH sides (no DOM, no Node APIs)
   constants.ts   tick rate, player size, movement tuning, input key bits, match rules
   weapons.ts     weapon / grenade / pickup / loot tuning tables (all balance lives here)
+  modes.ts       game mode registry, MatchRules (mode, kill limit, time limit), sanitizeRules, option definitions the setup screen is built from
   physics.ts     stepMovement (fixed-step AABB), rayVsAabb, rayVsAabbFace (hit face normal), overlaps, lookDir
   doors.ts       Doors: door state, live collision boxes, pushing players, picking the door you face (used by server AND client)
   characters.ts  the 7 selectable character styles and the shirt colour palette
@@ -61,6 +62,7 @@ src/server/   Node
   rooms.ts lan.ts static.ts (static.ts serves dist/ with correct content types, including .webmanifest and .txt)
 src/client/   Vite + three.js + Tailwind
   main.ts        menu flow: callsign, character picker, host/join, room panel, pause, settings buttons
+  setup-ui.ts    the host's Game setup screen, generated from the mode registry
   game.ts        in-room loop: prediction, reconciliation, event handling, effects, audio, HUD wiring
   net.ts input.ts settings.ts settings-ui.ts quality.ts appearance.ts player-name.ts preview.ts
   world.ts lighting.ts effects.ts (bloom, dust, composer)
@@ -85,8 +87,8 @@ public/       copied to the site root: favicon (svg/ico), app icons, og-image.pn
 
 ### Messages
 
-C2S: `host {name, model, color}`, `join {code, name, model, color}`, `enter`, `input {...}` (key bits include `Interact`).
-S2C: `joined {id, code, players, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped).
+C2S: `host {name, model, color, rules}`, `join {code, name, model, color}`, `enter`, `input {...}` (key bits include `Interact`).
+S2C: `joined {id, code, players, rules, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped).
 Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `throw`, `boom`, `reload`, `hole {x,y,z,a,s}`, `door {i,o,t}`, `lootDrop`, `lootTake`, `lootGone`, `matchEnd`, `matchStart`.
 
 ### Rooms, codes and the lobby
@@ -96,8 +98,11 @@ Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `thr
 
 ## Game design
 
-### Match
-- DM, free-for-all, first to **50**; scoreboard on `Tab`. Intermission 10 s, then scores, pickups, loot, bullet holes reset and everyone respawns.
+### Match and rules
+- DM, free-for-all; scoreboard on `Tab`. The host chooses the **rules** on the Game setup screen ("Host game"); they are sent in the `host` message, validated by `sanitizeRules` (bad values fall back to defaults), fixed for the room's lifetime, and echoed to everyone in `joined.rules`. The setup screen is generated from `MODES` (`OptionDef`: `choice` and `optional-choice`), so a new mode or option needs a registry entry, not new screen code. The last choice is remembered in `localStorage`.
+- **Kill limit:** first to `rules.killLimit` ends the match (`matchEnd` reason `kills`).
+- **Time limit** (`timeLimitMin`, 0 = off): the match clock starts once **two players are in the match** (so waiting for friends costs nothing), counts down on the server (`me.timeLeft` seconds, -1 without a limit, the full limit while waiting, 0 in the intermission) and ends the match at zero: most kills wins, a tie for first is a **draw** (`winner -1`, reason `time`). The clock restarts with each match.
+- Intermission 10 s, then scores, pickups, loot, doors, bullet holes reset and everyone respawns.
 - Respawn after 3 s at the spawn farthest from other players, 2 s spawn protection (own-model blink).
 - Kill feed shows `X [gun icon] Y`; hit marker (red for headshot/kill), damage direction arrows, death screen.
 

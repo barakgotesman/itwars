@@ -3,7 +3,8 @@
  * damage direction arrows, scoreboard, match banner and sniper scope.
  * Pure DOM updates driven by the private `me` block of each snapshot and by game events.
  */
-import { KILLS_TO_WIN, MAX_HP, TICK_RATE } from '../shared/constants';
+import { MAX_HP, TICK_RATE } from '../shared/constants';
+import type { MatchRules } from '../shared/modes';
 import type { MeState, PlayerInfo } from '../shared/protocol';
 import { GRENADES, WEAPONS } from '../shared/weapons';
 import { iconElement } from './gun-icons';
@@ -31,15 +32,14 @@ export interface Hud {
   scope(visible: boolean): void;
   /** Shows an FPS readout, or hides it with null. */
   fps(text: string | null): void;
-  /** Shows a short "press a key to..." prompt, or hides it with null. */
-  prompt(text: string | null): void;
 }
 
 /**
  * Binds to the HUD markup in `index.html`.
  * @param code - Room code to display in the corner.
+ * @param rules - The room's rules, for the goal and the match clock.
  */
-export function createHud(code: string): Hud {
+export function createHud(code: string, rules: MatchRules): Hud {
   const root = $<HTMLElement>('hud');
   const hpBar = $<HTMLElement>('hp-bar');
   const hpText = $<HTMLElement>('hp-text');
@@ -57,9 +57,11 @@ export function createHud(code: string): Hud {
   const board = $<HTMLElement>('scoreboard');
   const scopeEl = $<HTMLElement>('scope');
   const fpsEl = $<HTMLElement>('fps');
-  const promptEl = $<HTMLElement>('prompt');
   $<HTMLElement>('hud-code').textContent = code;
-  $<HTMLElement>('score-goal').textContent = `First to ${KILLS_TO_WIN} kills`;
+  const goal = `First to ${rules.killLimit} kills`;
+  $<HTMLElement>('score-goal').textContent = rules.timeLimitMin > 0 ? `${goal} · ${rules.timeLimitMin} min` : goal;
+  $<HTMLElement>('match-goal').textContent = goal;
+  const timerEl = $<HTMLElement>('match-timer');
   let markerTimer = 0;
 
   // Weapon bar: one small card per carried gun, then the two grenade slots.
@@ -134,6 +136,12 @@ export function createHud(code: string): Hud {
       dead.classList.toggle('hidden', !showDead);
       dead.classList.toggle('flex', showDead);
       deadCount.textContent = String(Math.ceil(me.respawnIn / TICK_RATE));
+      // Match clock: hidden without a time limit; turns red for the last 30 seconds.
+      timerEl.classList.toggle('hidden', me.timeLeft < 0);
+      if (me.timeLeft >= 0) {
+        timerEl.textContent = `${Math.floor(me.timeLeft / 60)}:${String(me.timeLeft % 60).padStart(2, '0')}`;
+        timerEl.classList.toggle('text-red-400', me.timeLeft <= 30);
+      }
       // Hold full white for the first second, then fade out.
       flash.style.opacity = String(me.blind > 0 ? Math.min(1, me.blind / TICK_RATE) : 0);
     },
@@ -192,10 +200,6 @@ export function createHud(code: string): Hud {
     },
     scope: (visible) => {
       scopeEl.classList.toggle('hidden', !visible);
-    },
-    prompt: (text) => {
-      promptEl.classList.toggle('hidden', text === null);
-      if (text !== null) promptEl.textContent = text;
     },
     fps: (text) => {
       fpsEl.classList.toggle('hidden', text === null);

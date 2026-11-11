@@ -2,6 +2,7 @@
  * Registry of live rooms: creates them with unique codes and deletes them when they empty out.
  */
 import { CODE_ALPHABET, CODE_LEN } from '../shared/constants';
+import type { MatchRules } from '../shared/modes';
 import { Room } from './room';
 
 /** Owns every `Room` on this server, keyed by join code. */
@@ -20,15 +21,16 @@ export class RoomManager {
 
   /**
    * Creates a room with a fresh random code.
+   * @param rules - The host's match rules (already validated by `parseC2S`).
    * @returns The new room.
    */
-  create(): Room {
+  create(rules?: MatchRules): Room {
     let code: string;
     do {
       code = '';
       for (let i = 0; i < CODE_LEN; i++) code += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)];
     } while (this.rooms.has(code));
-    const room = new Room(code);
+    const room = new Room(code, { rules });
     this.rooms.set(code, room);
     return room;
   }

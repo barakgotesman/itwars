@@ -104,7 +104,7 @@ export function wallPlaque(text: string, x: number, y: number, z: number, facing
  */
 function doorFrame(
   along: number, fixed: number, w: number, axis: 'x' | 'z',
-  accent: MaterialId, side: 1 | -1, label?: string,
+  accent: MaterialId, side: 1 | -1, label?: string, slides = false,
 ): void {
   const depth = WALL_T + 0.12;
   const j = 0.12;
@@ -136,7 +136,8 @@ function doorFrame(
     }
   }
 
-  if (w > DOOR_W + 0.01) return;
+  // A working sliding door replaces the decorative static leaves and the card reader.
+  if (slides || w > DOOR_W + 0.01) return;
 
   // Card reader beside the latch jamb, on the corridor side of the wall.
   const rn = -side * (WALL_T / 2 + 0.03);
@@ -168,11 +169,11 @@ function doorFrame(
  */
 export function wallX(z: number, x0: number, x1: number, gaps: readonly Gap[] = [], roomSide: 1 | -1 = 1): void {
   let cursor = x0;
-  for (const [c, w, accent, label] of [...gaps].sort((a, b) => a[0] - b[0])) {
+  for (const [c, w, accent, label, slides] of [...gaps].sort((a, b) => a[0] - b[0])) {
     const l = c - w / 2;
     box('wall', (cursor + l) / 2, 0, z, l - cursor, CEILING_H, WALL_T);
     box('wall', c, LINTEL_Y, z, w, CEILING_H - LINTEL_Y, WALL_T);
-    doorFrame(c, z, w, 'x', accent ?? 'accentBlue', roomSide, label);
+    doorFrame(c, z, w, 'x', accent ?? 'accentBlue', roomSide, label, slides);
     cursor = c + w / 2;
   }
   box('wall', (cursor + x1) / 2, 0, z, x1 - cursor, CEILING_H, WALL_T);
@@ -185,11 +186,11 @@ export function wallX(z: number, x0: number, x1: number, gaps: readonly Gap[] = 
  */
 export function wallZ(x: number, z0: number, z1: number, gaps: readonly Gap[] = [], roomSide: 1 | -1 = 1): void {
   let cursor = z0;
-  for (const [c, w, accent, label] of [...gaps].sort((a, b) => a[0] - b[0])) {
+  for (const [c, w, accent, label, slides] of [...gaps].sort((a, b) => a[0] - b[0])) {
     const l = c - w / 2;
     box('wall', x, 0, (cursor + l) / 2, WALL_T, CEILING_H, l - cursor);
     box('wall', x, LINTEL_Y, c, WALL_T, CEILING_H - LINTEL_Y, w);
-    doorFrame(c, x, w, 'z', accent ?? 'accentBlue', roomSide, label);
+    doorFrame(c, x, w, 'z', accent ?? 'accentBlue', roomSide, label, slides);
     cursor = c + w / 2;
   }
   box('wall', x, 0, (cursor + z1) / 2, WALL_T, CEILING_H, z1 - cursor);

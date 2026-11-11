@@ -5,6 +5,7 @@
 import {
   box, CEILING_H, DOOR_W, EDGE, floor, lamp, wallX, wallZ, X0, X1, Z0, Z1,
 } from './builder';
+import { DOORS, DOOR_OFFSET } from './doors';
 import type { Gap } from './types';
 
 /** Door gaps on the wall between the north row and the open plan. */
@@ -22,6 +23,16 @@ export const SOUTH_DOORS: readonly Gap[] = [
 export const MEETING_LINK: readonly Gap[] = [[-27.5, DOOR_W, 'accentBlue']];
 /** Service door from the server room into the print room (on the wall at x = 10); a second way in. */
 export const SERVER_SERVICE: readonly Gap[] = [[-27, DOOR_W, 'accentRed', 'SERVICE']];
+
+/**
+ * Marks the gaps on an east-west wall that have a working sliding door, so the wall builder skips the
+ * decorative static door leaves there (they would look like a second, stuck door).
+ */
+function withSlidingDoors(gaps: readonly Gap[], wallZ: number): Gap[] {
+  return gaps.map((g) => (DOORS.some((d) => d.axis === 'x' && Math.abs(d.x - g[0]) < 0.01 && Math.abs(d.z - d.side * DOOR_OFFSET - wallZ) < 0.01)
+    ? [g[0], g[1], g[2], g[3], true] as const
+    : g));
+}
 
 /** How one ceiling panel behaves: colour and strength, flickering, or dead (dark pocket). */
 interface PanelLight { color: number; intensity: number; flicker?: boolean; dead?: boolean }
@@ -93,12 +104,12 @@ export function buildShell(): void {
   box('dark', 0, 0, Z1 - 1.0, 4.6, 0.02, 1.4, false);
 
   // North row: one door per room onto the open plan, two for the helpdesk.
-  wallX(-20, X0 - EDGE, X1 + EDGE, NORTH_DOORS, -1);
+  wallX(-20, X0 - EDGE, X1 + EDGE, withSlidingDoors(NORTH_DOORS, -20), -1);
   for (const x of [-34, -6, 24]) wallZ(x, Z0, -20);
   wallZ(10, Z0, -20, SERVER_SERVICE, 1);
   wallZ(-20, Z0, -20, MEETING_LINK, 1);
 
   // South row: Lobby is an open 16 m gap; the phone zone opens wide too.
-  wallX(14, X0 - EDGE, X1 + EDGE, SOUTH_DOORS, 1);
+  wallX(14, X0 - EDGE, X1 + EDGE, withSlidingDoors(SOUTH_DOORS, 14), 1);
   for (const x of [-30, -12, 12, 32]) wallZ(x, 14, Z1);
 }

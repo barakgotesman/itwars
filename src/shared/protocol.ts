@@ -4,10 +4,11 @@
  */
 import { CHARACTERS, PLAYER_COLORS } from './characters';
 import { CODE_ALPHABET, CODE_LEN, KEY_MASK, MAX_NAME_LEN, MAX_PITCH } from './constants';
+import { sanitizeRules, type MatchRules } from './modes';
 import type { PickupKind } from './weapons';
 
 /** Client asks to create a room and join it. */
-export interface HostMsg { t: 'host'; name: string; model: number; color: number }
+export interface HostMsg { t: 'host'; name: string; model: number; color: number; rules: MatchRules }
 /** Client asks to join an existing room by code. */
 export interface JoinMsg { t: 'join'; code: string; name: string; model: number; color: number }
 /** One tick of player input; `seq` increases by one per message so the server can ack it. */
@@ -84,6 +85,8 @@ export interface MeState {
   reload: number;
   /** Ticks of flashbang blindness left. */
   blind: number;
+  /** Seconds left on the match clock; the full limit while waiting for players; -1 when there is no time limit. */
+  timeLeft: number;
   /** Peak blindness duration of the current flash (for fading). */
   blindMax: number;
 }
@@ -99,7 +102,7 @@ export type GameEvent =
   | { k: 'throw'; id: number; s: number }
   | { k: 'boom'; s: number; x: number; y: number; z: number }
   | { k: 'reload'; id: number }
-  | { k: 'matchEnd'; winner: number; restartIn: number }
+  | { k: 'matchEnd'; winner: number; restartIn: number; reason: 'kills' | 'time' }
   | { k: 'door'; i: number; o: number; t: number }
   | { k: 'hole'; x: number; y: number; z: number; a: number; s: number }
   | { k: 'lootDrop'; id: number; from: number; x: number; y: number; z: number }
@@ -123,6 +126,8 @@ export interface JoinedMsg {
   players: PlayerInfo[];
   /** One char per pickup spot: '1' active, '0' taken. */
   pickups: string;
+  /** The room's rules (mode, kill limit, time limit). */
+  rules: MatchRules;
   /** Loot bags already on the floor. */
   loot: LootInfo[];
   /** Every door as `[open, target, ...]` in whole percent (see `Doors.wire`). */
@@ -205,7 +210,7 @@ export function parseC2S(raw: unknown): C2S | null {
   const m = raw as Record<string, unknown>;
   switch (m.t) {
     case 'host':
-      return { t: 'host', name: sanitizeName(m.name), ...parseLook(m) };
+      return { t: 'host', name: sanitizeName(m.name), ...parseLook(m), rules: sanitizeRules(m.rules) };
     case 'join': {
       const code = normalizeCode(m.code);
       return code ? { t: 'join', code, name: sanitizeName(m.name), ...parseLook(m) } : null;

@@ -42,7 +42,10 @@ export interface LabelSpec {
   accent: MaterialId;
 }
 
-/** `[centre, width, doorColourMaterial?, nameplateText?]` of a gap cut into a wall. */
-export type Gap = readonly [number, number, MaterialId?, string?];
+/**
+ * `[centre, width, doorColourMaterial?, nameplateText?, hasSlidingDoor?]` of a gap cut into a wall.
+ * The last flag means a working sliding door covers the gap, so the decorative static door leaves are not drawn.
+ */
+export type Gap = readonly [number, number, MaterialId?, string?, boolean?];
 /** Cardinal direction a piece of furniture faces. */
 export type Facing = 'n' | 's' | 'e' | 'w';
