@@ -7,6 +7,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { LIGHTS, MAP_BOXES, SOLIDS, type MaterialId } from '@shared/world/map';
 import { LightField } from './light-field';
 import { makeBaker, makeLightModel } from './lighting';
+import { buildSigns } from './signs';
 
 type TexKind =
   | 'carpet' | 'tile' | 'wood' | 'concrete' | 'floorDark' | 'plaster' | 'brick'
@@ -304,6 +305,8 @@ export function buildWorld(scene: THREE.Scene): World {
       animated.push({ mat, base, fn: (t) => 0.9 + 0.1 * Math.sin(t * 40) });
     }
   }
+
+  buildSigns(scene, (m) => MATERIALS[m].color);
 
   return {
     lightField: new LightField(model),

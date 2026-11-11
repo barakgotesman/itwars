@@ -129,9 +129,10 @@ function doorFrame(
       labels.push({
         text: label, axis, facing, accent,
         x: axis === 'x' ? along : fixed + facing * 0.28,
-        y: 3.4,
+        y: 3.45,
         z: axis === 'x' ? fixed + facing * 0.28 : along,
-        w: Math.min(w - 0.4, 2.8), h: 0.5,
+        // Wide enough to read from across the open plan; the 5.6 : 1 shape matches the sign atlas in `client/render/signs.ts`.
+        w: Math.min(w + 0.2, 3.6), h: 0.64,
       });
     }
   }
