@@ -196,6 +196,7 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         break;
       }
       case 'matchEnd':
+        scene.world.scoreWall.setWinner(e.winner);
         if (e.winner < 0) {
           feed.push([{ text: 'Time is up: it is a draw!', tone: 'kill' }]);
           hud.banner('Draw!', 'Time is up and the top scores are tied');
@@ -211,6 +212,7 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         break;
       }
       case 'matchStart':
+        scene.world.scoreWall.setWinner(null);
         doors.reset();
         bulletHoles.clear();
         sprays.clear();

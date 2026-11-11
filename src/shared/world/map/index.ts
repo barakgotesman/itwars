@@ -10,7 +10,7 @@
  * Each room lives in `rooms/`; primitives are in `builder.ts`, props in `furniture.ts`.
  * Importing this module builds the map once.
  */
-import { boxes, labels, lights } from './builder';
+import { boards, boxes, labels, lights } from './builder';
 import { buildDressing } from './dressing';
 import { buildGlassRooms } from './rooms/glass-rooms';
 import { buildMeetingRooms } from './rooms/meeting-rooms';
@@ -20,12 +20,12 @@ import { buildServerRoom } from './rooms/server-room';
 import { buildBreakRoom, buildConference, buildLobby, buildPhoneLounge, buildStorage } from './rooms/south-rooms';
 import { placeAccents } from './accents';
 import { buildShell } from './shell';
-import type { LabelSpec, LightSource, MapBox } from './types';
+import type { BoardSpec, LabelSpec, LightSource, MapBox } from './types';
 
 export { CEILING_H } from './builder';
 export { PICKUP_SPOTS } from './pickups';
 export type { PickupSpot } from './pickups';
-export type { LabelSpec, LightSource, MapBox, MaterialId } from './types';
+export type { BoardSpec, LabelSpec, LightSource, MapBox, MaterialId } from './types';
 
 buildShell();
 buildOpenPlan();
@@ -45,6 +45,8 @@ placeAccents();
 
 /** Door nameplates, banners and wall plaques; the client draws their text. */
 export const LABELS: readonly LabelSpec[] = labels;
+/** Live scoreboard screens; the client draws the standings on them. */
+export const BOARDS: readonly BoardSpec[] = boards;
 /** Baked light sources the client turns into vertex lighting. */
 export const LIGHTS: readonly LightSource[] = lights;
 /** Every box in the map, solid or decorative. */

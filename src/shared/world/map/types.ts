@@ -30,6 +30,16 @@ export interface LightSource {
   radius: number;
 }
 
+/** A live scoreboard screen on a wall; the client draws the standings onto a plane at this place. */
+export interface BoardSpec {
+  /** 'x' for a wall running along X (screen faces ±z), 'z' for one along Z (screen faces ±x). */
+  axis: 'x' | 'z';
+  /** Centre of the screen. */
+  x: number; y: number; z: number;
+  facing: 1 | -1;
+  w: number; h: number;
+}
+
 /** A door nameplate; the client draws `text` on a plane at this position, facing `facing` along the wall normal. */
 export interface LabelSpec {
   text: string;

@@ -2,7 +2,7 @@
  * Low-level map builder: the shared box/light/label registries, dimensions, and the primitives
  * (box, walls with door frames, floors, signs) every room module is made of.
  */
-import type { Gap, LabelSpec, LightSource, MapBox, MaterialId } from './types';
+import type { BoardSpec, Gap, LabelSpec, LightSource, MapBox, MaterialId } from './types';
 
 export const CEILING_H = 4.2;
 export const WALL_T = 0.5;
@@ -21,6 +21,8 @@ export const boxes: MapBox[] = [];
 export const lights: LightSource[] = [];
 /** Door nameplates, banners and wall plaques. */
 export const labels: LabelSpec[] = [];
+/** Live scoreboard screens. */
+export const boards: BoardSpec[] = [];
 
 /** Registers a baked point light. */
 export function lamp(x: number, y: number, z: number, color: number, intensity: number, radius: number): void {
@@ -86,6 +88,25 @@ export function banner(text: string, x: number, y: number, z: number, w: number,
   box('dark', x + w / 2 - 0.1, y + h / 2, z, 0.03, CEILING_H - y - h / 2, 0.03, false);
 }
 
+/**
+ * Wall-mounted live scoreboard: a dark bezel, a lamp for the screen's glow, and a registry entry the client draws on.
+ * @param axis - 'x' for a wall running along X, 'z' for one along Z.
+ * @param along - Centre of the screen along the wall.
+ * @param face - Coordinate of the wall's room-side face on the other axis.
+ * @param facing - +1 or -1: which way the screen faces along the wall's normal.
+ * @param yc - Height of the screen's centre.
+ */
+export function scoreboard(axis: 'x' | 'z', along: number, face: number, facing: 1 | -1, yc: number, w: number, h: number): void {
+  const n = face + facing * 0.05;
+  if (axis === 'x') box('dark', along, yc - h / 2 - 0.12, n, w + 0.24, h + 0.24, 0.1, false);
+  else box('dark', n, yc - h / 2 - 0.12, along, 0.1, h + 0.24, w + 0.24, false);
+  const sx = axis === 'x' ? along : face + facing * 0.11;
+  const sz = axis === 'x' ? face + facing * 0.11 : along;
+  boards.push({ axis, x: sx, y: yc, z: sz, facing, w, h });
+  // A cool wash on the floor in front, as if the screen lit the room.
+  lamp(axis === 'x' ? along : face + facing * 2.2, yc - 0.2, axis === 'x' ? face + facing * 2.2 : along, 0xcfe2ff, 0.55, 7);
+}
+
 /** Plaque mounted flat on a wall running along Z (east/west outer walls). */
 export function wallPlaque(text: string, x: number, y: number, z: number, facing: 1 | -1, w: number, accent: MaterialId): void {
   labels.push({ text, x, y, z, axis: 'z', facing, w, h: 0.55, accent });
@@ -125,7 +146,8 @@ function doorFrame(
   at(along, 0, 0, w, 0.015, WALL_T, 'metal'); // threshold strip
 
   if (label) {
-    for (const facing of [1, -1] as const) {
+    // The name goes on the outside of the doorway only (the room lies on the `side` of the wall); inside, you already know where you are.
+    for (const facing of [-side as 1 | -1]) {
       labels.push({
         text: label, axis, facing, accent,
         x: axis === 'x' ? along : fixed + facing * 0.28,

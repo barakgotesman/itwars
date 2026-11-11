@@ -72,6 +72,7 @@ export function startFrameLoop(d: LoopDeps): void {
     if (fpsTime >= 0.5) {
       if (settings.showFps) hud.fps(`${Math.round(fpsFrames / fpsTime)} FPS`);
       hud.standings(roster.players, myId);
+      scene.world.scoreWall.update(roster.players, local.lastMe?.timeLeft ?? -1);
       fpsFrames = 0;
       fpsTime = 0;
     }

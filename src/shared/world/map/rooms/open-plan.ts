@@ -2,7 +2,7 @@
  * Open-plan floor (z -20..14): cubicle pods, central lounge, set pieces and the cover that breaks
  * the long sightlines. Servers do not live here; they stay in the server room.
  */
-import { banner, box, EDGE, lamp, poster, wallPlaque, X0, X1 } from '../builder';
+import { banner, box, EDGE, lamp, poster, scoreboard, wallPlaque, X0, X1 } from '../builder';
 import {
   arcade, beanbag, cabinets, chandelier, coffeeBar, coffeeTable, cone, cooler, copierHub, cubicleRuin, deskFort, eWaste,
   foosball, kanban, lowWall, pillar, plant, planterTree, planterWall, pod, screenPanel, sofa, vending, wetFloor,
@@ -31,7 +31,7 @@ function lounge(): void {
   for (const [x, z] of [[-14, -17], [14, -17], [-14, 11], [14, 11], [-6, -15], [6, -15], [-6, 8], [6, 8]] as const) plant(x, z);
   for (const [x, z] of [[-15, -18.8], [15, -18.8], [-15, 12.8], [15, 12.8]] as const) cooler(x, z);
   const posters: readonly MaterialId[] = ['posterA', 'posterB', 'posterC'];
-  [-47, -34, -8, 8, 34, 47].forEach((x, i) => poster(posters[i % 3]!, x, 1.7, -19.7, 2.0, 1.4, 'x'));
+  [-47, -8, 8, 34, 47].forEach((x, i) => poster(posters[i % 3]!, x, 1.7, -19.7, 2.0, 1.4, 'x'));
 }
 
 /** Cover pass: staggered full-height screens, columns and low walls so no lane is a shooting gallery. */
@@ -105,7 +105,11 @@ function setPieces(): void {
 /** Hanging banners, wall plaques and floor lamps that give the floor a voice. */
 function signage(): void {
   banner('HAVE YOU TRIED TURNING THEM OFF?', 0, 2.9, -8.4, 6, 0.7, 'accentBlue');
-  banner('Q4 TARGET: 50 KILLS', 0, 2.9, 6.5, 5, 0.6, 'accentRed');
+  // {KILLS} is filled in by the client with the room's real kill limit.
+  banner('Q4 TARGET: {KILLS} KILLS', 0, 2.9, 6.5, 5, 0.6, 'accentRed');
+  // Live scoreboards on the long open-plan walls, between the doors.
+  scoreboard('x', -34, -19.75, 1, 2.3, 6, 3);
+  scoreboard('x', -12, 13.75, -1, 2.3, 5.2, 2.6);
   banner('SECURITY BEGINS WITH U', -30, 3.0, 12.6, 4, 0.5, 'accentGreen');
   banner('PLEASE DO NOT CLICK', 30, 3.0, 12.6, 4, 0.5, 'accentRed');
   banner('TOWN HALL: 15:00', 15.5, 2.9, 4.6, 3.2, 0.45, 'accentOrange');

@@ -3,7 +3,7 @@
  * render loop together, and routes server messages to them. Each piece lives in its own file here.
  */
 import type { JoinedMsg } from '@shared/net/protocol';
-import { createFeed } from '@client/hud/feed';
+import { createFeed, feedLineText, type Feed } from '@client/hud/feed';
 import type { Hud } from '@client/hud/hud';
 import type { Input } from '@client/platform/input';
 import type { Net } from '@client/platform/net';
@@ -40,7 +40,14 @@ export function startGame(ctx: GameContext): GameHandle {
   const myId = joined.id;
 
   const scene = createScene(canvas, joined, hud);
-  const feed = createFeed();
+  const hudFeed = createFeed();
+  // Every feed line also goes to the wall scoreboards' "latest" strip.
+  const feed: Feed = {
+    push(parts) {
+      hudFeed.push(parts);
+      scene.world.scoreWall.pushEvent(feedLineText(parts, roster.nameOf(myId) ?? 'You'));
+    },
+  };
   const roster = new RosterTracker(joined.players, myId, feed);
   const local = new LocalPlayer(scene.solids);
   const camFx: CameraFx = { shake: 0, kick: 0 };

@@ -82,7 +82,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   sun.position.set(0.4, 1, 0.6);
   scene.add(sun);
 
-  const world = buildWorld(scene);
+  const world = buildWorld(scene, joined.rules, myId);
   const atmosphere = new Atmosphere(scene);
   const dust = createDust(scene);
   const myInfo = joined.players.find((p) => p.id === myId);

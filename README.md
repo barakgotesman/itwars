@@ -42,6 +42,7 @@ Windows may ask to let Node through the firewall the first time; allow it on pri
 - **Bullet holes** that every player sees, then fade away.
 - **Spray paint**: press `T` near a wall to leave your pixel-art tag (9 designs, picked in the menu). 10 second cooldown, 3 tags per player, cleared when a new match starts.
 - **7 selectable characters** (Sysadmin, Hoodie Dev, Manager, Intern, HR, CTO, CFO) with a rotating 3D preview and shirt colours.
+- **Live scoreboards** on three office walls (callsigns, kills, deaths, clock, and the latest kills and joins), room name signs above every doorway, and a banner that shows the room's real kill limit.
 - A **shooter-style interface**: flat, blocky and high-contrast, with big health and ammo numbers, magazine pips, a reload bar, a low-health warning, a race strip showing you against the leader, a right-side kill feed, and a main menu that floats over a slow flythrough of the real office map.
 - A big **office map**: open-plan floor with cubicles, plus meeting rooms, a server room, a break room, storage and more.
 - **Settings**: fully rebindable controls, field of view, volume, FPS counter and graphics options.

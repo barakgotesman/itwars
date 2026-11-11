@@ -7,6 +7,7 @@
 import { MAX_HP, TICK_RATE } from '@shared/core/constants';
 import type { MatchRules } from '@shared/rules/modes';
 import type { MeState, PlayerInfo } from '@shared/net/protocol';
+import { rankPlayers } from '@shared/rules/standings';
 import { GRENADES, WEAPONS } from '@shared/rules/weapons';
 import { iconElement, type IconKind } from './gun-icons';
 import { bindingLabel, onSettingsChange, settings, type Action } from '@client/platform/settings';
@@ -212,7 +213,7 @@ export function createHud(code: string, rules: MatchRules): Hud {
       board.classList.toggle('hidden', !visible);
       board.classList.toggle('flex', visible);
       if (!visible) return;
-      const rows = [...players].sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
+      const rows = rankPlayers(players);
       $<HTMLElement>('score-rows').replaceChildren(...rows.map((p, i) => {
         const tr = document.createElement('tr');
         // Your own row is a solid accent block so you find yourself at a glance.
@@ -233,7 +234,7 @@ export function createHud(code: string, rules: MatchRules): Hud {
     },
     standings: (players, myId) => {
       const mine = players.find((p) => p.id === myId);
-      const top = players.filter((p) => p.id !== myId).sort((a, b) => b.kills - a.kills)[0];
+      const top = rankPlayers(players.filter((p) => p.id !== myId))[0];
       youEl.textContent = String(mine?.kills ?? 0);
       leadName.textContent = top?.name ?? '';
       leadKills.textContent = top ? String(top.kills) : '';

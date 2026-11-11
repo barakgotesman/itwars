@@ -27,13 +27,14 @@ npm run build          # typecheck (client + server configs) && vite build
 npm start              # one Node process serves dist/ + WebSocket on :3000 and prints LAN URLs
 npm run play           # build + start (use this to host for friends)
 npm run typecheck      # tsc for the whole repo, then again with no DOM types for shared + server
-npm test               # check:deps, verify:map, test:sim, test:smoke, test:settings, test:quality, test:zones
+npm test               # check:deps, verify:map, test:sim, test:smoke, test:settings, test:quality, test:zones, test:boards
 npm run check:deps     # layering rule: shared is pure, server never imports client, client never imports server
 npm run verify:map     # spawns and pickups are not inside solids and are reachable on foot
 npm run test:sim       # headless server simulation tests (no browser)
 npm run test:smoke     # real server + two WebSocket clients
 npm run test:settings  # key rebinding rules and option defaults
 npm run test:quality   # graphics calibration and hardware guess
+npm run test:boards    # standings helpers, sign text templates, feed-line text, boards on free wall, one outward door sign per doorway
 npm run test:zones     # lighting design: zones tile the map, sane values, lamp budget, no lamp buried in a solid
 npm run make:icons     # regenerate public/ icons and the og-image from the pixel-art sprite (tools/make-icons.ts)
 ```
@@ -148,6 +149,11 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 ### Map: "The Office" (about 100 x 70 m, ceiling 4.2 m)
 - Open-plan centre with 12 cubicle pods and a lounge; north row of rooms (Executive, meeting rooms, Server room, Print room, IT Helpdesk); south row (Break room, Storage, Lobby, Conference, phone booths). 3.2 m doors.
 - Generated from boxes; the client merges them per material. Keep decorative-only boxes `solid: false`. Every spawn and pickup must pass `npm run verify:map`.
+
+### Signs and live scoreboards
+- **Door signs** (`LABELS`, drawn by `client/render/signs.ts` into one atlas mesh): one plate above each doorway, on the **outside only** (the room's `side` decides). Hanging banners stay double-sided. Text may use `{KILLS}` / `{MINUTES}`, filled from the room's rules by `fillRuleTokens` (`shared/rules/standings.ts`), so the "Q4 TARGET" banner always shows the real kill limit.
+- **Wall scoreboards**: `scoreboard(...)` in `shared/world/map/builder.ts` registers a screen (`BOARDS`): open-plan north wall (x -34), open-plan south wall (x -12), lobby east wall. `client/render/score-wall.ts` draws one shared canvas: "FIRST TO N KILLS", the match clock, the leader's progress bar, up to 8 ranked rows (your row highlighted), the winner during the intermission, and a "LATEST" strip of the same lines the kill feed shows (`feedLineText`). It redraws only when the data changes. Fed from `game/loop.ts` (2 Hz roster and clock), `game/events.ts` (winner), and a wrapper around the feed in `game/index.ts`.
+- Ranking (`rankPlayers`) is shared by the HUD scoreboard and the boards. Keep boards clear of door gaps and posters; `npm run test:boards` checks it.
 
 ### Lighting design (every room has its own light)
 - Everything is **baked** into vertex colours at load (unlit materials, zero per-frame cost). Never add real-time shadow lights: 60 FPS on weak PCs is a requirement.

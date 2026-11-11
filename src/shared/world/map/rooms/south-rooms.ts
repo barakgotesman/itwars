@@ -1,7 +1,7 @@
 /**
  * South row: break room, storage, lobby, conference room and the phone-booth lounge.
  */
-import { box, lamp, sign } from '../builder';
+import { box, lamp, scoreboard, sign } from '../builder';
 import {
   booth, boardTable, cabinets, chair, chandelier, coffeeTable, cooler, crateStack, deskFrame, monitor, pillar,
   plant, planterWall, roundTable, screenPanel, sofa, vending,
@@ -59,6 +59,7 @@ export function buildLobby(): void {
   pillar(5.5, 17.5);
   planterWall(-6, 25.5, 2.6, false);
   for (const [x, z] of [[-11, 16], [11, 16], [-11, 33.5], [11, 33.5], [-5, 33.5], [5, 33.5]] as const) plant(x, z);
+  scoreboard('z', 25, 11.75, -1, 2.4, 6, 3); // live standings above the east sofa
   chandelier(0, 21, 1.4);
   chandelier(-7, 28, 0.7);
   chandelier(7, 28, 0.7);

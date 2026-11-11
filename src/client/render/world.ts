@@ -4,9 +4,11 @@
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { DEFAULT_RULES, type MatchRules } from '@shared/rules/modes';
 import { LIGHTS, MAP_BOXES, SOLIDS, type MaterialId } from '@shared/world/map';
 import { LightField } from './light-field';
 import { makeBaker, makeLightModel } from './lighting';
+import { ScoreWall } from './score-wall';
 import { buildSigns } from './signs';
 
 type TexKind =
@@ -244,15 +246,19 @@ export interface World {
   update(t: number): void;
   /** Baked light by position, for tinting characters to the room they are in. */
   lightField: LightField;
+  /** The live scoreboards on the walls. */
+  scoreWall: ScoreWall;
 }
 
 /**
  * Builds the office meshes into the scene. Boxes are merged per material, subdivided so baked
  * lighting has enough vertices, and lit once at load.
  * @param scene - Scene to add the office to.
+ * @param rules - The room's rules, so the signs and boards show the real kill limit.
+ * @param myId - The local player's id (highlighted on the scoreboards); -1 when not in a room.
  * @returns Handle for per-frame animation.
  */
-export function buildWorld(scene: THREE.Scene): World {
+export function buildWorld(scene: THREE.Scene, rules: MatchRules = DEFAULT_RULES, myId = -1): World {
   // Tall solids block light and cast contact shadows; floors and low furniture do not.
   const occluders = SOLIDS.filter((b) => b.maxY - b.minY > 1.0 && b.maxY > 0.5);
   const model = makeLightModel(LIGHTS, occluders);
@@ -306,10 +312,12 @@ export function buildWorld(scene: THREE.Scene): World {
     }
   }
 
-  buildSigns(scene, (m) => MATERIALS[m].color);
+  buildSigns(scene, (m) => MATERIALS[m].color, rules);
+  const scoreWall = new ScoreWall(scene, rules, myId);
 
   return {
     lightField: new LightField(model),
+    scoreWall,
     update(t) {
       for (const a of animated) a.mat.color.copy(a.base).multiplyScalar(a.fn(t));
     },
