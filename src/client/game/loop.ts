@@ -7,6 +7,7 @@ import { WEAPONS } from '@shared/rules/weapons';
 import type { Hud } from '@client/hud/hud';
 import type { Input } from '@client/platform/input';
 import type { Net } from '@client/platform/net';
+import type { Tint } from '@client/render/light-field';
 import { settings } from '@client/platform/settings';
 import type { CameraFx } from './events';
 import type { LocalPlayer } from './prediction';
@@ -46,6 +47,8 @@ export function startFrameLoop(d: LoopDeps): void {
   let stepAcc = 0;
   let curFov = view.baseFov;
   let scoped = false;
+  /** Light of the room the camera is in, reused every frame. */
+  const localTint: Tint = { r: 1, g: 1, b: 1 };
   let fpsFrames = 0;
   let fpsTime = 0;
   let boardShown = false;
@@ -114,6 +117,11 @@ export function startFrameLoop(d: LoopDeps): void {
       prev.z + (me.z - prev.z) * a + (Math.random() - 0.5) * shake,
     );
     camera.rotation.set((alive ? input.pitch : -0.3) + kick + (Math.random() - 0.5) * shake * 0.5, input.yaw, 0);
+
+    // Atmosphere and weapon light follow the room the camera is in.
+    scene.atmosphere.update(dt, camera.position.x, camera.position.z);
+    scene.world.lightField.sample(camera.position.x, camera.position.z, localTint);
+    viewmodel.setTint(localTint.r, localTint.g, localTint.b);
 
     // Sound: the listener follows the camera; footsteps are by distance walked.
     sfx.setListener(camera.position.x, camera.position.z, input.yaw);

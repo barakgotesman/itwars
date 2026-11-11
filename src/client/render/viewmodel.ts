@@ -386,14 +386,28 @@ export class ViewModel {
   private reelVel = 0;
   private reelAngle = 0;
   private readonly casings: Casing[] = [];
+  private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x9aa0aa, 2.4);
+  private readonly sun = new THREE.DirectionalLight(0xfff2dd, 1.6);
+  private readonly sunBase = new THREE.Color(0xfff2dd);
+
+  /**
+   * Tints the weapon and hands to the light of the room the player stands in.
+   * @param r - Red multiplier (1 = normally lit).
+   * @param g - Green multiplier.
+   * @param b - Blue multiplier.
+   */
+  setTint(r: number, g: number, b: number): void {
+    this.hemi.color.setRGB(r, g, b);
+    this.sun.color.copy(this.sunBase).multiply(new THREE.Color(r, g, b));
+  }
 
   /**
    * @param sleeveColor - Colour of the local player's sleeves.
    * @param skinColor - Hand colour.
    */
   constructor(sleeveColor: number, skinColor: number) {
-    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa0aa, 2.4));
-    const sun = new THREE.DirectionalLight(0xfff2dd, 1.6);
+    this.scene.add(this.hemi);
+    const sun = this.sun;
     sun.position.set(0.5, 1, 0.8);
     this.scene.add(sun);
     this.scene.add(this.root);

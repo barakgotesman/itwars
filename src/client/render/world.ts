@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { LIGHTS, MAP_BOXES, SOLIDS, type MaterialId } from '@shared/world/map';
-import { makeBaker } from './lighting';
+import { LightField } from './light-field';
+import { makeBaker, makeLightModel } from './lighting';
 
 type TexKind =
   | 'carpet' | 'tile' | 'wood' | 'concrete' | 'floorDark' | 'plaster' | 'brick'
@@ -240,6 +241,8 @@ function projectUv(g: THREE.BufferGeometry, tile: number): void {
 export interface World {
   /** Advances flicker and blink animation. @param t - Time in seconds. */
   update(t: number): void;
+  /** Baked light by position, for tinting characters to the room they are in. */
+  lightField: LightField;
 }
 
 /**
@@ -251,7 +254,8 @@ export interface World {
 export function buildWorld(scene: THREE.Scene): World {
   // Tall solids block light and cast contact shadows; floors and low furniture do not.
   const occluders = SOLIDS.filter((b) => b.maxY - b.minY > 1.0 && b.maxY > 0.5);
-  const bake = makeBaker(LIGHTS, occluders);
+  const model = makeLightModel(LIGHTS, occluders);
+  const bake = makeBaker(model, occluders);
   const animated: { mat: THREE.MeshBasicMaterial; base: THREE.Color; fn: (t: number) => number }[] = [];
 
   for (const id of Object.keys(MATERIALS) as MaterialId[]) {
@@ -302,6 +306,7 @@ export function buildWorld(scene: THREE.Scene): World {
   }
 
   return {
+    lightField: new LightField(model),
     update(t) {
       for (const a of animated) a.mat.color.copy(a.base).multiplyScalar(a.fn(t));
     },

@@ -21,12 +21,15 @@ import { createDust, createPostFx } from '@client/render/renderer';
 import { RemotePlayers, SKIN_TONES } from '@client/render/players';
 import { ViewModel } from '@client/render/viewmodel';
 import { Tracers } from '@client/render/weapon-fx';
+import { Atmosphere } from '@client/render/atmosphere';
 import { buildWorld } from '@client/render/world';
 
 /** Everything the loop and the event handler draw with. */
 export interface SceneHandle {
   camera: THREE.PerspectiveCamera;
   world: ReturnType<typeof buildWorld>;
+  /** Eases fog and sky toward the room the camera is in. */
+  atmosphere: Atmosphere;
   dust: ReturnType<typeof createDust>;
   viewmodel: ViewModel;
   fx: ReturnType<typeof createPostFx>;
@@ -80,12 +83,14 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   scene.add(sun);
 
   const world = buildWorld(scene);
+  const atmosphere = new Atmosphere(scene);
   const dust = createDust(scene);
   const myInfo = joined.players.find((p) => p.id === myId);
   const viewmodel = new ViewModel(myInfo?.color ?? 0x2980b9, SKIN_TONES[myId % SKIN_TONES.length]!);
   const fx = createPostFx(renderer, scene, camera, { scene: viewmodel.scene, camera: viewmodel.camera });
   const remotes = new RemotePlayers(scene, myId);
   remotes.setRoster(joined.players);
+  remotes.lightField = world.lightField;
   const particles = new Particles(scene);
   const blasts = new Blasts(scene);
   const pickups = new PickupVisuals(scene, PICKUP_SPOTS, joined.pickups);
@@ -136,6 +141,6 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
 
   return {
     camera, world, dust, viewmodel, fx, remotes, particles, blasts, pickups, grenadeVisuals, lootBags,
-    bulletHoles, sprays, tracers, doorVisuals, doors, solids, sfx, view, needsCalibration,
+    atmosphere, bulletHoles, sprays, tracers, doorVisuals, doors, solids, sfx, view, needsCalibration,
   };
 }

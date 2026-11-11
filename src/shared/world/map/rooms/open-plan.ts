@@ -120,8 +120,8 @@ function signage(): void {
     lamp(x, 1.7, z, 0xffc47a, 0.9, 7);
   }
   lamp(-14, 2.2, -8.2, 0xffc47a, 0.8, 6);
-  lamp(-30.5, 1.5, 19, 0xff5a4a, 0.8, 3.5);
-  lamp(-30.5, 1.5, 21, 0x4a8cff, 0.8, 3.5);
+  lamp(-29.6, 1.5, 19, 0xff5a4a, 0.8, 3.5); // in front of the cabinet: inside it every ray starts in a solid and the lamp lit nothing
+  lamp(-29.6, 1.5, 21, 0x4a8cff, 0.8, 3.5);
 }
 
 /** Builds everything on the open-plan floor. */

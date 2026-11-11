@@ -6,6 +6,7 @@ import {
   box, CEILING_H, DOOR_W, EDGE, floor, lamp, wallX, wallZ, X0, X1, Z0, Z1,
 } from './builder';
 import { DOORS, DOOR_OFFSET } from './door-layout';
+import { zoneAt } from './zones';
 import type { Gap } from './types';
 
 /** Door gaps on the wall between the north row and the open plan. */
@@ -34,38 +35,25 @@ function withSlidingDoors(gaps: readonly Gap[], wallZ: number): Gap[] {
     : g));
 }
 
-/** How one ceiling panel behaves: colour and strength, flickering, or dead (dark pocket). */
-interface PanelLight { color: number; intensity: number; flicker?: boolean; dead?: boolean }
-
-/** Panels that are out, chosen to leave dark corners and alcoves away from main routes. */
+/** Panels that are out in every room, chosen to leave dark corners and alcoves away from main routes. */
 const DEAD_PANELS = new Set([
   '-45,-8', '-45,8', '-36,0', '45,0', '36,8', '-27,8', '27,-16', // open-plan lanes
   '0,-32', '-45,-32', '45,-32', '-27,32', '-9,24', '45,32', '-36,-32', // server back, exec, helpdesk, storage, phones
 ]);
 
+/** How one ceiling panel behaves: colour and strength, flickering, or dead (a dark pocket). */
+interface PanelLight { color: number; intensity: number; radius: number; flicker?: boolean; dead?: boolean }
+
 /**
- * Lighting character per room, so rooms do not all look the same: warm and dim for offices,
- * cold and sparse for the server room and storage, bright and white for the break room and lobby.
+ * Looks up a panel's behaviour in the lighting design (`zones.ts`), so every room has its own character:
+ * warm and sparse for offices, cold and nearly dark for the server room and storage, bright white for the break room.
  */
-function zoneLight(x: number, z: number): PanelLight {
-  if (DEAD_PANELS.has(`${x},${z}`)) return { color: 0, intensity: 0, dead: true };
-  if (z < -20) {
-    if (x < -34) return { color: 0xffd9a8, intensity: 0.55 }; // executive
-    if (x < -6) return { color: 0xffe2bd, intensity: 0.5 }; // meeting rooms: chandeliers do the rest
-    if (x < 10) return { color: 0xbcd0ff, intensity: 0.3, flicker: true }; // server room
-    if (x < 24) return { color: 0xeaf2ff, intensity: 0.7 }; // print
-    return { color: 0xd8e6ff, intensity: 0.7 }; // helpdesk
-  }
-  if (z < 14) {
-    if (Math.abs(x) <= 9 && z >= -16 && z <= 0) return { color: 0xffcf9a, intensity: 0.8 }; // lounge
-    if (Math.abs(x) >= 36) return { color: 0xfff1dc, intensity: 0.5 }; // outer lanes
-    return { color: 0xfff1dc, intensity: 0.75 };
-  }
-  if (x < -30) return { color: 0xffffff, intensity: 0.95 }; // break room
-  if (x < -12) return { color: 0xdfe8ff, intensity: 0.4, flicker: x === -18 && z === 24 }; // storage
-  if (x < 12) return { color: 0xffe6c0, intensity: 0.6 }; // lobby: chandeliers add warmth
-  if (x < 32) return { color: 0xffd9a8, intensity: 0.45 }; // conference
-  return { color: 0xd8d0ff, intensity: 0.5 }; // phone lounge
+function panelLight(x: number, z: number): PanelLight {
+  const key = `${x},${z}`;
+  const p = zoneAt(x, z).panels;
+  const off = DEAD_PANELS.has(key) || (p.onlyAt !== undefined && !p.onlyAt.includes(key));
+  if (off) return { color: 0, intensity: 0, radius: 0, dead: true };
+  return { color: p.color, intensity: p.intensity, radius: p.radius, flicker: p.flickerAt?.includes(key) === true };
 }
 
 /** Lays floors, ceiling, lights and every wall. */
@@ -85,11 +73,11 @@ export function buildShell(): void {
   box('ceiling', 0, CEILING_H, 0, X1 - X0 + 1, 0.2, Z1 - Z0 + 1, false);
   for (let x = -45; x <= 45; x += 9) {
     for (let z = -32; z <= 32; z += 8) {
-      const f = zoneLight(x, z);
+      const f = panelLight(x, z);
       const mat = f.dead ? 'dark' : f.flicker ? 'lightFlicker' : 'light';
       box(mat, x, CEILING_H - 0.06, z, 2.4, 0.06, 1.2, false);
       // Dead panels cast nothing: those spots are the dark pockets campers can use.
-      if (!f.dead) lamp(x, CEILING_H - 0.3, z, f.color, f.intensity, 10.5);
+      if (!f.dead) lamp(x, CEILING_H - 0.3, z, f.color, f.intensity, f.radius);
     }
   }
 

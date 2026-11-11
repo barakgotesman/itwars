@@ -18,6 +18,7 @@ import { buildExecutive, buildHelpdesk, buildPrintRoom } from './rooms/north-roo
 import { buildOpenPlan } from './rooms/open-plan';
 import { buildServerRoom } from './rooms/server-room';
 import { buildBreakRoom, buildConference, buildLobby, buildPhoneLounge, buildStorage } from './rooms/south-rooms';
+import { placeAccents } from './accents';
 import { buildShell } from './shell';
 import type { LabelSpec, LightSource, MapBox } from './types';
 
@@ -40,6 +41,7 @@ buildLobby();
 buildConference();
 buildPhoneLounge();
 buildDressing();
+placeAccents();
 
 /** Door nameplates, banners and wall plaques; the client draws their text. */
 export const LABELS: readonly LabelSpec[] = labels;

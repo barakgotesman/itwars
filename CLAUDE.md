@@ -27,13 +27,14 @@ npm run build          # typecheck (client + server configs) && vite build
 npm start              # one Node process serves dist/ + WebSocket on :3000 and prints LAN URLs
 npm run play           # build + start (use this to host for friends)
 npm run typecheck      # tsc for the whole repo, then again with no DOM types for shared + server
-npm test               # check:deps, verify:map, test:sim, test:smoke, test:settings, test:quality
+npm test               # check:deps, verify:map, test:sim, test:smoke, test:settings, test:quality, test:zones
 npm run check:deps     # layering rule: shared is pure, server never imports client, client never imports server
 npm run verify:map     # spawns and pickups are not inside solids and are reachable on foot
 npm run test:sim       # headless server simulation tests (no browser)
 npm run test:smoke     # real server + two WebSocket clients
 npm run test:settings  # key rebinding rules and option defaults
 npm run test:quality   # graphics calibration and hardware guess
+npm run test:zones     # lighting design: zones tile the map, sane values, lamp budget, no lamp buried in a solid
 npm run make:icons     # regenerate public/ icons and the og-image from the pixel-art sprite (tools/make-icons.ts)
 ```
 
@@ -54,7 +55,7 @@ src/shared/   used by BOTH sides (no DOM, no Node APIs)
   core/       constants.ts (tick rate, player size, movement tuning, key bits, match rules), physics.ts (stepMovement, rayVsAabb, overlaps, lookDir), characters.ts
   net/        protocol.ts: typed C2S / S2C messages, GameEvent union, parseC2S validator, name/code sanitising
   rules/      weapons.ts (weapon / grenade / pickup / loot tables, all balance), modes.ts (mode registry, MatchRules, sanitizeRules, setup-screen options)
-  world/      doors.ts (Doors simulation: used by server AND client), map/ (office generated from boxes: index, builder, furniture, shell, dressing, pickups, door-layout, rooms/*)
+  world/      doors.ts (Doors simulation: used by server AND client), map/ (office generated from boxes: index, builder, furniture, shell, dressing, pickups, door-layout, zones (lighting design), accents (local lights), rooms/*)
 src/server/   Node
   index.ts    bootstrap only: http server + gateway + loop
   loop.ts     fixed 60 Hz step of every room
@@ -148,6 +149,13 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - Open-plan centre with 12 cubicle pods and a lounge; north row of rooms (Executive, meeting rooms, Server room, Print room, IT Helpdesk); south row (Break room, Storage, Lobby, Conference, phone booths). 3.2 m doors.
 - Generated from boxes; the client merges them per material. Keep decorative-only boxes `solid: false`. Every spawn and pickup must pass `npm run verify:map`.
 
+### Lighting design (every room has its own light)
+- Everything is **baked** into vertex colours at load (unlit materials, zero per-frame cost). Never add real-time shadow lights: 60 FPS on weak PCs is a requirement.
+- `shared/world/map/zones.ts` is the single source of truth, one entry per room: ambient colour and level, ceiling-panel behaviour (colour, strength, which panels are on or flicker), fog colour and density, and a brightness `floor` for players. `zoneAt(x, z)` looks a point up. Rooms: lit warm and low (executive, conference, lounge), cold and nearly dark (server room, helpdesk), olive and sparse (storage), bright white (break room, print), warm plus daylight (lobby), purple (phone lounge).
+- `shared/world/map/accents.ts` places the small local lights (rack LEDs, monitor glow, desk lamps, vending, neon, bare bulbs, sunlit window patches) by room. A lamp must sit in free air: one inside furniture lights nothing, and `npm run test:zones` fails on it.
+- `client/render/lighting.ts` bakes ambient from the zone (blended softly across doorways, wall faces use the air in front of them) plus lamps and contact shadows, using a grid index so baking stays fast. `light-field.ts` samples the baked light so `PlayerModel.setTint` / `ViewModel.setTint` tint characters and weapons to their room (never below the zone floor); `atmosphere.ts` eases fog and sky toward the camera's room each frame.
+- **Add or retune a room's light:** edit its zone in `zones.ts` and its accents in `accents.ts`, then look at it in a rendered scene (Vite dev page importing `buildWorld`) and run `npm run test:zones`. Keep total lamps under the budget in the test.
+
 ### Controls and settings
 - All actions are rebindable in Settings > Controls (`client/platform/settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
 - Other settings: mouse sensitivity, invert Y, FOV, master volume, FPS counter, graphics (below). Saved in `localStorage` (always try/catch).
@@ -203,6 +211,7 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - Not verified visually or by ear in a live two-player match (the automated browser cannot use the mouse): mouse firing and aim-down-sights feel, hit markers, audio, loot pickup, bullet-hole decals, and the gun part animations (slide, bolt, pump, casings), including the sniper bolt handle fix.
 - Spray paint: the server rules are tested headlessly (range, cooldown, doors, lobby, validation) and the decals were checked in a small rendered scene, but spraying in a live match, the hiss and the paint puff were not tried. No tags for late joiners.
 - Doors: the logic is covered headlessly (blocking, pushing, wedged players, bullets, reset) and the models were checked in a rendered scene, but pressing `E` in a live match, the feel of being pushed, and the door sound were not tried.
+- Lighting: the room mood was checked in a rendered contact sheet of every room (with characters standing in them) and by headless tests, but not by walking the live game; the dark rooms' readability against a real opponent has not been playtested.
 - Graphics calibration has only been exercised on simulated machines and a 1 FPS automation tab, not on the owner's slow computer.
 - Public demo deploy not done. No bots, no lag compensation.
 

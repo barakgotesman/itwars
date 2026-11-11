@@ -2,6 +2,7 @@
  * Other players: a boxy office-worker model with procedural animation, plus the manager that
  * interpolates snapshots about 100 ms in the past so motion looks smooth despite 30 Hz updates.
  */
+import type { LightField, Tint } from './light-field';
 import * as THREE from 'three';
 import type { PlayerInfo, SnapPlayer } from '@shared/net/protocol';
 
@@ -21,6 +22,8 @@ const GUN_LOOK = [
 ] as const;
 
 const matCache = new Map<number, THREE.MeshLambertMaterial>();
+/** Scratch colour for tint maths. */
+const TINT = new THREE.Color();
 /** Shared flat-shaded material per colour, so 8 players cost a handful of materials. */
 function mat(color: number): THREE.MeshLambertMaterial {
   let m = matCache.get(color);
@@ -76,6 +79,11 @@ export class PlayerModel {
   private death = 0;
   private gunIndex = -1;
   private tagHidden = false;
+  /** This model's own copies of the shared materials, so its tint never leaks onto other players. */
+  private readonly own = new Set<THREE.MeshLambertMaterial>();
+  private tintR = 1;
+  private tintG = 1;
+  private tintB = 1;
 
   /**
    * @param info - Name, character style and shirt colour.
@@ -99,6 +107,31 @@ export class PlayerModel {
     this.tag = nameTag(info.name);
     this.root.add(this.tag);
     this.setWeapon(1);
+    this.adopt();
+  }
+
+  /** Gives every mesh that still uses a shared material its own copy (new gun parts appear when the weapon changes). */
+  private adopt(): void {
+    this.root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh) || !(o.material instanceof THREE.MeshLambertMaterial) || this.own.has(o.material)) return;
+      const m = o.material.clone();
+      m.userData.base = o.material.color.clone();
+      m.color.copy(m.userData.base as THREE.Color).multiply(new THREE.Color(this.tintR, this.tintG, this.tintB));
+      o.material = m;
+      this.own.add(m);
+    });
+  }
+
+  /**
+   * Tints the model to the light of the room it stands in.
+   * @param r - Red multiplier (1 = normally lit).
+   * @param g - Green multiplier.
+   * @param b - Blue multiplier.
+   */
+  setTint(r: number, g: number, b: number): void {
+    if (Math.abs(r - this.tintR) + Math.abs(g - this.tintG) + Math.abs(b - this.tintB) < 0.01) return;
+    this.tintR = r; this.tintG = g; this.tintB = b;
+    for (const m of this.own) (m.color.copy(m.userData.base as THREE.Color)).multiply(TINT.set(r, g, b));
   }
 
   /**
@@ -276,6 +309,7 @@ export class PlayerModel {
     part(this.gun, look.color, look.thick, look.len, look.thick * 1.3, 0, -look.len / 2 + 0.08, 0);
     part(this.gun, 0x111114, look.thick * 0.7, 0.1, look.thick, 0, 0.0, 0.06);
     this.addGunDetails(w, look.len, look.thick);
+    this.adopt();
   }
 
   /**
@@ -396,6 +430,9 @@ function lerpAngle(a: number, b: number, t: number): number {
 export class RemotePlayers {
   private readonly remotes = new Map<number, Remote>();
   private roster = new Map<number, PlayerInfo>();
+  /** Baked light by position; when set, each model is tinted to its room. */
+  lightField: LightField | null = null;
+  private readonly tint: Tint = { r: 1, g: 1, b: 1 };
 
   /**
    * @param scene - Scene the models are added to.
@@ -489,6 +526,10 @@ export class RemotePlayers {
 
       r.model.root.position.set(x, y, z);
       r.model.root.rotation.y = yaw;
+      if (this.lightField) {
+        this.lightField.sample(x, z, this.tint);
+        r.model.setTint(this.tint.r, this.tint.g, this.tint.b);
+      }
       r.model.update(dt, r.speed, !airborne, pitch, r.latest.alive, r.latest.w, r.latest.prot && Math.floor(now / 100) % 2 === 0);
     }
   }
