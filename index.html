@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IT Wars</title>
+  </head>
+  <body class="m-0 overflow-hidden bg-black font-mono text-white">
+    <canvas id="game" class="block h-screen w-screen"></canvas>
+
+    <!-- Hides the map until the first entry, but unlike display:none it lets the graphics calibration render for real. -->
+    <div id="cover" class="fixed inset-0 hidden bg-black"></div>
+
+    <div class="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.55)_100%)]"></div>
+
+    <div id="crosshair" class="pointer-events-none fixed left-1/2 top-1/2 hidden h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/80"></div>
+
+    <!-- In-game HUD -->
+    <div id="hud" class="pointer-events-none fixed inset-0 hidden">
+      <div id="flash" class="absolute inset-0 bg-white opacity-0"></div>
+      <div id="hit-vignette" class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(200,0,0,0.6)_100%)] opacity-0"></div>
+      <div class="absolute left-4 top-4 text-xs uppercase tracking-widest text-white/60">
+        Room <span id="hud-code" class="font-bold text-white"></span>
+      </div>
+      <div id="scope" class="absolute inset-0 hidden bg-[radial-gradient(circle_at_center,transparent_0,transparent_27vmin,#05070a_27.5vmin)]">
+        <!-- The lens: a faint blue tint that darkens toward the rim, with a reflection that drifts across it. -->
+        <div class="absolute left-1/2 top-1/2 h-[55vmin] w-[55vmin] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full bg-[radial-gradient(circle_at_center,rgba(150,210,255,0.05)_0,rgba(110,170,230,0.08)_55%,rgba(10,30,60,0.45)_100%)] shadow-[inset_0_0_5vmin_rgba(0,15,40,0.85)]">
+          <div class="scope-glint absolute -inset-[10%] bg-[linear-gradient(118deg,transparent_34%,rgba(255,255,255,0.13)_43%,rgba(255,255,255,0.03)_50%,transparent_58%)]"></div>
+          <div class="absolute left-[18%] top-[14%] h-[7%] w-[7%] rounded-full bg-[radial-gradient(circle,rgba(255,255,255,0.55)_0,transparent_70%)]"></div>
+        </div>
+        <!-- Colour fringing at the glass edge, then a brushed-metal bezel. -->
+        <div class="absolute left-1/2 top-1/2 h-[55.4vmin] w-[55.4vmin] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.35vmin] border-red-500/30"></div>
+        <div class="absolute left-1/2 top-1/2 h-[54.4vmin] w-[54.4vmin] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.35vmin] border-cyan-300/30"></div>
+        <div class="absolute left-1/2 top-1/2 h-[58vmin] w-[58vmin] -translate-x-1/2 -translate-y-1/2 rounded-full border-[1.4vmin] border-neutral-800 shadow-[inset_0_0_0_0.2vmin_rgba(255,255,255,0.18),0_0_2vmin_rgba(0,0,0,0.9)]"></div>
+        <!-- Reticle: fine crosshair lines with thicker outer posts, and a red centre dot. -->
+        <div class="absolute left-1/2 top-1/2 h-px w-[54vmin] -translate-x-1/2 bg-black/75"></div>
+        <div class="absolute left-1/2 top-1/2 h-[54vmin] w-px -translate-y-1/2 bg-black/75"></div>
+        <div class="absolute left-[calc(50%-27vmin)] top-1/2 h-[0.5vmin] w-[10vmin] -translate-y-1/2 bg-black/85"></div>
+        <div class="absolute left-[calc(50%+17vmin)] top-1/2 h-[0.5vmin] w-[10vmin] -translate-y-1/2 bg-black/85"></div>
+        <div class="absolute left-1/2 top-[calc(50%-27vmin)] h-[10vmin] w-[0.5vmin] -translate-x-1/2 bg-black/85"></div>
+        <div class="absolute left-1/2 top-[calc(50%+17vmin)] h-[10vmin] w-[0.5vmin] -translate-x-1/2 bg-black/85"></div>
+        <div class="absolute left-1/2 top-1/2 h-1.5 w-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(255,40,40,0.9)]"></div>
+      </div>
+      <svg id="hitmarker" viewBox="0 0 40 40" class="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 text-white opacity-0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+        <path d="M6 6 L14 14 M34 6 L26 14 M6 34 L14 26 M34 34 L26 26" />
+      </svg>
+      <div id="dmg-dirs" class="absolute left-1/2 top-1/2 h-0 w-0"></div>
+      <div id="banner" class="absolute left-0 right-0 top-24 hidden flex-col items-center gap-1 text-center">
+        <div id="banner-title" class="text-5xl font-bold tracking-widest text-amber-300"></div>
+        <div id="banner-sub" class="text-sm text-white/70"></div>
+      </div>
+      <div id="scoreboard" class="absolute inset-0 hidden items-center justify-center bg-black/40">
+        <div class="w-[34rem] max-w-[90vw] rounded border border-white/20 bg-black/70 p-4">
+          <div class="mb-2 flex justify-between text-xs uppercase tracking-widest text-white/60">
+            <span>Scoreboard</span><span id="score-goal"></span>
+          </div>
+          <table class="w-full text-sm">
+            <thead class="text-left text-xs uppercase tracking-widest text-white/50">
+              <tr><th class="w-8 py-1">#</th><th>Callsign</th><th class="w-16 text-right">Kills</th><th class="w-16 text-right">Deaths</th></tr>
+            </thead>
+            <tbody id="score-rows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="fps" class="absolute right-4 top-4 hidden text-xs text-white/70"></div>
+      <div id="weapon-bar" class="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-end gap-2"></div>
+      <div id="feed" class="absolute left-4 top-12 flex w-80 flex-col items-start gap-1"></div>
+      <div class="absolute bottom-6 left-6 w-64">
+        <div class="mb-1 flex justify-between text-sm font-bold"><span>HP</span><span id="hp-text">100</span></div>
+        <div class="h-3 w-full overflow-hidden rounded bg-black/60 ring-1 ring-white/30">
+          <div id="hp-bar" class="h-full w-full bg-emerald-500"></div>
+        </div>
+      </div>
+      <div class="absolute bottom-6 right-6 text-right">
+        <div id="weapon-name" class="text-sm uppercase tracking-widest text-white/70"></div>
+        <div class="text-4xl font-bold"><span id="ammo-mag">0</span><span class="text-xl text-white/60"> / <span id="ammo-reserve">0</span></span></div>
+        <div id="reload-note" class="h-5 text-sm text-amber-300"></div>
+      </div>
+      <div id="dead" class="absolute inset-0 hidden flex-col items-center justify-center gap-2 bg-black/40">
+        <div class="text-4xl font-bold text-red-400">Ticket closed</div>
+        <div class="text-sm text-white/70">Respawning in <span id="dead-count">3</span></div>
+      </div>
+    </div>
+
+    <!-- Main menu: character, callsign, host or join -->
+    <div id="menu" class="fixed inset-0 overflow-y-auto bg-black/75">
+      <div class="flex min-h-full flex-col items-center justify-center gap-5 px-6 py-8">
+        <div class="text-center">
+          <h1 class="text-5xl font-bold tracking-widest">IT WARS</h1>
+          <p class="mt-1 text-sm text-white/60">Have you tried turning them off?</p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-10">
+          <!-- Character picker -->
+          <section class="flex w-64 flex-col items-center gap-3">
+            <canvas id="preview" class="h-64 w-64 rounded-lg ring-1 ring-white/20"></canvas>
+            <div class="text-center">
+              <div id="char-name" class="text-lg font-bold"></div>
+              <div id="char-blurb" class="h-8 text-xs text-white/50"></div>
+            </div>
+            <div id="char-list" class="grid w-full grid-cols-4 gap-1.5"></div>
+            <div id="color-list" class="flex flex-wrap justify-center gap-2"></div>
+          </section>
+
+          <!-- Name and room -->
+          <section class="flex w-64 flex-col items-center gap-4">
+            <label class="flex flex-col items-center gap-1 text-xs uppercase tracking-widest text-white/60">
+              Callsign
+              <input id="name" type="text" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Leave blank for a guest name"
+                class="w-64 rounded border border-white/30 bg-black/50 px-3 py-2 text-center text-lg normal-case tracking-normal text-white outline-none placeholder:text-sm placeholder:text-white/30 focus:border-white/70" />
+            </label>
+
+            <button id="host" class="btn w-64">Host room</button>
+
+            <div class="flex items-center gap-3 text-xs uppercase tracking-widest text-white/40">
+              <span class="h-px w-16 bg-white/20"></span>or<span class="h-px w-16 bg-white/20"></span>
+            </div>
+
+            <form id="join-form" class="flex gap-2">
+              <input id="code" type="text" maxlength="4" autocomplete="off" spellcheck="false" placeholder="CODE"
+                class="w-28 rounded border border-white/30 bg-black/50 px-3 py-2 text-center text-2xl font-bold uppercase tracking-[0.3em] text-white outline-none placeholder:text-base placeholder:tracking-widest placeholder:text-white/30 focus:border-white/70" />
+              <button id="join" type="submit" class="btn">Join</button>
+            </form>
+            <p id="menu-error" class="h-5 text-center text-sm text-red-400"></p>
+            <button id="menu-settings" type="button" class="cursor-pointer text-xs uppercase tracking-widest text-white/60 hover:text-white">Settings</button>
+          </section>
+        </div>
+
+        <p id="lan-hint" class="max-w-md text-center text-xs text-white/50"></p>
+        <p class="text-center text-xs text-white/40">WASD move · Space jump · Shift sprint · LMB fire · RMB aim · R reload · 1-4 weapons · G/H grenades</p>
+      </div>
+    </div>
+
+    <!-- Room panel: shown after joining and as the pause menu -->
+    <div id="room" class="fixed inset-0 hidden flex-col items-center justify-center gap-4 bg-black/75">
+      <p class="text-xs uppercase tracking-widest text-white/60">Room code</p>
+      <div id="room-code" class="select-all text-7xl font-bold tracking-[0.3em]"></div>
+      <p id="room-share" class="max-w-md text-center text-sm text-white/60"></p>
+      <ul id="room-players" class="min-w-64 divide-y divide-white/10 rounded border border-white/20 bg-black/40 text-sm"></ul>
+      <button id="enter" class="btn w-64">Enter the office</button>
+      <button id="room-settings" type="button" class="btn w-64">Settings</button>
+      <button id="leave" class="cursor-pointer text-xs uppercase tracking-widest text-white/50 hover:text-white">Leave room</button>
+    </div>
+
+    <div id="settings" class="fixed inset-0 z-30 hidden overflow-y-auto bg-black">
+      <div class="mx-auto flex min-h-full max-w-2xl flex-col gap-4 px-6 py-8">
+        <div class="flex items-center justify-between">
+          <h2 class="text-3xl font-bold tracking-widest">Settings</h2>
+          <button id="settings-close" type="button" class="btn !px-4 !py-2 !text-sm">Back</button>
+        </div>
+        <div id="settings-tabs" class="flex gap-2 border-b border-white/15 pb-2"></div>
+        <div id="settings-body" class="flex flex-col gap-1"></div>
+      </div>
+      <div id="capture" class="fixed inset-0 z-40 hidden flex-col items-center justify-center gap-2 bg-black/85">
+        <div id="capture-title" class="text-2xl font-bold"></div>
+        <div class="text-sm text-white/70">Press a key or mouse button. Esc cancels.</div>
+      </div>
+    </div>
+
+    <div id="disconnected" class="fixed inset-0 z-40 hidden flex-col items-center justify-center gap-4 bg-black/90">
+      <p class="text-2xl text-red-400">Disconnected from the server</p>
+      <button id="reload" class="btn">Back to menu</button>
+    </div>
+
+    <div id="touch-notice" class="fixed inset-0 z-50 hidden items-center justify-center bg-black p-8 text-center text-xl">
+      IT Wars is desktop only. Open it on a computer with a keyboard and mouse.
+    </div>
+
+    <script type="module" src="/src/client/main.ts"></script>
+  </body>
+</html>

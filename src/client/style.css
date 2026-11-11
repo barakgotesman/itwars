@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+@layer components {
+  .btn {
+    @apply cursor-pointer rounded border border-white/30 bg-white/10 px-6 py-3 text-lg font-bold tracking-wider hover:bg-white/20;
+  }
+}
+
+@layer components {
+  .btn:disabled {
+    @apply cursor-wait opacity-50;
+  }
+}
+
+/* Slow drift of the reflection across the sniper scope's glass. */
+@keyframes scope-glint {
+  from { transform: translateX(-9%); }
+  to { transform: translateX(9%); }
+}
+.scope-glint {
+  animation: scope-glint 5s ease-in-out infinite alternate;
+}

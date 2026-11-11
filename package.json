@@ -1,0 +1,33 @@
+{
+  "name": "it-wars",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c blue,green \"tsx watch src/server/index.ts\" \"vite --host\"",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "verify:map": "tsx scripts/verify-map.ts",
+    "test:sim": "tsx scripts/sim-test.ts",
+    "start": "tsx src/server/index.ts",
+    "test:smoke": "tsx scripts/smoke-test.ts",
+    "play": "npm run build && npm start",
+    "test:settings": "tsx scripts/settings-test.ts",
+    "test:quality": "tsx scripts/quality-test.ts"
+  },
+  "dependencies": {
+    "three": "^0.187.0",
+    "ws": "^8.22.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "@types/ws": "^8.18.2",
+    "concurrently": "^10.0.7",
+    "tailwindcss": "^4.3.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}
