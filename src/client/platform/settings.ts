@@ -68,6 +68,8 @@ export interface Settings {
   fov: number;
   /** Master volume 0..1. */
   volume: number;
+  /** Menu sound effects (hover blip, click, slider tick) as a share of the master volume, 0..1; 0 turns them off. */
+  uiVolume: number;
   /** Pick graphics automatically to hold 60 FPS (see `quality.ts`); the four options below then apply only in manual mode. */
   autoQuality: boolean;
   /** Resolution multiplier on top of the device pixel ratio. */
@@ -84,7 +86,7 @@ export interface Settings {
 
 /** Defaults for everything except bindings. */
 const DEFAULTS: Omit<Settings, 'bindings'> = {
-  sensitivity: 1, invertY: false, fov: 80, volume: 0.5, autoQuality: true, renderScale: 1, antialias: true, bloom: true, dust: true, particles: true, showFps: false,
+  sensitivity: 1, invertY: false, fov: 80, volume: 0.5, uiVolume: 0.6, autoQuality: true, renderScale: 1, antialias: true, bloom: true, dust: true, particles: true, showFps: false,
 };
 
 const STORAGE_KEY = 'itwars.settings';
@@ -108,6 +110,7 @@ function load(): void {
     settings.invertY = raw.invertY === true;
     settings.fov = num(raw.fov, 60, 110, DEFAULTS.fov);
     settings.volume = num(raw.volume, 0, 1, DEFAULTS.volume);
+    settings.uiVolume = num(raw.uiVolume, 0, 1, DEFAULTS.uiVolume);
     settings.renderScale = RENDER_SCALES.includes(raw.renderScale as number) ? (raw.renderScale as number) : DEFAULTS.renderScale;
     settings.autoQuality = raw.autoQuality !== false;
     settings.antialias = raw.antialias !== false;

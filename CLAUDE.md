@@ -164,7 +164,8 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 
 ### Controls and settings
 - All actions are rebindable in Settings > Controls (`client/platform/settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
-- Other settings: mouse sensitivity, invert Y, FOV, master volume, FPS counter, graphics (below). Saved in `localStorage` (always try/catch).
+- **Menu sounds** (`platform/ui-sound.ts`, started in `main.ts`): a blip on hovering a control, a click on pressing one (a deeper thump on `.btn`), and a slider tick that rises with the value, all synthesised and delegated from the document so new buttons get them for free. Level = master volume x the `uiVolume` setting (Settings > Audio > Menu sounds, 0 = off). The first hover in a fresh tab is silent because browsers only start audio after a click.
+- Other settings: mouse sensitivity, invert Y, FOV, master volume, menu sounds volume, FPS counter, graphics (below). Saved in `localStorage` (always try/catch).
 - Keyboard and mouse input only act **while the pointer is locked** (so menus and pause never move the player). Pointer lock needs a click: after joining, the room panel shows "Enter the office"; Esc pauses and shows Enter/Resume, **Settings**, Leave room.
 
 ### Graphics quality (decided once)

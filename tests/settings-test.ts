@@ -58,9 +58,11 @@ resetBindings();
 check('reset restores every default', ACTIONS.every((a) => settings.bindings[a.id] === DEFAULT_BINDINGS[a.id]));
 
 // Options.
-updateSettings({ sensitivity: 2, invertY: true, volume: 0.2, bloom: false, renderScale: 0.5 });
+updateSettings({ sensitivity: 2, invertY: true, volume: 0.2, bloom: false, renderScale: 0.5, uiVolume: 0.3 });
+check('menu sound volume updates', settings.uiVolume === 0.3);
 check('options update', settings.sensitivity === 2 && settings.invertY && settings.volume === 0.2 && !settings.bloom && settings.renderScale === 0.5);
 resetOptions();
+check('menu sounds default to 60% and reset', settings.uiVolume === 0.6);
 check('options reset to defaults', settings.sensitivity === 1 && !settings.invertY && settings.volume === 0.5 && settings.bloom && settings.renderScale === 1 && settings.autoQuality && settings.antialias);
 
 // Labels.

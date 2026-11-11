@@ -169,6 +169,7 @@ export function createSettingsUi(): SettingsUi {
   const audio = () => {
     body.append(
       row('Master volume', slider(0, 1, 0.01, settings.volume, (v) => `${Math.round(v * 100)}%`, (v) => updateSettings({ volume: v }))),
+      row('Menu sounds', slider(0, 1, 0.01, settings.uiVolume, (v) => `${Math.round(v * 100)}%`, (v) => updateSettings({ uiVolume: v })), 'The blip when you hover a button and the click when you press one. Set to 0 to turn them off.'),
     );
   };
 

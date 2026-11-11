@@ -45,7 +45,7 @@ Windows may ask to let Node through the firewall the first time; allow it on pri
 - **Live scoreboards** on three office walls (callsigns, kills, deaths, clock, and the latest kills and joins), room name signs above every doorway, and a banner that shows the room's real kill limit.
 - A **shooter-style interface**: flat, blocky and high-contrast, with big health and ammo numbers, magazine pips, a reload bar, a low-health warning, a race strip showing you against the leader, a right-side kill feed, and a main menu that floats over a slow flythrough of the real office map.
 - A big **office map**: open-plan floor with cubicles, plus meeting rooms, a server room, a break room, storage and more.
-- **Settings**: fully rebindable controls, field of view, volume, FPS counter and graphics options.
+- **Settings**: fully rebindable controls, field of view, master and menu-sound volume, FPS counter and graphics options.
 - **Automatic graphics**: the game measures your computer once when you join a room, picks a preset that holds 60 FPS and remembers it. Nothing changes while you play.
 
 ## Controls
