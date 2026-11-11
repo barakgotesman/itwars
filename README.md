@@ -24,9 +24,9 @@ The server prints the addresses it is listening on, for example:
   network: http://192.168.1.20:3000
 ```
 
-1. Open the **local** address, pick a character and a callsign, and click **Host game**. Choose the kill limit and an optional time limit, then **Create room**. You get a 4-letter room code.
+1. Open the **local** address, pick a character, a colour, a spray design and a callsign, and click **Host a game**. Choose the kill limit and an optional time limit, then **Create room**. You get a 4-letter room code.
 2. Your friend opens the **network** address on the same Wi-Fi or LAN, types the code and clicks **Join**.
-3. Everyone clicks **Enter the office** to start playing. **Esc** pauses and opens Settings.
+3. The lobby shows the room code, the address to share (click the copy icon beside it) and who has joined. Everyone clicks **Enter the office** to start playing. **Esc** pauses and opens Settings.
 
 Windows may ask to let Node through the firewall the first time; allow it on private networks.
 
@@ -40,7 +40,9 @@ Windows may ask to let Node through the firewall the first time; allow it on pri
 - **Sliding doors** on the main rooms: some start half-closed, press `E` to open or close. Doors are solid (they block movement and bullets), and one that closes on you pushes you out of the way.
 - **Pickups** across the map (HP, ammo, grenades) with light beams, and **loot bags** that dead players drop with half of their ammo.
 - **Bullet holes** that every player sees, then fade away.
+- **Spray paint**: press `T` near a wall to leave your pixel-art tag (9 designs, picked in the menu). 10 second cooldown, 3 tags per player, cleared when a new match starts.
 - **7 selectable characters** (Sysadmin, Hoodie Dev, Manager, Intern, HR, CTO, CFO) with a rotating 3D preview and shirt colours.
+- A **shooter-style interface**: flat, blocky and high-contrast, with big health and ammo numbers, magazine pips, a reload bar, a low-health warning, a race strip showing you against the leader, a right-side kill feed, and a main menu that floats over a slow flythrough of the real office map.
 - A big **office map**: open-plan floor with cubicles, plus meeting rooms, a server room, a break room, storage and more.
 - **Settings**: fully rebindable controls, field of view, volume, FPS counter and graphics options.
 - **Automatic graphics**: the game measures your computer once when you join a room, picks a preset that holds 60 FPS and remembers it. Nothing changes while you play.
@@ -58,6 +60,7 @@ These are the defaults; everything can be rebound in **Settings → Controls**.
 | Weapons | `1`-`4` or mouse wheel |
 | Coffee Bomb / Fire Alarm | `G` / `H` |
 | Open / close a door | `E` (face the door) |
+| Spray paint | `T` (face a wall) |
 | Scoreboard | hold `Tab` |
 | Pause and settings | `Esc` |
 
