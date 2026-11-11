@@ -227,25 +227,46 @@ export class PlayerModel {
     part(this.head, 0x1f3a5f, 0.26, 0.03, 0.14, 0, 0.28, -0.2);
   }
 
-  /** Blazer and pencil skirt, long hair, brooch and earrings: the people person. */
+  /**
+   * Fitted blazer with a narrow waist, a pencil skirt over bare legs, red heels, long hair with a bow, lashes, blush and lipstick:
+   * the people person. Every cue is chosen to read as female even in a small blocky silhouette.
+   */
   private buildHr(info: PlayerInfo, skin: number, hair: number): void {
     const b = this.body;
-    this.base({ pants: 0x2a2a35, shoes: 0x1a1a1f, sleeve: info.color, sleeveLen: 0.45, skin, torso: 0.44 });
-    part(b, info.color, 0.44, 0.62, 0.26, 0, 1.13, 0);
-    part(b, 0xf4f4f1, 0.14, 0.34, 0.02, 0, 1.25, -0.14);
-    part(b, 0xf4f4f1, 0.18, 0.05, 0.04, 0, 1.43, -0.12);
-    part(b, 0xd4af37, 0.05, 0.05, 0.02, 0.11, 1.3, -0.14);
-    // Pencil skirt over the tights, a little wider than the hips so it reads as a hem.
-    part(b, 0x2b2f3a, 0.48, 0.38, 0.3, 0, 0.67, 0);
-    // Long hair: crown, a curtain down the back, side locks and a fringe.
+    const skirt = 0x2b2f3a;
+    // Bare legs (the skin tone) and red heels, so the skirt hem shows the legs below it.
+    this.base({ pants: skin, shoes: 0xc0392b, sleeve: info.color, sleeveLen: 0.45, skin, torso: 0.44 });
+    // Heels: a raised block under each heel, and a slimmer toe.
+    for (const leg of [this.legL, this.legR]) part(leg, 0x8e2a20, 0.08, 0.1, 0.08, 0, -0.76, 0.1);
+    // Hourglass torso: a chest, a narrow waist, a belt, then hips wider than the shoulders.
+    part(b, info.color, 0.44, 0.34, 0.26, 0, 1.27, 0);
+    part(b, info.color, 0.34, 0.26, 0.23, 0, 1.0, 0);
+    part(b, 0x1f1f26, 0.37, 0.05, 0.25, 0, 0.88, 0);
+    part(b, skirt, 0.47, 0.2, 0.28, 0, 0.75, 0);
+    part(b, skirt, 0.4, 0.2, 0.26, 0, 0.56, 0);
+    // Blouse and a V neckline of skin, a brooch on the lapel.
+    part(b, 0xf4f4f1, 0.16, 0.3, 0.02, 0, 1.26, -0.135);
+    part(b, skin, 0.1, 0.08, 0.02, 0, 1.4, -0.14);
+    part(b, skin, 0.05, 0.05, 0.02, 0, 1.35, -0.14);
+    part(b, 0xd4af37, 0.05, 0.05, 0.02, 0.12, 1.33, -0.14);
+    // Long hair: crown, a fringe swept to one side, a curtain falling past the shoulders at the back, and side locks to the chest.
     part(this.head, hair, 0.29, 0.1, 0.29, 0, 0.3, 0.02);
-    part(this.head, hair, 0.3, 0.46, 0.1, 0, 0.06, 0.16);
-    part(this.head, hair, 0.05, 0.3, 0.2, -0.155, 0.12, 0.04);
-    part(this.head, hair, 0.05, 0.3, 0.2, 0.155, 0.12, 0.04);
-    part(this.head, hair, 0.27, 0.06, 0.03, 0, 0.26, -0.14);
-    part(this.head, 0xc0392b, 0.07, 0.02, 0.02, 0, 0.07, -0.13);
-    part(this.head, 0xd4af37, 0.03, 0.05, 0.03, -0.14, 0.08, -0.08);
-    part(this.head, 0xd4af37, 0.03, 0.05, 0.03, 0.14, 0.08, -0.08);
+    part(this.head, hair, 0.27, 0.06, 0.03, 0.02, 0.26, -0.14);
+    part(this.head, hair, 0.14, 0.05, 0.03, -0.08, 0.22, -0.14);
+    part(this.head, hair, 0.36, 0.7, 0.1, 0, -0.06, 0.2);
+    part(this.head, hair, 0.06, 0.46, 0.2, -0.17, -0.03, 0.03);
+    part(this.head, hair, 0.06, 0.46, 0.2, 0.17, -0.03, 0.03);
+    // A bow at the side of the head.
+    part(this.head, 0xe8508a, 0.07, 0.07, 0.05, 0.13, 0.27, -0.06);
+    part(this.head, 0xe8508a, 0.03, 0.03, 0.03, 0.13, 0.27, -0.09);
+    // Face details: lashes, blush, red lips and gold earrings.
+    part(this.head, 0x15151a, 0.045, 0.015, 0.02, -0.06, 0.215, -0.133);
+    part(this.head, 0x15151a, 0.045, 0.015, 0.02, 0.06, 0.215, -0.133);
+    part(this.head, 0xe58f8f, 0.04, 0.025, 0.012, -0.09, 0.1, -0.132);
+    part(this.head, 0xe58f8f, 0.04, 0.025, 0.012, 0.09, 0.1, -0.132);
+    part(this.head, 0xc0392b, 0.08, 0.025, 0.02, 0, 0.07, -0.133);
+    part(this.head, 0xd4af37, 0.03, 0.06, 0.03, -0.15, 0.06, -0.02);
+    part(this.head, 0xd4af37, 0.03, 0.06, 0.03, 0.15, 0.06, -0.02);
   }
 
   /** Padded vest over a dark top, round glasses, beard and messy hair: the CTO. */
