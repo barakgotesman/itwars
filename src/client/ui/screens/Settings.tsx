@@ -2,79 +2,18 @@
  * The settings screen: Graphics, Audio and Controls tabs. Controls rebinding works by opening a full-screen
  * "press a key" overlay that takes the next key, mouse button or wheel turn.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { TIERS, currentTier, redetect } from '@client/platform/quality';
 import {
   ACTIONS, RENDER_SCALES, WHEEL_ACTIONS, bindingLabel, resetBindings, resetOptions, setBinding, settings, updateSettings,
   type Action,
 } from '@client/platform/settings';
+import { Choice, Heading, ResetButton, Row, Slider, Toggle } from '../components/controls';
 import { useSettingsVersion } from '../hooks/useSettings';
 
 type Tab = 'Graphics' | 'Audio' | 'Controls';
 const TABS: readonly Tab[] = ['Graphics', 'Audio', 'Controls'];
 const GROUPS = ['Movement', 'Combat', 'Weapons', 'Other'] as const;
-
-/** One labelled row with a control on the right. */
-function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-6 px-3 py-2.5 hover:bg-panel">
-      <div>
-        <div className="text-sm font-bold">{label}</div>
-        {hint && <div className="text-xs text-dim">{hint}</div>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/** Section heading inside a tab. */
-function Heading({ children }: { children: ReactNode }) {
-  return <div className="mt-6 px-3 text-lg font-black">{children}</div>;
-}
-
-/** Range slider with a live value label. */
-function Slider({ min, max, step, value, format, onInput }: {
-  min: number; max: number; step: number; value: number; format(v: number): string; onInput(v: number): void;
-}) {
-  return (
-    <div className="flex items-center gap-3">
-      <input
-        type="range" min={min} max={max} step={step} value={value} className="w-52 cursor-pointer"
-        onChange={(e) => onInput(Number(e.target.value))}
-      />
-      <span className="w-14 text-right text-sm font-bold tabular-nums">{format(value)}</span>
-    </div>
-  );
-}
-
-/** On/off switch. */
-function Toggle({ value, onChange }: { value: boolean; onChange(v: boolean): void }) {
-  return (
-    <button type="button" className="choice w-20" aria-pressed={value} onClick={() => onChange(!value)}>
-      {value ? 'On' : 'Off'}
-    </button>
-  );
-}
-
-/** Segmented choice buttons. */
-function Choice<T extends string | number>({ options, value, onChange }: {
-  options: readonly { label: string; value: T }[]; value: T; onChange(v: T): void;
-}) {
-  return (
-    <div className="flex gap-1.5">
-      {options.map((o) => (
-        <button key={o.value} type="button" className="choice" aria-pressed={o.value === value} onClick={() => onChange(o.value)}>
-          {o.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/** Button that resets a group of options to their defaults. */
-function ResetButton({ onClick, children }: { onClick(): void; children: ReactNode }) {
-  return <button type="button" className="btn-quiet mt-6 self-start" onClick={onClick}>{children}</button>;
-}
 
 /** Graphics tab. */
 function GraphicsTab() {

@@ -115,7 +115,8 @@ function fire(sim: Sim, p: Player, w: WeaponDef, aiming: boolean): void {
 function perturb(rng: () => number, dir: readonly [number, number, number], spread: number): [number, number, number] {
   if (spread <= 0) return [dir[0], dir[1], dir[2]];
   // Orthonormal basis (r, u) perpendicular to dir; fall back to X when looking straight up/down.
-  let rx = dir[2], ry = 0, rz = -dir[0];
+  let rx = dir[2], rz = -dir[0];
+  const ry = 0;
   const rl = Math.hypot(rx, rz);
   if (rl < 1e-6) { rx = 1; rz = 0; } else { rx /= rl; rz /= rl; }
   const ux = dir[1] * rz - dir[2] * ry;

@@ -3,7 +3,7 @@
  * banner, the feed-line text shown in the boards' "latest" strip, and that every board sits on free wall.
  * Run with `npm run test:boards`.
  */
-import { feedLineText } from '@client/hud/feed';
+import { feedLineText } from '@client/game/ports';
 import { fillRuleTokens, formatClock, rankPlayers } from '@shared/rules/standings';
 import { BOARDS, LABELS } from '@shared/world/map';
 import { NORTH_DOORS, SOUTH_DOORS } from '@shared/world/map/shell';

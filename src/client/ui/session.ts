@@ -3,16 +3,19 @@
  * screens need into `appStore`. React components call these functions; none of the game loop runs through React.
  */
 import { startGame, type GameHandle } from '@client/game';
+import type { Feed, Hud } from '@client/game/ports';
 import { Input } from '@client/platform/input';
 import type { JoinedMsg } from '@shared/net/protocol';
 import type { Net } from '@client/platform/net';
 import { appStore } from './app-store';
-import { createHud, type Hud } from './hud/hud-store';
+import { createFeed } from './hud/feed-store';
+import { createHud } from './hud/hud-store';
 
 let canvas: HTMLCanvasElement | null = null;
 let input: Input | null = null;
 let net: Net | null = null;
 let hud: Hud | null = null;
+let feed: Feed | null = null;
 let game: GameHandle | null = null;
 
 /** Gives the session the game canvas (pointer lock target); call once after the canvas is mounted. */
@@ -36,13 +39,14 @@ export function joinRoom(conn: Net, joined: JoinedMsg, lanUrl: string): void {
   if (!canvas || !input) throw new Error('Game canvas is not mounted');
   net = conn;
   hud = createHud(joined.code, joined.rules);
+  feed = createFeed();
   appStore.set({ room: { joined, lanUrl, players: joined.players }, covered: true, ready: false, entered: false });
   conn.on((m) => {
     const room = appStore.get().room;
     if (m.t === 'roster' && room) appStore.set({ room: { ...room, players: m.players } });
   });
   conn.onClose(() => appStore.set({ disconnected: true }));
-  game = startGame({ canvas, input, net: conn, joined, hud });
+  game = startGame({ canvas, input, net: conn, joined, hud, feed });
   // Graphics are measured once, right now, behind the room screen; entering waits until that is done.
   game.whenReady(() => appStore.set({ ready: true }));
 }

@@ -4,12 +4,12 @@
  */
 import { EYE_HEIGHT, Key, TICK_DT, TICK_RATE } from '@shared/core/constants';
 import { WEAPONS } from '@shared/rules/weapons';
-import type { Hud } from '@client/ui/hud/hud-store';
 import type { Input } from '@client/platform/input';
 import type { Net } from '@client/platform/net';
 import type { Tint } from '@client/render/light-field';
 import { settings } from '@client/platform/settings';
 import type { CameraFx } from './events';
+import type { Hud } from './ports';
 import type { LocalPlayer } from './prediction';
 import type { RosterTracker } from './roster';
 import type { SceneHandle } from './scene';

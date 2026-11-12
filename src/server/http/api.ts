@@ -3,7 +3,7 @@
  */
 import type { ServerResponse } from 'node:http';
 import { MAX_PLAYERS } from '@shared/core/constants';
-import type { ServerStatus } from '../rooms/manager';
+import type { InfoResponse, ServerStatus } from '@shared/net/info';
 import { lanAddresses } from './lan';
 
 /**
@@ -13,6 +13,7 @@ import { lanAddresses } from './lan';
  * @param status - Rooms, players, bots and what the server can still take (from the startup capacity check).
  */
 export function sendInfo(res: ServerResponse, port: number, status: ServerStatus): void {
+  const body: InfoResponse = { name: 'IT Wars', port, lan: lanAddresses(), maxPlayers: MAX_PLAYERS, rooms: status.rooms, status };
   res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-  res.end(JSON.stringify({ name: 'IT Wars', port, lan: lanAddresses(), maxPlayers: MAX_PLAYERS, rooms: status.rooms, status }));
+  res.end(JSON.stringify(body));
 }

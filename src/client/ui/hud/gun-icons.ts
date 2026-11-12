@@ -2,9 +2,9 @@
  * Flat 2D, pixel-block icons for the four guns and two grenades, stored as pixel blocks so they need no
  * image files. The `GunIcon` component draws them; used by the kill feed and the weapon bar.
  */
+import type { IconKind } from '@client/game/ports';
 
-/** Which icon: a weapon index 0-3, or a grenade. */
-export type IconKind = number | 'frag' | 'flash';
+export type { IconKind };
 
 /** One filled rectangle: x, y, width, height, colour. The icon grid is 48 x 24. */
 export type Block = readonly [number, number, number, number, string];

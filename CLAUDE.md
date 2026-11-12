@@ -28,7 +28,8 @@ npm start              # one Node process serves dist/ + WebSocket on :3000 and 
 npm run play           # build + start (use this to host for friends)
 npm run typecheck      # tsc for the whole repo, then again with no DOM types for shared + server
 npm test               # check:deps, verify:map, test:sim, test:bots, test:smoke, test:settings, test:quality, test:zones, test:boards
-npm run check:deps     # layering rule: shared is pure, server never imports client, client never imports server
+npm run check:deps     # layering rule: shared is pure, server never imports client, client never imports server; inside client, platform/render/game never import React or ui/
+npm run lint           # ESLint: TypeScript rules everywhere, React Hooks and Fast Refresh rules confined to src/client/ui/**
 npm run verify:map     # spawns and pickups are not inside solids and are reachable on foot
 npm run test:sim       # headless server simulation tests (no browser)
 npm run test:bots      # bots: navigation grid and A*, rules and names, room lifecycle, roaming, doors, sight/fairness, fights by skill, healing/looting/grenades, load budget (humans beat bots), tick monitor, startup capacity check
@@ -53,28 +54,33 @@ One package, three source folders, path aliases `@shared/*`, `@server/*`, `@clie
 
 **Layering rule (enforced by `npm run check:deps` and `tsconfig.server.json`, which has no DOM types):** `shared` imports nothing from `client`/`server`, no `three`, no Node. `server` never imports `client` or `three`. `client` never imports `server`. Anything both sides need goes in `shared`.
 
+**Inside `client`, React stays confined to `ui/`:** `platform/`, `render/` and `game/` are plain TypeScript (the 3D game must run without any UI) and must never import `react`/`react-dom` or anything under `ui/`; `check:deps` and `eslint.config.js` (`no-restricted-imports`) both enforce this. The game talks to the UI only through the `Hud` and `Feed` interfaces in `game/ports.ts`, which `ui/hud/hud-store.ts` and `ui/hud/feed-store.ts` implement; `ui/session.ts` builds both and hands them to `startGame`.
+
 ```
 src/shared/   used by BOTH sides (no DOM, no Node APIs)
   core/       constants.ts (tick rate, player size, movement tuning, key bits, match rules), physics.ts (stepMovement, rayVsAabb, overlaps, lookDir), characters.ts
-  net/        protocol.ts: typed C2S / S2C messages, GameEvent union, parseC2S validator, name/code sanitising
+  net/        protocol.ts: typed C2S / S2C messages, GameEvent union, parseC2S validator, name/code sanitising; info.ts: the `/api/info` wire shape (`ServerStatus`, `InfoResponse`), shared by the server and the menu
   rules/      weapons.ts (weapon / grenade / pickup / loot tables, all balance), modes.ts (mode registry, MatchRules, sanitizeRules, setup-screen options), bots.ts (bot names, counts, skill tuning table)
   world/      doors.ts (Doors simulation: used by server AND client), nav.ts (walkable 0.5 m grid, A*, line-of-walkability; used by bots and verify:map), map/ (office generated from boxes: index, builder, furniture, shell, dressing, pickups, door-layout, zones (lighting design), accents (local lights), rooms/*)
 src/server/   Node
   index.ts    bootstrap only: http server + gateway + loop
   loop.ts     fixed 60 Hz step of every room, plus `TickMonitor` (warns when ticks run slow)
-  http/       api.ts (/api/info), static.ts (serves dist/), lan.ts (LAN addresses)
+  http/       api.ts (/api/info, built from `@shared/net/info`), static.ts (serves dist/), lan.ts (LAN addresses)
   net/        gateway.ts: WebSocket on /ws, rate limit, validation, routing to the player's room
   rooms/      room.ts (Room: state + join/enter/leave/input/step, calls the systems), manager.ts (codes, lookup, prune, load budget: create/admit/status), capacity.ts (startup self-measurement)
   sim/        one system per file, plain functions over the room state (state.ts `Sim`):
               movement, weapons, damage, grenades, pickups, loot, doors, spray, match (spawn, clock, end, restart), snapshot (roster, snapshots, `me`), combat (pure ray/LOS/projectile geometry), player, util
   sim/bots/   server-controlled players: index (addBots, stepBots), state (BotState), perception, navigate, decide, fight, aim, gun, grenade, angles
-src/client/   Vite + React + three.js + Tailwind. All DOM UI is React in `ui/` (App, screens/, components/, hud/ with its stores, hooks/store.ts, session.ts, app-store.ts); `hud/` keeps only the pure feed text, gun icon data and style.css; menu 3D views are in `render/menu-*.ts`; `platform/` also holds appearance and player-name storage
+src/client/   Vite + React + three.js + Tailwind. All DOM UI is React, confined to `ui/`; `platform/`, `render/` and `game/` are plain TypeScript and must never import React or `ui/` (see "Layering rule" above). Menu 3D views are in `render/menu-*.ts`.
   main.tsx    entry: touch notice, or mounts <App/> and gives the game canvas to the session; config.ts (server URL, `VITE_SERVER_URL`)
-  ui/         React: App.tsx, screens/ (Menu, Setup, Room, Settings), components/, hud/ (HudView, FeedView, hud-store, feed-store), hooks/, app-store.ts (which screen), session.ts (Input, Net, game start, enter/leave)
-  platform/   input.ts, settings.ts, quality.ts, audio.ts, net.ts (browser plumbing, no game rules)
+  ui/         React only. App.tsx, app-store.ts (which screen), session.ts (Input, Net, game start, enter/leave), styles.css (design tokens: one ground, one ink, one yellow accent; red only for danger; flat, square, no gradients except vignettes and the scope)
+              screens/   Menu, Setup, Room, Settings
+              components/ Chips, CapacityPanel, controls.tsx (Row, Heading, Slider, Toggle, Choice, ResetButton), GunIcon, Icon, Logo, SprayPicker
+              hud/       HudView, FeedView, hud-store (implements `Hud`), feed-store (implements `Feed`), gun-icons.ts (pixel icon data)
+              hooks/     store.ts (createStore/useStore), useSettings.ts
+  platform/   input.ts, settings.ts, quality.ts, audio.ts, net.ts, ui-sound.ts, appearance.ts, player-name.ts, lobby.ts (host/join handshake, fetchInfo), rules-storage.ts (Setup screen's remembered rules), clipboard.ts (copy-to-clipboard shim) — browser plumbing, no game rules, no React
   render/     three.js: world.ts, lighting.ts, renderer.ts (bloom, dust, composer), players.ts, viewmodel.ts, weapon-fx.ts, items.ts, door-visuals.ts, particles.ts, bullet-holes.ts
-  hud/        hud.ts, feed.ts, gun-icons.ts, style.css (design tokens: one ground, one ink, one yellow accent; red only for danger; flat, square, no gradients except vignettes and the scope)
-  game/       in-room game: index.ts (startGame wiring + message routing), scene.ts (renderer + all visuals), prediction.ts (LocalPlayer), roster.ts, events.ts (server events to effects/HUD), loop.ts (frame)
+  game/       in-room game: index.ts (startGame wiring + message routing), scene.ts (renderer + all visuals), prediction.ts (LocalPlayer), roster.ts, events.ts (server events to effects/HUD), loop.ts (frame), ports.ts (the `Hud`/`Feed` interfaces the game talks to the UI through, plus `feedLineText`)
 tests/        verify-map.ts sim-test.ts bots-test.ts helpers.ts (FakeConn, makeRoom, run/idle shared by the sim suites) smoke-test.ts settings-test.ts quality-test.ts physics-check.ts
 tools/        make-icons.ts, check-deps.ts, bench.ts
 public/       copied to the site root: favicon (svg/ico), app icons, og-image.png, manifest.webmanifest, robots.txt
@@ -177,7 +183,7 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 
 ### Controls and settings
 - All actions are rebindable in Settings > Controls (`client/platform/settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
-- **Menu sounds** (`platform/ui-sound.ts`, started in `main.ts`): a blip on hovering a control, a click on pressing one (a deeper thump on `.btn`), and a slider tick that rises with the value, all synthesised and delegated from the document so new buttons get them for free. Level = master volume x the `uiVolume` setting (Settings > Audio > Menu sounds, 0 = off). The first hover in a fresh tab is silent because browsers only start audio after a click.
+- **Menu sounds** (`platform/ui-sound.ts`, started in `main.tsx`): a blip on hovering a control, a click on pressing one (a deeper thump on `.btn`), and a slider tick that rises with the value, all synthesised and delegated from the document so new buttons get them for free. Level = master volume x the `uiVolume` setting (Settings > Audio > Menu sounds, 0 = off). The first hover in a fresh tab is silent because browsers only start audio after a click.
 - Other settings: mouse sensitivity, invert Y, FOV, master volume, menu sounds volume, FPS counter, graphics (below). Saved in `localStorage` (always try/catch).
 - Keyboard and mouse input only act **while the pointer is locked** (so menus and pause never move the player). Pointer lock needs a click: after joining, the room panel shows "Enter the office"; Esc pauses and shows Enter/Resume, **Settings**, Leave room.
 
@@ -195,11 +201,11 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 
 ### UI and React
 
-- **Rule:** every new or changed DOM screen is a React function component (`.tsx`, typed props, hooks) styled with Tailwind. Do not add new `document.createElement` / `innerHTML` UI. When you touch an existing hand-built screen in a meaningful way, convert it instead of extending it.
-- **Where it lives:** components in `src/client/ui/` (screens in `ui/screens/`, shared pieces in `ui/components/`, hooks in `ui/hooks/`), mounted from `main.ts` with `createRoot`. Keep rules and data out of components: they import from `@shared/*` (for example the setup screen is built from `MODES`, as before) and from small client modules (`platform/settings.ts`, `platform/net.ts`).
-- **What stays plain TypeScript:** the three.js scene and everything under `render/` and `game/` (the frame loop, prediction, input, audio), the server, and `shared/`. Per-frame HUD values (health, ammo, crosshair, damage arrows, scoreboard at 2 Hz) must NOT go through React state at 60 FPS: the game loop writes them into a small store (or refs) and the HUD components subscribe with `useSyncExternalStore` and re-render only when their own value changes. 60 FPS is a requirement, so measure before moving a hot HUD element to React.
-- **Migration order:** setup screen first (most dynamic), then menu, settings, room panel, then HUD. Each step keeps `npm test` and `npm run build` green; the old DOM file is deleted when its replacement lands. Do not leave two implementations of a screen.
+- **Rule:** every new or changed DOM screen is a React function component (`.tsx`, typed props, hooks) styled with Tailwind. Do not add new `document.createElement` / `innerHTML` UI (the clipboard shim in `platform/clipboard.ts` is a browser-API fallback, not a screen, so it is exempt). When you touch an existing hand-built screen in a meaningful way, convert it instead of extending it.
+- **Where it lives:** components in `src/client/ui/` (screens in `ui/screens/`, shared pieces in `ui/components/`, including the generic form controls in `ui/components/controls.tsx`, hooks in `ui/hooks/`), mounted from `main.tsx` with `createRoot`. Keep rules and data out of components: they import from `@shared/*` (for example the setup screen is built from `MODES`, as before) and from small client modules (`platform/settings.ts`, `platform/net.ts`, `platform/lobby.ts`, `platform/rules-storage.ts`).
+- **What stays plain TypeScript:** the three.js scene and everything under `render/`, `game/` and `platform/` (the frame loop, prediction, input, audio), the server, and `shared/`. This code must never import React or `@client/ui/*`; it talks to the UI only through the `Hud`/`Feed` ports in `game/ports.ts` (enforced by `check:deps` and ESLint's `no-restricted-imports`). Per-frame HUD values (health, ammo, crosshair, damage arrows, scoreboard at 2 Hz) must NOT go through React state at 60 FPS: the game loop writes them into a small store (or refs) and the HUD components subscribe with `useSyncExternalStore` and re-render only when their own value changes. 60 FPS is a requirement, so measure before moving a hot HUD element to React.
 - **Dev:** React plugin for Vite (`@vitejs/plugin-react`), `react` and `react-dom` as dependencies, `@types/react*` dev dependencies. Use `npm run dev` (Vite hot reload on :5173) while building UI; `npm start` serves the built `dist/` and needs `npm run build` plus a refresh to show changes.
+- **Lint:** `npm run lint` runs ESLint (flat config in `eslint.config.js`) over the whole repo: TypeScript rules everywhere, plus React Hooks and Fast Refresh rules for `src/client/ui/**` only (that boundary is also where `@client/ui` imports are allowed from outside). It is part of `npm test`. `typescript` is pinned to the latest classic 6.x release (not the newer native TS 7 compiler) because `typescript-eslint` does not yet support TS 7 ([tracking issue](https://github.com/typescript-eslint/typescript-eslint/issues/10940)); bump it back once that lands.
 - **Testing UI:** pure logic (what to show, limits, labels) lives in `shared/` or plain modules so the headless tests cover it; component rendering is checked in a real browser and must be reported as not verified visually when it was not.
 - Game balance and tuning live in `shared/rules/*.ts` and `client/render/weapon-fx.ts` data, never as magic numbers in logic.
 - Coordinate system: x east, z south, y up. `yaw 0` faces -Z, positive yaw turns left; `pitch > 0` looks up. In the gun/viewmodel, -Z is forward.
@@ -211,7 +217,7 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 
 ## How to...
 
-- **Add a weapon**: entry in `WEAPONS` (`shared/rules/weapons.ts`) and `WEAPON_FX` (`render/weapon-fx.ts`); a model in `buildGun` (`render/viewmodel.ts`, with moving `parts`, `port`, `casing`); icon in `hud/gun-icons.ts`; held-gun look in `render/players.ts` (`GUN_LOOK`, `addGunDetails`); sound in `platform/audio.ts`; an `Action` if you go past 4 slots. Server logic is data-driven.
+- **Add a weapon**: entry in `WEAPONS` (`shared/rules/weapons.ts`) and `WEAPON_FX` (`render/weapon-fx.ts`); a model in `buildGun` (`render/viewmodel.ts`, with moving `parts`, `port`, `casing`); icon in `ui/hud/gun-icons.ts`; held-gun look in `render/players.ts` (`GUN_LOOK`, `addGunDetails`); sound in `platform/audio.ts`; an `Action` if you go past 4 slots. Server logic is data-driven.
 - **Add a character**: entry in `CHARACTERS` and a `buildX` method plus a `case` in `PlayerModel` (`render/players.ts`); the picker, protocol and preview pick it up.
 - **Add a keybind action**: `Action` type, `ACTIONS`, `DEFAULT_BINDINGS` in `platform/settings.ts`; handle it in `platform/input.ts` (`HOLD_BITS`/`press`); if it is sent to the server also add a `Key` bit in `shared/core/constants.ts` and handle it in the matching `server/sim/*` system (e.g. `weapons.ts`). The settings UI picks it up automatically.
 - **Add a message or event**: extend `C2S` / `S2C` / `GameEvent` in `shared/net/protocol.ts` first so both sides get compile errors until handled; add a case in `parseC2S` for client messages; handle server events in `client/game/events.ts`.

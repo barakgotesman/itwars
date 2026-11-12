@@ -1,43 +1,22 @@
 /**
  * The "Game setup" screen the host sees before creating a room. It is built from the mode registry in
  * `shared/rules/modes.ts`, so a new mode or option shows up here without new screen code. The last choice is
- * remembered in `localStorage`. The menu owns whether it is open and passes capacity, busy and error state in.
+ * remembered in `localStorage` via `platform/rules-storage.ts`. The menu owns whether it is open and passes
+ * capacity, busy and error state in.
  */
 import { useEffect, useState } from 'react';
-import {
-  DEFAULT_RULES, DEFAULT_TIME_LIMIT_MIN, MODES, describeRules, sanitizeRules, type MatchRules, type OptionDef,
-} from '@shared/rules/modes';
-import type { ServerCapacity } from '../capacity';
+import { DEFAULT_TIME_LIMIT_MIN, MODES, describeRules, type MatchRules, type OptionDef } from '@shared/rules/modes';
+import type { ServerStatus } from '@shared/net/info';
+import { loadRules, saveRules } from '@client/platform/rules-storage';
 import { CapacityPanel } from '../components/CapacityPanel';
 import { Chips } from '../components/Chips';
-
-export type { ServerCapacity };
-
-const STORAGE_KEY = 'itwars.rules';
-
-/** Reads the host's last rules, or the defaults. */
-function loadRules(): MatchRules {
-  try {
-    return sanitizeRules(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null'));
-  } catch {
-    return { ...DEFAULT_RULES };
-  }
-}
-
-/** Remembers the rules for next time. */
-function saveRules(rules: MatchRules): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
-  } catch {
-    // Not persisting is fine.
-  }
-}
+import { Toggle } from '../components/controls';
 
 /** Props for {@link OptionBlock}. */
 interface OptionBlockProps {
   opt: OptionDef;
   rules: MatchRules;
-  capacity: ServerCapacity | null;
+  capacity: ServerStatus | null;
   /** The time limit to come back to when the switch is turned off and on again. */
   lastTime: number;
   onChange(patch: Partial<MatchRules>): void;
@@ -56,14 +35,7 @@ function OptionBlock({ opt, rules, capacity, lastTime, onChange, onRememberTime 
       <div className="flex items-center justify-between gap-4">
         <div className="text-base font-black">{opt.label}</div>
         {opt.kind === 'optional-choice' && (
-          <button
-            type="button"
-            className="choice w-20"
-            aria-pressed={!off}
-            onClick={() => onChange({ [opt.key]: off ? lastTime : 0 })}
-          >
-            {off ? 'Off' : 'On'}
-          </button>
+          <Toggle value={!off} onChange={(on) => onChange({ [opt.key]: on ? lastTime : 0 })} />
         )}
       </div>
       <div className="text-xs text-dim">{opt.hint}</div>
@@ -94,7 +66,7 @@ function OptionBlock({ opt, rules, capacity, lastTime, onChange, onRememberTime 
 /** Props for {@link Setup}. */
 interface SetupProps {
   /** What the server can still take (null = unknown, no limit). */
-  capacity: ServerCapacity | null;
+  capacity: ServerStatus | null;
   /** Disables Create room while a request is in flight. */
   busy: boolean;
   /** Error shown under the Create button (for example "Cannot reach the game server"). */

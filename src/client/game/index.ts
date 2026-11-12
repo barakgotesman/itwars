@@ -3,14 +3,12 @@
  * render loop together, and routes server messages to them. Each piece lives in its own file here.
  */
 import type { JoinedMsg } from '@shared/net/protocol';
-import { feedLineText, type Feed } from '@client/hud/feed';
-import { createFeed } from '@client/ui/hud/feed-store';
-import type { Hud } from '@client/ui/hud/hud-store';
 import type { Input } from '@client/platform/input';
 import type { Net } from '@client/platform/net';
 import { Calibration } from '@client/platform/quality';
 import { createEventHandler, type CameraFx } from './events';
 import { startFrameLoop } from './loop';
+import { feedLineText, type Feed, type Hud } from './ports';
 import { LocalPlayer } from './prediction';
 import { RosterTracker } from './roster';
 import { createScene } from './scene';
@@ -22,6 +20,8 @@ export interface GameContext {
   net: Net;
   joined: JoinedMsg;
   hud: Hud;
+  /** Where joins, leaves and kills are reported; the UI layer's feed implementation. */
+  feed: Feed;
 }
 
 /** Handle returned to the menu code. */
@@ -37,15 +37,14 @@ export interface GameHandle {
  * @param ctx - Canvas, input, network and HUD handles.
  */
 export function startGame(ctx: GameContext): GameHandle {
-  const { canvas, input, net, joined, hud } = ctx;
+  const { canvas, input, net, joined, hud, feed: uiFeed } = ctx;
   const myId = joined.id;
 
   const scene = createScene(canvas, joined, hud);
-  const hudFeed = createFeed();
   // Every feed line also goes to the wall scoreboards' "latest" strip.
   const feed: Feed = {
     push(parts) {
-      hudFeed.push(parts);
+      uiFeed.push(parts);
       scene.world.scoreWall.pushEvent(feedLineText(parts, roster.nameOf(myId) ?? 'You'));
     },
   };

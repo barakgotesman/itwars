@@ -3,7 +3,7 @@
  * dirty flag that tells the scoreboard to redraw.
  */
 import type { PlayerInfo } from '@shared/net/protocol';
-import type { Feed } from '@client/hud/feed';
+import type { Feed } from './ports';
 
 /** The room's roster as the local client sees it. */
 export class RosterTracker {

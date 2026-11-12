@@ -6,13 +6,13 @@ import { INTERMISSION_TICKS, Key, KILLS_TO_WIN, MAX_HP, MAX_PLAYERS, RESPAWN_TIC
 import { SPRAYS, SPRAY_GRID, SPRAY_PALETTE } from '@shared/rules/sprays';
 import { PLAYER_COLORS } from '@shared/core/characters';
 import type { Aabb } from '@shared/core/physics';
-import { parseC2S, type GameEvent, type S2C, type SnapMsg } from '@shared/net/protocol';
+import { parseC2S, type GameEvent } from '@shared/net/protocol';
 import { GRENADES, LOOT_FRACTION, LOOT_LIFETIME_TICKS, PICKUP_DEFS, WEAPONS } from '@shared/rules/weapons';
 import { Doors } from '@shared/world/doors';
 import { DEFAULT_RULES, describeRules, sanitizeRules, type MatchRules } from '@shared/rules/modes';
 import type { DoorDef } from '@shared/world/map/door-layout';
-import { Room, type Conn } from '@server/rooms/room';
-import { FLOOR, FakeConn, SPAWNS, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
+import { Room } from '@server/rooms/room';
+import { FLOOR, FakeConn, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
 
 let failed = 0;
 let passed = 0;

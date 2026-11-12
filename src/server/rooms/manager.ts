@@ -4,25 +4,12 @@
  * refuses what does not fit and lets humans push bots out, so a busy server never gets slower for the people on it.
  */
 import { CODE_ALPHABET, CODE_LEN } from '@shared/core/constants';
+import type { ServerStatus } from '@shared/net/info';
 import type { MatchRules } from '@shared/rules/modes';
 import { UNLIMITED, type LoadModel } from '../capacity';
 import { Room } from './room';
 
-/** What a menu needs to know to offer sensible choices right now. */
-export interface ServerStatus {
-  rooms: number;
-  humans: number;
-  bots: number;
-  /** Share (0-1) of the budget in use. */
-  load: number;
-  /** Bots a room hosted right now could get (after the host's own seat). */
-  botsAvailable: number;
-  /** More players that fit before the server is full. */
-  playersAvailable: number;
-  /** The most players, or the most bots, this server could run alone (from the startup measurement). */
-  maxPlayers: number;
-  maxBots: number;
-}
+export type { ServerStatus };
 
 /** Owns every `Room` on this server, keyed by join code. */
 export class RoomManager {

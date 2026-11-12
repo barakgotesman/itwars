@@ -1,40 +1,17 @@
 /**
- * The HUD's state and the `Hud` interface the game loop talks to. The game (plain TypeScript) pushes values in;
- * the React components in `HudView.tsx` read single fields with `useHud`, so a change re-renders only the part of
- * the HUD that shows it. Nothing here runs per frame: `update` follows snapshots (30 Hz), standings and the FPS
- * readout 2 Hz, the scoreboard only when its content changes.
+ * The HUD's state, implementing the `Hud` interface the game loop talks to (owned by `game/ports.ts`, so the
+ * game never imports React code). The game (plain TypeScript) pushes values in; the React components in
+ * `HudView.tsx` read single fields with `useHud`, so a change re-renders only the part of the HUD that shows it.
+ * Nothing here runs per frame: `update` follows snapshots (30 Hz), standings and the FPS readout 2 Hz, the
+ * scoreboard only when its content changes.
  */
 import { useSyncExternalStore } from 'react';
 import type { MatchRules } from '@shared/rules/modes';
 import type { MeState, PlayerInfo } from '@shared/net/protocol';
-import type { IconKind } from '@client/hud/gun-icons';
+import type { Hud, IconKind } from '@client/game/ports';
 import { createStore, type Store } from '../hooks/store';
 
-/** Handle for pushing state into the HUD. */
-export interface Hud {
-  /** Shows or hides the whole HUD. */
-  show(visible: boolean): void;
-  /** Refreshes every element from the latest private state. */
-  update(me: MeState): void;
-  /** Flashes the red damage vignette. */
-  hurt(): void;
-  /** Flashes the hit marker; red and bigger for headshots and kills. */
-  hitMarker(kind: 'hit' | 'head' | 'kill'): void;
-  /** Shows a fading arrow pointing at where damage came from. @param angle - Radians clockwise from straight ahead. */
-  damageFrom(angle: number): void;
-  /** Shows or hides the scoreboard; rows are sorted by kills. */
-  scoreboard(visible: boolean, players: readonly PlayerInfo[], myId: number): void;
-  /** Updates the "you vs the leader" strip at the top of the screen. */
-  standings(players: readonly PlayerInfo[], myId: number): void;
-  /** Names who killed you on the death screen, or clears it with null. */
-  killedBy(name: string | null, icon?: IconKind): void;
-  /** Shows a big message (match winner) or hides it with null. */
-  banner(title: string | null, sub?: string): void;
-  /** Shows or hides the sniper scope overlay. */
-  scope(visible: boolean): void;
-  /** Shows an FPS readout, or hides it with null. */
-  fps(text: string | null): void;
-}
+export type { Hud };
 
 /** Which hit marker is showing right now. */
 export interface MarkerState {

@@ -1,7 +1,7 @@
 /**
  * South row: break room, storage, lobby, conference room and the phone-booth lounge.
  */
-import { box, lamp, scoreboard, sign } from '../builder';
+import { box, scoreboard, sign } from '../builder';
 import {
   booth, boardTable, cabinets, chair, chandelier, coffeeTable, cooler, crateStack, deskFrame, monitor, pillar,
   plant, planterWall, roundTable, screenPanel, sofa, vending,

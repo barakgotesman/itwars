@@ -6,39 +6,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { MAX_PLAYERS } from '@shared/core/constants';
 import { describeRules } from '@shared/rules/modes';
+import { copyText } from '@client/platform/clipboard';
 import { Icon, type IconName } from '../components/Icon';
 import { useApp } from '../app-store';
 import { enterOffice, leaveRoom } from '../session';
-
-/**
- * Copies text to the clipboard. The async clipboard API only exists on secure pages, and a LAN address such as
- * http://192.168.x.x is not one, so this falls back to a hidden textarea and `execCommand`.
- * @returns Whether the text was copied.
- */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // Fall through to the textarea method.
-  }
-  const area = document.createElement('textarea');
-  area.value = text;
-  area.setAttribute('readonly', '');
-  area.style.cssText = 'position:fixed;left:-9999px;top:0';
-  document.body.append(area);
-  area.select();
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch {
-    ok = false;
-  }
-  area.remove();
-  return ok;
-}
 
 /** Props for {@link CopyButton}. */
 interface CopyButtonProps {

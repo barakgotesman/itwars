@@ -184,7 +184,7 @@ export function guestName(): string {
  * @returns A non-empty name; a guest name if nothing usable is left.
  */
 export function sanitizeName(raw: unknown): string {
-  const s = typeof raw === 'string' ? raw.replace(/[^\p{L}\p{N} _.\-]/gu, '').trim().slice(0, MAX_NAME_LEN) : '';
+  const s = typeof raw === 'string' ? raw.replace(/[^\p{L}\p{N} _.-]/gu, '').trim().slice(0, MAX_NAME_LEN) : '';
   return s || guestName();
 }
 

@@ -5,57 +5,16 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { CHARACTERS, PLAYER_COLORS } from '@shared/core/characters';
 import type { MatchRules } from '@shared/rules/modes';
-import type { ErrorMsg, HostMsg, JoinedMsg, JoinMsg } from '@shared/net/protocol';
+import type { ServerStatus } from '@shared/net/info';
 import { createBackdrop, type Backdrop } from '@client/render/menu-backdrop';
 import { loadLook, saveLook, type Look } from '@client/platform/appearance';
+import { fetchInfo, request } from '@client/platform/lobby';
 import { commitName, initialName } from '@client/platform/player-name';
 import { createPreview, type Preview } from '@client/render/menu-preview';
-import { SERVER_HTTP } from '@client/config';
-import { Net } from '@client/platform/net';
 import { Logo } from '../components/Logo';
 import { SprayPicker } from '../components/SprayPicker';
-import type { ServerCapacity } from '../capacity';
 import { joinRoom } from '../session';
 import { Setup } from './Setup';
-
-/** Player-facing text for each server error. */
-const ERROR_TEXT: Record<ErrorMsg['reason'], string> = {
-  'bad-code': 'No room with that code. Check it and try again.',
-  'room-full': 'That room is full.',
-  'server-full': 'This server is at its limit right now. Try again in a moment.',
-  'bad-request': 'The server did not understand the request.',
-  'rate-limit': 'Too many requests. Slow down.',
-};
-
-/** What `/api/info` tells the menu. */
-interface ServerInfo {
-  lan: string[];
-  port: number;
-  status?: ServerCapacity;
-}
-
-/** Sends a host/join request on a fresh connection and waits for the reply. */
-async function request(msg: HostMsg | JoinMsg): Promise<{ net: Net; joined: JoinedMsg }> {
-  const net = await Net.connect();
-  return new Promise((resolve, reject) => {
-    const off = net.on((m) => {
-      if (m.t === 'joined') {
-        off();
-        resolve({ net, joined: m });
-      } else if (m.t === 'error') {
-        off();
-        net.close();
-        reject(new Error(ERROR_TEXT[m.reason]));
-      }
-    });
-    net.send(msg);
-  });
-}
-
-/** Asks the server what it can take and where friends can reach it. */
-function fetchInfo(): Promise<ServerInfo | null> {
-  return fetch(`${SERVER_HTTP}/api/info`).then((r) => r.json() as Promise<ServerInfo>).catch(() => null);
-}
 
 /** Hex colour string for a shirt colour. */
 const hex = (c: number): string => `#${c.toString(16).padStart(6, '0')}`;
@@ -96,7 +55,7 @@ export function Menu({ onOpenSettings }: MenuProps) {
   const [look, setLook] = useState<Look>(loadLook);
   const [setupOpen, setSetupOpen] = useState(false);
   const [setupError, setSetupError] = useState('');
-  const [capacity, setCapacity] = useState<ServerCapacity | null>(null);
+  const [capacity, setCapacity] = useState<ServerStatus | null>(null);
   const [lanUrl, setLanUrl] = useState(location.origin);
   const [lanHint, setLanHint] = useState('');
 
@@ -104,22 +63,24 @@ export function Menu({ onOpenSettings }: MenuProps) {
   const backdropCanvas = useRef<HTMLCanvasElement>(null);
   const preview = useRef<Preview | null>(null);
   const backdrop = useRef<Backdrop | null>(null);
+  // Captures the look the component mounted with; the mount effect below runs once, before any change to
+  // `look` could happen, so this is read-only after the initial render (never reassigned).
   const lookRef = useRef(look);
-  lookRef.current = look;
+
+  /** Stops the menu's WebGL views (safe to call twice). */
+  const stopViews = useCallback(() => {
+    preview.current?.dispose();
+    backdrop.current?.dispose();
+    preview.current = null;
+    backdrop.current = null;
+  }, []);
 
   // The two WebGL views live exactly as long as the menu; they are also stopped before a game starts.
   useEffect(() => {
     preview.current = createPreview(previewCanvas.current!, lookRef.current);
     backdrop.current = createBackdrop(backdropCanvas.current!);
     return () => stopViews();
-  }, []);
-  /** Stops the menu's WebGL views (safe to call twice). */
-  const stopViews = () => {
-    preview.current?.dispose();
-    backdrop.current?.dispose();
-    preview.current = null;
-    backdrop.current = null;
-  };
+  }, [stopViews]);
 
   useEffect(() => {
     preview.current?.setLook(look);

@@ -1,7 +1,7 @@
 /**
  * A weapon or grenade icon drawn from its pixel blocks (see `hud/gun-icons.ts`) as inline SVG.
  */
-import { iconBlocks, type IconKind } from '@client/hud/gun-icons';
+import { iconBlocks, type IconKind } from '../hud/gun-icons';
 
 /** Props for {@link GunIcon}. */
 interface GunIconProps {

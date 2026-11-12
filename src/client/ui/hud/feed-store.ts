@@ -1,9 +1,10 @@
 /**
- * Event feed state: the lines currently on screen. `createFeed` is what the game pushes kills and joins into;
- * `FeedView.tsx` draws the lines. Each line fades after a few seconds and is then removed.
+ * Event feed state: the lines currently on screen, implementing the `Feed` interface the game pushes kills and
+ * joins into (owned by `game/ports.ts`, so the game never imports React code). `FeedView.tsx` draws the lines.
+ * Each line fades after a few seconds and is then removed.
  */
 import { useSyncExternalStore } from 'react';
-import type { Feed, FeedPart } from '@client/hud/feed';
+import type { Feed, FeedPart } from '@client/game/ports';
 import { createStore } from '../hooks/store';
 
 const MAX_LINES = 7;

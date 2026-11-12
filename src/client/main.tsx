@@ -3,7 +3,7 @@
  * canvas to the room session.
  */
 import { createRoot } from 'react-dom/client';
-import '@client/hud/style.css';
+import '@client/ui/styles.css';
 import { initUiSound } from '@client/platform/ui-sound';
 import { App } from '@client/ui/App';
 import { attachCanvas } from '@client/ui/session';

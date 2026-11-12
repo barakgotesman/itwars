@@ -8,6 +8,7 @@
     "build": "npm run typecheck && vite build",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.server.json --noEmit",
     "check:deps": "tsx tools/check-deps.ts",
+    "lint": "eslint .",
     "verify:map": "tsx tests/verify-map.ts",
     "test:sim": "tsx tests/sim-test.ts",
     "start": "tsx src/server/index.ts",
@@ -17,7 +18,7 @@
     "test:quality": "tsx tests/quality-test.ts",
     "test:zones": "tsx tests/zones-test.ts",
     "test:boards": "tsx tests/boards-test.ts",
-    "test": "npm run check:deps && npm run verify:map && npm run test:sim && npm run test:bots && npm run test:smoke && npm run test:settings && npm run test:quality && npm run test:zones && npm run test:boards",
+    "test": "npm run check:deps && npm run lint && npm run verify:map && npm run test:sim && npm run test:bots && npm run test:smoke && npm run test:settings && npm run test:quality && npm run test:zones && npm run test:boards",
     "play": "npm run build && npm start",
     "make:icons": "tsx tools/make-icons.ts",
     "bench": "tsx tools/bench.ts"
@@ -29,6 +30,7 @@
     "ws": "^8.22.2"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.5",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
@@ -37,9 +39,14 @@
     "@types/ws": "^8.18.2",
     "@vitejs/plugin-react": "^6.3.0",
     "concurrently": "^10.0.7",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.14.0",
     "tailwindcss": "^4.3.5",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.2",
     "vite": "^8.3.8"
   }
 }

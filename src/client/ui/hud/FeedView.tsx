@@ -2,7 +2,7 @@
  * Event feed in the top-right corner: joins, leaves and kills, newest at the bottom, fading out.
  * A kill reads "X [gun icon] Y".
  */
-import type { Tone } from '@client/hud/feed';
+import type { Tone } from '@client/game/ports';
 import { GunIcon } from '../components/GunIcon';
 import { useFeedLines } from './feed-store';
 

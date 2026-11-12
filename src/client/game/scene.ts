@@ -11,7 +11,6 @@ import { PICKUP_SPOTS, SOLIDS } from '@shared/world/map';
 import { Sfx } from '@client/platform/audio';
 import { effectiveGraphics, initQuality } from '@client/platform/quality';
 import { onSettingsChange, settings } from '@client/platform/settings';
-import type { Hud } from '@client/ui/hud/hud-store';
 import { DoorVisuals } from '@client/render/door-visuals';
 import { GrenadeVisuals, LootVisuals, PickupVisuals } from '@client/render/items';
 import { BulletHoles } from '@client/render/bullet-holes';
@@ -23,6 +22,7 @@ import { ViewModel } from '@client/render/viewmodel';
 import { Tracers } from '@client/render/weapon-fx';
 import { Atmosphere } from '@client/render/atmosphere';
 import { buildWorld } from '@client/render/world';
+import type { Hud } from './ports';
 
 /** Everything the loop and the event handler draw with. */
 export interface SceneHandle {

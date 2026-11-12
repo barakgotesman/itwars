@@ -1,10 +1,10 @@
 /**
  * The server's measured limits and how much of them is free, shown above the options on the setup screen.
  */
-import type { ServerCapacity } from '../capacity';
+import type { ServerStatus } from '@shared/net/info';
 
 /** Renders the capacity summary. */
-export function CapacityPanel({ capacity }: { capacity: ServerCapacity }) {
+export function CapacityPanel({ capacity }: { capacity: ServerStatus }) {
   const pct = Math.round(capacity.load * 100);
   return (
     <div className="slab flex flex-col gap-1 bg-panel p-4">

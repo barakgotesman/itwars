@@ -4,7 +4,7 @@
  * A is the formal boardroom (big table, lockers and a partition by the door); B is the war room
  * (table pushed north, staggered whiteboards, sofa corner). Both give the door fight some cover.
  */
-import { box, lamp, sign } from '../builder';
+import { box, sign } from '../builder';
 import { boardTable, cabinets, chandelier, coffeeTable, plant, screenPanel, sofa } from '../furniture';
 
 /** Builds both meeting rooms. */
