@@ -143,6 +143,10 @@ function pathLength(from: Pt, path: readonly Pt[]): number {
   const room = new Room('BOTS', { seed: 11, rules: rules3 });
   check('a room with bots holds them before any human joins', room.size === 3 && room.humans === 0);
   check('a room with only bots counts as empty (it would be deleted)', room.isEmpty);
+  const botIds = [...room.players.keys()];
+  check('bots wait in the lobby, not playing, before any human enters', botIds.every((id) => !room.inspect(id)!.playing && !room.inspect(id)!.alive));
+  idle(room, 20);
+  check('bots sit idle in the lobby: nobody fights with no human around', botIds.every((id) => room.inspect(id)!.kills === 0 && room.inspect(id)!.deaths === 0));
   const noBots = new Room('NONE', { seed: 11 });
   check('a default room has no bots', noBots.size === 0);
 
@@ -150,6 +154,7 @@ function pathLength(from: Pt, path: readonly Pt[]): number {
   const me = room.join(conn, 'Alice')!;
   room.enter(me);
   check('the human joins alongside the bots', room.size === 4 && room.humans === 1 && !room.isEmpty);
+  check('entering brings every waiting bot into the match too', botIds.every((id) => room.inspect(id)!.playing && room.inspect(id)!.alive));
 
   const joined = conn.msgs[0];
   const list: PlayerInfo[] = joined?.t === 'joined' ? joined.players : [];
@@ -197,7 +202,7 @@ function pathLength(from: Pt, path: readonly Pt[]): number {
 {
   // Seven bots roam the real office for a minute: they cover ground, stay on the floor plan and do not snag.
   const ticks = 3600;
-  const room = new Room('ROAM', { seed: 21, rules: { ...DEFAULT_RULES, bots: 7, botSkill: 2 } });
+  const room = new Room('ROAM', { seed: 21, rules: { ...DEFAULT_RULES, bots: 7, botSkill: 2 }, botsPlayImmediately: true });
   const ids = [...room.players.keys()];
   const travelled = new Map<number, number>();
   const last = new Map<number, [number, number]>();
@@ -227,7 +232,7 @@ function pathLength(from: Pt, path: readonly Pt[]): number {
 
 {
   // The same seed gives the same walk: bots draw only on the room's seeded random numbers.
-  const make = () => new Room('SEED', { seed: 99, rules: { ...DEFAULT_RULES, bots: 4, botSkill: 3 } });
+  const make = () => new Room('SEED', { seed: 99, rules: { ...DEFAULT_RULES, bots: 4, botSkill: 3 }, botsPlayImmediately: true });
   const a = make(), b = make();
   for (let t = 0; t < 900; t++) { a.step(); b.step(); }
   const same = [...a.players.keys()].every((id) => {
@@ -239,7 +244,7 @@ function pathLength(from: Pt, path: readonly Pt[]): number {
 
 {
   // A bot sent across the map gets there.
-  const room = new Room('GOTO', { seed: 4, rules: { ...DEFAULT_RULES, bots: 1, botSkill: 2 } });
+  const room = new Room('GOTO', { seed: 4, rules: { ...DEFAULT_RULES, bots: 1, botSkill: 2 }, botsPlayImmediately: true });
   const id = [...room.players.keys()][0]!;
   const p = room.inspect(id)!;
   let far: [number, number] = [SPAWNS[0]![0], SPAWNS[0]![1]];
@@ -263,6 +268,7 @@ function pathLength(from: Pt, path: readonly Pt[]): number {
   const room = new Room('DOOR', {
     seed: 2, solids: [FLOOR, wall(-30, -1.6), wall(1.6, 30)], spawns: [[0, 6]], pickups: [], doors: [door],
     rules: { ...DEFAULT_RULES, bots: 1, botSkill: 2 },
+    botsPlayImmediately: true,
   });
   const id = [...room.players.keys()][0]!;
   const p = room.inspect(id)!;
@@ -280,7 +286,7 @@ function pathLength(from: Pt, path: readonly Pt[]): number {
 
 {
   // Dead bots stand down and come back with a fresh route.
-  const room = new Room('DEAD', { seed: 8, rules: { ...DEFAULT_RULES, bots: 2, botSkill: 1 } });
+  const room = new Room('DEAD', { seed: 8, rules: { ...DEFAULT_RULES, bots: 2, botSkill: 1 }, botsPlayImmediately: true });
   idle(room, 120);
   const id = [...room.players.keys()][0]!;
   const st = room.bots.get(id)!;
@@ -379,7 +385,7 @@ function duel(seed: number, skill: number, extra: Aabb[] = []) {
 
 {
   // A free-for-all on the real map: bots find each other and fight, and never shoot without a clear line.
-  const room = new Room('FFA', { seed: 31, rules: { ...DEFAULT_RULES, killLimit: 10, bots: 6, botSkill: 3 } });
+  const room = new Room('FFA', { seed: 31, rules: { ...DEFAULT_RULES, killLimit: 10, bots: 6, botSkill: 3 }, botsPlayImmediately: true });
   const ids = [...room.players.keys()];
   let badFire = 0, started = false;
   for (let t = 0; t < 18000 && !(started && room.phase === 'over'); t++) {
@@ -403,7 +409,7 @@ function duel(seed: number, skill: number, extra: Aabb[] = []) {
 
 /** An open room with one bot (skill 2) and some pickups. */
 function pickupRoom(pickups: { kind: 'hp' | 'ammo' | 'grenade'; x: number; z: number }[]) {
-  const room = new Room('PICK', { seed: 3, solids: [FLOOR], spawns: FLAT_SPAWNS, pickups, doors: [], rules: { ...DEFAULT_RULES, bots: 1, botSkill: 2 } });
+  const room = new Room('PICK', { seed: 3, solids: [FLOOR], spawns: FLAT_SPAWNS, pickups, doors: [], rules: { ...DEFAULT_RULES, bots: 1, botSkill: 2 }, botsPlayImmediately: true });
   const id = [...room.players.keys()][0]!;
   return { room, id, p: mut(room, id), st: room.bots.get(id)! };
 }

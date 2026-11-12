@@ -86,7 +86,12 @@ export function measureCapacity(rooms = SAMPLE_ROOMS, ticks = MEASURE_TICKS, bud
   const rng = lcg(4242);
   const scripts = new Map<Room, Script[]>();
   const botRoom = timeRooms(
-    (i) => new Room(`CAPB${i}`, { seed: 77 + i, rules: { ...DEFAULT_RULES, bots: MAX_PLAYERS - 1, botSkill: 3 } }),
+    (i) => new Room(`CAPB${i}`, {
+      seed: 77 + i, rules: { ...DEFAULT_RULES, bots: MAX_PLAYERS - 1, botSkill: 3 },
+      // Bots wait in the lobby for a human in a real room; this measurement is specifically the cost of
+      // bots actually playing, so it skips that wait.
+      botsPlayImmediately: true,
+    }),
     () => undefined, rooms, ticks,
   );
   const humanRoom = timeRooms(

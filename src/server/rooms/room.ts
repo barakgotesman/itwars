@@ -45,6 +45,12 @@ export interface RoomOptions {
   doors?: readonly DoorDef[];
   /** Pickup spots; defaults to the office pickups. */
   pickups?: readonly { kind: PickupKind; x: number; z: number }[];
+  /**
+   * Skips the lobby for bots and puts them straight into the match. Real rooms leave this off: bots wait
+   * there like a human would, and `enter` brings them in once the first human does. Used only by the
+   * startup capacity measurement (`server/capacity.ts`), which must measure bots actually playing.
+   */
+  botsPlayImmediately?: boolean;
 }
 
 /** The authoritative game simulation for one room. */
@@ -96,7 +102,7 @@ export class Room implements Sim {
     this.spawns = opts.spawns ?? SPAWNS;
     this.spots = opts.pickups ?? PICKUP_SPOTS;
     this.pickupReady = this.spots.map(() => 0);
-    if (this.rules.bots > 0) addBots(this);
+    if (this.rules.bots > 0) addBots(this, opts.botsPlayImmediately === true);
   }
 
   /** Walkable grid of the static map, built on first use (rooms without bots never pay for it). */
@@ -176,13 +182,26 @@ export class Room implements Sim {
    * Moves a player from the room lobby into the match (they clicked "Enter the office").
    * @param id - Player id from `join`.
    * @remarks During the intermission they wait and are spawned by the restart with everyone else.
+   * The first human to enter also brings every waiting bot into the match (see {@link enterWaitingBots}),
+   * so bots never fight each other in a room nobody is actually playing in yet.
    */
   enter(id: number): void {
     const p = this.players.get(id);
     if (!p || p.playing) return;
     p.playing = true;
     if (this.phase === 'play') spawn(this, p);
+    if (!p.bot) this.enterWaitingBots();
     startClockIfReady(this);
+  }
+
+  /** Puts every bot still waiting in the lobby into the match (called once a human has entered). */
+  private enterWaitingBots(): void {
+    for (const p of this.players.values()) {
+      if (p.bot && !p.playing) {
+        p.playing = true;
+        if (this.phase === 'play') spawn(this, p);
+      }
+    }
   }
 
   /** Appends a number if another player already uses the name, so the scoreboard stays unambiguous. */

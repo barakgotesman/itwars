@@ -34,11 +34,14 @@ const GLANCE_TICKS = 45;
 export const NOOP_CONN: Conn = { send() { /* bots read the simulation directly */ } };
 
 /**
- * Adds the room's bots (as many as `rules.bots`, while seats remain) and puts them in the match.
+ * Adds the room's bots (as many as `rules.bots`, while seats remain) to the lobby, alongside any human.
+ * They wait there like a human would: `Room.enter` puts them into the match once the first human enters,
+ * so nobody watches bots fight each other in an empty room before anyone is actually playing.
  * @param room - A room that has just been built; call before any human joins.
+ * @param playImmediately - Skip the lobby and spawn each bot as it joins (see `RoomOptions.botsPlayImmediately`).
  * @remarks Names and looks come from the room's seeded random numbers, so a seeded test room is reproducible.
  */
-export function addBots(room: Room): void {
+export function addBots(room: Room, playImmediately: boolean): void {
   for (let i = 0; i < room.rules.bots && !room.isFull; i++) {
     const taken = new Set([...room.players.values()].map((p) => p.name.toLowerCase()));
     const name = pickBotName(taken, room.rng);
@@ -49,7 +52,7 @@ export function addBots(room: Room): void {
     }, { bot: true });
     if (id === null) break;
     room.bots.set(id, newBotState(room.doors.defs.length));
-    room.enter(id);
+    if (playImmediately) room.enter(id);
   }
 }
 
