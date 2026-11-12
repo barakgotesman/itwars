@@ -12,6 +12,9 @@ import type { PickupKind } from '@shared/rules/weapons';
 import { Doors } from '@shared/world/doors';
 import { DOORS, type DoorDef } from '@shared/world/map/door-layout';
 import { PICKUP_SPOTS, SOLIDS, SPAWNS } from '@shared/world/map';
+import { buildNavGrid, type NavGrid } from '@shared/world/nav';
+import { addBots, stepBots } from '@server/sim/bots';
+import type { BotState } from '@server/sim/bots/state';
 import { stepDoors } from '@server/sim/doors';
 import type { Grenade } from '@server/sim/grenades';
 import { tickGrenades } from '@server/sim/grenades';
@@ -70,8 +73,14 @@ export class Room implements Sim {
   events: GameEvent[] = [];
   rosterDirty = false;
   readonly rng: () => number;
+  /** Brain memory of each bot, by player id. */
+  readonly bots = new Map<number, BotState>();
+  lastPlanTick = 0;
 
   private nextPlayerId = 1;
+  /** The map's solids without the door panels; the navigation grid is built from these. */
+  private readonly staticSolids: readonly Aabb[];
+  private navGrid: NavGrid | null = null;
 
   /**
    * @param code - The room's join code.
@@ -82,10 +91,17 @@ export class Room implements Sim {
     this.rng = makeRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.rules = opts.rules ?? DEFAULT_RULES;
     this.doors = new Doors(opts.doors ?? (opts.solids ? [] : DOORS));
-    this.solids = [...(opts.solids ?? SOLIDS), ...this.doors.boxes];
+    this.staticSolids = opts.solids ?? SOLIDS;
+    this.solids = [...this.staticSolids, ...this.doors.boxes];
     this.spawns = opts.spawns ?? SPAWNS;
     this.spots = opts.pickups ?? PICKUP_SPOTS;
     this.pickupReady = this.spots.map(() => 0);
+    if (this.rules.bots > 0) addBots(this);
+  }
+
+  /** Walkable grid of the static map, built on first use (rooms without bots never pay for it). */
+  get nav(): NavGrid {
+    return (this.navGrid ??= buildNavGrid(this.staticSolids));
   }
 
   /** Number of players currently in the room. */
@@ -93,9 +109,38 @@ export class Room implements Sim {
     return this.players.size;
   }
 
-  /** True when nobody is in the room (it should be deleted). */
+  /** Number of human players (everyone who is not a bot). */
+  get humans(): number {
+    let n = 0;
+    for (const p of this.players.values()) if (!p.bot) n++;
+    return n;
+  }
+
+  /** Number of bots in the room. */
+  get botCount(): number {
+    return this.players.size - this.humans;
+  }
+
+  /**
+   * Removes one bot to make space (a human joined, or the server is over its load budget). The bot with the fewest
+   * kills goes; grenades it already threw stay live.
+   * @returns False if there was no bot to remove.
+   */
+  dropBot(): boolean {
+    let drop: Player | null = null;
+    for (const p of this.players.values()) {
+      if (p.bot && (!drop || p.kills < drop.kills || (p.kills === drop.kills && p.id > drop.id))) drop = p;
+    }
+    if (!drop) return false;
+    this.players.delete(drop.id);
+    this.bots.delete(drop.id);
+    this.rosterDirty = true;
+    return true;
+  }
+
+  /** True when no human is left in the room (it should be deleted, bots and all). */
   get isEmpty(): boolean {
-    return this.players.size === 0;
+    return this.humans === 0;
   }
 
   /** True when no more players fit. */
@@ -108,13 +153,14 @@ export class Room implements Sim {
    * @param conn - Where to send this player's messages.
    * @param name - Already-sanitised callsign.
    * @param look - Chosen character style, colour index (-1 or omitted = random colour) and spray design.
+   * @param opts - `bot: true` for a server-controlled player (set only by server code, never from a client message).
    * @returns The new player's id, or null if the room is full.
    */
-  join(conn: Conn, name: string, look: { model?: number; color?: number; spray?: number } = {}): number | null {
+  join(conn: Conn, name: string, look: { model?: number; color?: number; spray?: number } = {}, opts: { bot?: boolean } = {}): number | null {
     if (this.isFull) return null;
     const id = this.nextPlayerId++;
     const color = PLAYER_COLORS[look.color ?? -1] ?? PLAYER_COLORS[Math.floor(this.rng() * PLAYER_COLORS.length)]!;
-    this.players.set(id, newPlayer(id, this.uniqueName(name), conn, look.model ?? 0, color, look.spray ?? 0));
+    this.players.set(id, newPlayer(id, this.uniqueName(name), conn, look.model ?? 0, color, look.spray ?? 0, opts.bot === true));
     conn.send({
       t: 'joined', id, code: this.code, players: roster(this), tick: this.tick,
       pickups: this.pickupReady.map((r) => (r <= this.tick ? '1' : '0')).join(''),
@@ -185,6 +231,7 @@ export class Room implements Sim {
 
     stepDoors(this);
     if (this.phase === 'play' && this.endsAt > 0 && this.tick >= this.endsAt) endByTime(this);
+    stepBots(this);
     for (const p of this.players.values()) {
       applyInputs(this, p);
       if (p.playing && !p.alive && this.phase === 'play' && this.tick >= p.respawnAt) spawn(this, p);

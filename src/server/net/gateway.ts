@@ -50,12 +50,17 @@ export function createGateway(server: Server, rooms: RoomManager): void {
   const handle = (ws: WebSocket, s: Session, msg: C2S): void => {
     switch (msg.t) {
       case 'host':
-        if (!s.room) enter(ws, s, rooms.create(msg.rules), msg);
+        if (!s.room) {
+          const room = rooms.create(msg.rules);
+          if (room) enter(ws, s, room, msg);
+          else send(ws, { t: 'error', reason: 'server-full' });
+        }
         break;
       case 'join': {
         if (s.room) break;
         const room = rooms.get(msg.code);
         if (!room) send(ws, { t: 'error', reason: 'bad-code' });
+        else if (!rooms.admit(room)) send(ws, { t: 'error', reason: 'server-full' });
         else enter(ws, s, room, msg);
         break;
       }

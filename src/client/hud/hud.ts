@@ -227,6 +227,12 @@ export function createHud(code: string, rules: MatchRules): Hud {
           const td = document.createElement('td');
           td.className = cls;
           td.textContent = text;
+          if (p.bot && text === p.name) {
+            const tag = document.createElement('span');
+            tag.className = 'ml-2 text-[10px] font-black opacity-60';
+            tag.textContent = 'BOT';
+            td.append(tag);
+          }
           tr.append(td);
         }
         return tr;

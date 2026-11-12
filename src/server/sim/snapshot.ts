@@ -11,6 +11,7 @@ import { round2, round3 } from './util';
 export function roster(sim: Sim): PlayerInfo[] {
   return [...sim.players.values()].map((p) => ({
     id: p.id, name: p.name, model: p.model, color: p.color, spray: p.spray, kills: p.kills, deaths: p.deaths,
+    ...(p.bot ? { bot: true as const } : {}),
   }));
 }
 
@@ -19,7 +20,7 @@ export function flushRoster(sim: Sim): void {
   if (!sim.rosterDirty) return;
   sim.rosterDirty = false;
   const list = roster(sim);
-  for (const p of sim.players.values()) p.conn.send({ t: 'roster', players: list });
+  for (const p of sim.players.values()) if (!p.bot) p.conn.send({ t: 'roster', players: list });
 }
 
 /** Sends each player the shared world state plus their private `me` block, then clears the event list. */
@@ -38,6 +39,8 @@ export function sendSnapshots(sim: Sim): void {
   const doors = sim.doorsDirty ? sim.doors.wire() : undefined;
   sim.doorsDirty = false;
   for (const p of sim.players.values()) {
+    // Bots read the simulation directly, so building their private block would be wasted work.
+    if (p.bot) continue;
     p.conn.send({ t: 'snap', tick: sim.tick, players: snapPlayers, grenades: snapGrenades, me: meState(sim, p), ev, doors });
   }
 }

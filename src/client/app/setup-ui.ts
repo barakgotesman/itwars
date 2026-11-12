@@ -10,8 +10,20 @@ const STORAGE_KEY = 'itwars.rules';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
+/** What the server can still take, as `/api/info` reports it (measured on the machine the server runs on). */
+export interface ServerCapacity {
+  /** Bots a room hosted right now could get. */
+  botsAvailable: number;
+  /** More players that fit before the server is full. */
+  playersAvailable: number;
+  /** Share (0-1) of the server's budget in use. */
+  load: number;
+}
+
 /** Handle for the setup screen. */
 export interface SetupUi {
+  /** Tells the screen what the server can handle, so it can limit the bot choices (null = unknown, no limit). */
+  setCapacity(capacity: ServerCapacity | null): void;
   /** Shows the screen. */
   open(): void;
   /** Hides the screen. */
@@ -41,20 +53,24 @@ function saveRules(rules: MatchRules): void {
 }
 
 /** A row of choice buttons, with the current value highlighted. */
-function chips(choices: readonly number[], value: number, unit: string, disabled: boolean, onPick: (v: number) => void): HTMLElement {
+function chips(
+  choices: readonly number[], value: number, unit: string, disabled: boolean, onPick: (v: number) => void,
+  labels?: readonly string[], maxChoice = Infinity,
+): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = `flex flex-wrap gap-1.5 ${disabled ? 'pointer-events-none opacity-35' : ''}`;
-  for (const c of choices) {
+  choices.forEach((c, k) => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.disabled = disabled;
-    b.className = 'choice min-w-16';
+    const tooMany = c > maxChoice;
+    b.disabled = disabled || tooMany;
+    b.className = tooMany ? 'choice min-w-16 pointer-events-none opacity-35' : 'choice min-w-16';
     b.setAttribute('aria-pressed', String(c === value));
-    b.textContent = `${c}`;
-    b.title = `${c} ${unit}`;
+    b.textContent = labels?.[k] ?? `${c}`;
+    b.title = tooMany ? 'This server cannot run that many bots right now' : (labels?.[k] ?? `${c} ${unit}`);
     b.addEventListener('click', () => onPick(c));
     wrap.append(b);
-  }
+  });
   return wrap;
 }
 
@@ -70,6 +86,8 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
   const errorLine = $('setup-error');
   const createButton = $('setup-create') as HTMLButtonElement;
   let rules = loadRules();
+  /** What the server can take right now, once known. */
+  let capacity: ServerCapacity | null = null;
   /** The time limit to come back to when the switch is turned off and on again. */
   let lastTime = rules.timeLimitMin || DEFAULT_TIME_LIMIT_MIN;
 
@@ -101,6 +119,17 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
     hint.className = 'text-xs text-dim';
     hint.textContent = opt.hint;
     block.append(head, hint);
+    // The server measures itself at startup; say what that means for the bot count.
+    const botLimit = opt.key === 'bots' && capacity ? capacity.botsAvailable : Infinity;
+    if (opt.key === 'bots' && capacity) {
+      const note = document.createElement('div');
+      note.className = `text-xs ${capacity.botsAvailable < 7 ? 'text-accent' : 'text-faint'}`;
+      note.textContent = capacity.botsAvailable >= 7
+        ? 'This server can run a full room of bots.'
+        : `This server can run up to ${capacity.botsAvailable} bots for you right now (${Math.round(capacity.load * 100)}% of its capacity is in use). ` +
+          'Players who join take priority over bots.';
+      block.append(note);
+    }
 
     const value = rules[opt.key];
     const disabled = opt.kind === 'optional-choice' && value === 0;
@@ -108,7 +137,7 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
       if (opt.kind === 'optional-choice') lastTime = v;
       rules = { ...rules, [opt.key]: v };
       render();
-    }));
+    }, opt.kind === 'choice' ? opt.labels : undefined, botLimit));
     return block;
   };
 
@@ -136,6 +165,8 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
     soon.textContent = 'More game modes and mods are coming.';
     modeList.append(soon);
 
+    // Never offer (or send) more bots than the server can run.
+    if (capacity && rules.bots > capacity.botsAvailable) rules = { ...rules, bots: capacity.botsAvailable };
     const mode = MODES.find((m) => m.id === rules.mode) ?? MODES[0]!;
     ruleList.replaceChildren(...mode.options.map(option));
     summary.textContent = describeRules(rules);
@@ -156,6 +187,10 @@ export function createSetupUi(onCreate: (rules: MatchRules) => void): SetupUi {
   });
 
   return {
+    setCapacity: (c) => {
+      capacity = c;
+      if (!root.classList.contains('hidden')) render();
+    },
     open: () => {
       errorLine.textContent = '';
       render();

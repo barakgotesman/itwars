@@ -52,24 +52,36 @@ export function lookDir(yaw: number, pitch: number): [number, number, number] {
 export function rayVsAabb(
   ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, b: Aabb,
 ): number | null {
+  // The three slabs are written out (no temporary arrays): this runs hundreds of times per line-of-sight check,
+  // so allocating here made it the server's biggest cost.
   let tMin = 0;
   let tMax = Infinity;
-  const o = [ox, oy, oz];
-  const d = [dx, dy, dz];
-  const lo = [b.minX, b.minY, b.minZ];
-  const hi = [b.maxX, b.maxY, b.maxZ];
-  for (let i = 0; i < 3; i++) {
-    const oi = o[i]!;
-    const di = d[i]!;
-    if (Math.abs(di) < 1e-9) {
-      if (oi < lo[i]! || oi > hi[i]!) return null;
-      continue;
-    }
-    let t0 = (lo[i]! - oi) / di;
-    let t1 = (hi[i]! - oi) / di;
-    if (t0 > t1) [t0, t1] = [t1, t0];
-    tMin = Math.max(tMin, t0);
-    tMax = Math.min(tMax, t1);
+  let t0: number, t1: number, s: number;
+  if (Math.abs(dx) < 1e-9) {
+    if (ox < b.minX || ox > b.maxX) return null;
+  } else {
+    t0 = (b.minX - ox) / dx; t1 = (b.maxX - ox) / dx;
+    if (t0 > t1) { s = t0; t0 = t1; t1 = s; }
+    if (t0 > tMin) tMin = t0;
+    if (t1 < tMax) tMax = t1;
+    if (tMin > tMax) return null;
+  }
+  if (Math.abs(dy) < 1e-9) {
+    if (oy < b.minY || oy > b.maxY) return null;
+  } else {
+    t0 = (b.minY - oy) / dy; t1 = (b.maxY - oy) / dy;
+    if (t0 > t1) { s = t0; t0 = t1; t1 = s; }
+    if (t0 > tMin) tMin = t0;
+    if (t1 < tMax) tMax = t1;
+    if (tMin > tMax) return null;
+  }
+  if (Math.abs(dz) < 1e-9) {
+    if (oz < b.minZ || oz > b.maxZ) return null;
+  } else {
+    t0 = (b.minZ - oz) / dz; t1 = (b.maxZ - oz) / dz;
+    if (t0 > t1) { s = t0; t0 = t1; t1 = s; }
+    if (t0 > tMin) tMin = t0;
+    if (t1 < tMax) tMax = t1;
     if (tMin > tMax) return null;
   }
   return tMin;

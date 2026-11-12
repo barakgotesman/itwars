@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { sendInfo } from '@server/http/api';
 import { lanAddresses } from '@server/http/lan';
 import { serveStatic } from '@server/http/static';
+import { SERVER_BUDGET_MS, describeCapacity, measureCapacity } from '@server/capacity';
 import { startLoop } from '@server/loop';
 import { createGateway } from '@server/net/gateway';
 import { RoomManager } from '@server/rooms/manager';
@@ -15,11 +16,17 @@ import { RoomManager } from '@server/rooms/manager';
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = resolve(fileURLToPath(new URL('../../dist', import.meta.url)));
 
-const rooms = new RoomManager();
+// What this machine can carry: measured now, every time the server starts, so a different host gets its own limits.
+const budget = Number(process.env.LOAD_BUDGET_MS) > 0 ? Number(process.env.LOAD_BUDGET_MS) : SERVER_BUDGET_MS;
+const capacity = measureCapacity(undefined, undefined, budget);
+console.log(describeCapacity(capacity));
+const botCap = process.env.MAX_BOTS === undefined ? Infinity : Math.max(0, Number(process.env.MAX_BOTS) || 0);
+
+const rooms = new RoomManager(capacity, botCap);
 
 const http = createServer((req, res) => {
   const path = (req.url ?? '/').split('?')[0]!;
-  if (path === '/api/info') sendInfo(res, PORT, rooms.count);
+  if (path === '/api/info') sendInfo(res, PORT, rooms.status());
   else serveStatic(ROOT, path, res);
 });
 

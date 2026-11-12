@@ -39,6 +39,8 @@ export interface PlayerInfo {
   spray: number;
   kills: number;
   deaths: number;
+  /** Present (and true) only for server-controlled bots; the scoreboard shows a BOT tag. */
+  bot?: true;
 }
 
 /** Per-player state in a snapshot (what other players can see). */
@@ -140,7 +142,7 @@ export interface JoinedMsg {
   tick: number;
 }
 /** Join/host failure. */
-export interface ErrorMsg { t: 'error'; reason: 'bad-code' | 'room-full' | 'bad-request' | 'rate-limit' }
+export interface ErrorMsg { t: 'error'; reason: 'bad-code' | 'room-full' | 'server-full' | 'bad-request' | 'rate-limit' }
 /** Roster or score change. */
 export interface RosterMsg { t: 'roster'; players: PlayerInfo[] }
 /** Periodic world state at 30 Hz. */

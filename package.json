@@ -11,14 +11,16 @@
     "verify:map": "tsx tests/verify-map.ts",
     "test:sim": "tsx tests/sim-test.ts",
     "start": "tsx src/server/index.ts",
+    "test:bots": "tsx tests/bots-test.ts",
     "test:smoke": "tsx tests/smoke-test.ts",
     "test:settings": "tsx tests/settings-test.ts",
     "test:quality": "tsx tests/quality-test.ts",
     "test:zones": "tsx tests/zones-test.ts",
     "test:boards": "tsx tests/boards-test.ts",
-    "test": "npm run check:deps && npm run verify:map && npm run test:sim && npm run test:smoke && npm run test:settings && npm run test:quality && npm run test:zones && npm run test:boards",
+    "test": "npm run check:deps && npm run verify:map && npm run test:sim && npm run test:bots && npm run test:smoke && npm run test:settings && npm run test:quality && npm run test:zones && npm run test:boards",
     "play": "npm run build && npm start",
-    "make:icons": "tsx tools/make-icons.ts"
+    "make:icons": "tsx tools/make-icons.ts",
+    "bench": "tsx tools/bench.ts"
   },
   "dependencies": {
     "three": "^0.187.0",

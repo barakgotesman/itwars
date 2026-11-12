@@ -19,6 +19,8 @@ export interface Player {
   color: number;
   /** Spray-paint design, index into `SPRAYS`. */
   spray: number;
+  /** Server-controlled bot: set only by server code, never from the network. Its `conn` drops every message. */
+  bot: boolean;
   conn: Conn;
   state: PlayerState;
   hp: number;
@@ -58,10 +60,11 @@ export interface Player {
  * @param model - Character style index.
  * @param color - Shirt colour as 0xRRGGBB.
  * @param spray - Spray-paint design index.
+ * @param bot - True for a server-controlled bot.
  */
-export function newPlayer(id: number, name: string, conn: Conn, model: number, color: number, spray = 0): Player {
+export function newPlayer(id: number, name: string, conn: Conn, model: number, color: number, spray = 0, bot = false): Player {
   return {
-    id, name, conn, model, color, spray, sprayReadyAt: 0,
+    id, name, conn, model, color, spray, bot, sprayReadyAt: 0,
     state: newPlayerState(0, 0, 0), hp: MAX_HP, alive: false, playing: false, kills: 0, deaths: 0, weapon: 1,
     mag: [], reserve: [], gren: [], reloadEnd: 0, nextFire: 0, nextThrow: 0, fireLatch: false,
     protectUntil: 0, respawnAt: 0, blindEnd: 0, blindMax: 0, queue: [], lastCmd: null, prevKeys: 0,

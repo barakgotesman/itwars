@@ -105,7 +105,7 @@ export class ScoreWall {
     const s = this.state;
     const ranked = rankPlayers(s.players).slice(0, ROWS);
     const clock = s.timeLeft >= 0 ? formatClock(s.timeLeft) : '';
-    const key = JSON.stringify([s.killLimit, s.timeLimitMin, s.myId, clock, s.winner, ranked.map((p) => [p.id, p.name, p.kills, p.deaths]), s.events]);
+    const key = JSON.stringify([s.killLimit, s.timeLimitMin, s.myId, clock, s.winner, ranked.map((p) => [p.id, p.name, p.kills, p.deaths, p.bot === true]), s.events]);
     if (key === this.drawn) return;
     this.drawn = key;
 
@@ -183,7 +183,17 @@ export class ScoreWall {
       g.fillStyle = mine ? COLOR.mineInk : (p.kills === lead && lead > 0 ? COLOR.accent : COLOR.dim);
       g.fillText(String(i + 1), 64, cy);
       g.fillStyle = ink;
-      g.fillText(this.fit(p.name, 800, 36), 150, cy);
+      const shown = this.fit(p.name, 800, 36);
+      g.fillText(shown, 150, cy);
+      if (p.bot) {
+        // A small dim tag after the name, then back to the row font for the numbers.
+        const nameW = g.measureText(shown).width;
+        g.font = '700 22px "Segoe UI", system-ui, sans-serif';
+        g.fillStyle = mine ? COLOR.mineInk : COLOR.dim;
+        g.fillText('BOT', 150 + nameW + 16, cy);
+        g.font = '800 36px "Segoe UI", system-ui, sans-serif';
+        g.fillStyle = ink;
+      }
       g.textAlign = 'right';
       g.fillText(String(p.kills), W - 330, cy);
       g.fillStyle = mine ? COLOR.mineInk : COLOR.dim;

@@ -14,12 +14,13 @@ import { $, setShown } from './dom';
 import { commitName, initialName } from './player-name';
 import { createPreview } from './preview';
 import { createSprayPicker } from './spray-picker';
-import { createSetupUi, type SetupUi } from './setup-ui';
+import { createSetupUi, type ServerCapacity, type SetupUi } from './setup-ui';
 
 /** Player-facing text for each server error. */
 const ERROR_TEXT: Record<ErrorMsg['reason'], string> = {
   'bad-code': 'No room with that code. Check it and try again.',
   'room-full': 'That room is full.',
+  'server-full': 'This server is at its limit right now. Try again in a moment.',
   'bad-request': 'The server did not understand the request.',
   'rate-limit': 'Too many requests. Slow down.',
 };
@@ -89,7 +90,15 @@ export function createMenu(hooks: MenuHooks): void {
   let setup: SetupUi;
 
   // The server knows this machine's LAN addresses; the page may have been opened as "localhost".
-  void fetch(`${SERVER_HTTP}/api/info`).then((r) => r.json()).then((info: { lan: string[]; port: number }) => {
+  /** Asks the server what it can still take and tells the setup screen. */
+  const refreshCapacity = (): Promise<void> => fetch(`${SERVER_HTTP}/api/info`).then((r) => r.json()).then((info: { status?: ServerCapacity }) => {
+    setup?.setCapacity(info.status ?? null);
+  }).catch(() => {
+    // Without it the setup screen just offers every choice and the server decides.
+  });
+
+  void fetch(`${SERVER_HTTP}/api/info`).then((r) => r.json()).then((info: { lan: string[]; port: number; status?: ServerCapacity }) => {
+    setup?.setCapacity(info.status ?? null);
     const ip = info.lan[0];
     if (!ip) return;
     lanUrl = `http://${ip}:${location.port || info.port}`;
@@ -146,7 +155,11 @@ export function createMenu(hooks: MenuHooks): void {
 
   // Host game opens the setup screen; its Create button sends the chosen rules to the server.
   setup = createSetupUi((rules) => void attempt({ t: 'host', rules }));
-  $('host').addEventListener('click', () => setup.open());
+  $('host').addEventListener('click', () => {
+    // Capacity changes as rooms fill up, so ask again each time the host opens the screen.
+    void refreshCapacity();
+    setup.open();
+  });
   $('join-form').addEventListener('submit', (e) => {
     e.preventDefault();
     const code = codeField.value.trim();

@@ -2,66 +2,27 @@
  * Map sanity check: every spawn must be outside solids and reachable on foot from the first spawn.
  * Run with `npm run verify:map`; exits non-zero on failure.
  */
-import { PLAYER_HEIGHT, PLAYER_RADIUS } from '@shared/core/constants';
 import { Doors } from '@shared/world/doors';
 import { MAP_BOXES, PICKUP_SPOTS, SOLIDS, SPAWNS } from '@shared/world/map';
+import { buildNavGrid, cellAt, reachable, standingFree } from '@shared/world/nav';
 import { overlaps } from '@shared/core/physics';
 
-const CELL = 0.5;
-const X0 = -50;
-const Z0 = -35;
-const NX = Math.round(100 / CELL);
-const NZ = Math.round(70 / CELL);
-
-/** True if a standing player centred at x/z (feet on the floor) overlaps no solid. */
-function free(x: number, z: number): boolean {
-  for (const b of SOLIDS) {
-    if (
-      x + PLAYER_RADIUS > b.minX && x - PLAYER_RADIUS < b.maxX &&
-      z + PLAYER_RADIUS > b.minZ && z - PLAYER_RADIUS < b.maxZ &&
-      PLAYER_HEIGHT > b.minY && 0 < b.maxY
-    ) return false;
-  }
-  return true;
-}
-
-const cellX = (i: number) => X0 + (i + 0.5) * CELL;
-const cellZ = (j: number) => Z0 + (j + 0.5) * CELL;
-const idx = (i: number, j: number) => j * NX + i;
-
-const walkable = new Uint8Array(NX * NZ);
-for (let j = 0; j < NZ; j++) for (let i = 0; i < NX; i++) walkable[idx(i, j)] = free(cellX(i), cellZ(j)) ? 1 : 0;
+const grid = buildNavGrid(SOLIDS);
+const walkable = grid.walkable;
 
 let failures = 0;
-const startI = Math.floor((SPAWNS[0]![0] - X0) / CELL);
-const startJ = Math.floor((SPAWNS[0]![1] - Z0) / CELL);
-const seen = new Uint8Array(NX * NZ);
-const queue = [idx(startI, startJ)];
-seen[queue[0]!] = 1;
-for (let q = 0; q < queue.length; q++) {
-  const cur = queue[q]!;
-  const i = cur % NX;
-  const j = Math.floor(cur / NX);
-  for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-    const ni = i + di;
-    const nj = j + dj;
-    if (ni < 0 || nj < 0 || ni >= NX || nj >= NZ) continue;
-    const n = idx(ni, nj);
-    if (seen[n] || !walkable[n]) continue;
-    seen[n] = 1;
-    queue.push(n);
-  }
-}
+const seen = reachable(grid, cellAt(SPAWNS[0]![0], SPAWNS[0]![1]));
+const reachableCount = seen.reduce((a, b) => a + b, 0);
 
 /** Checks one point is outside solids and reachable; logs and counts a failure otherwise. */
 function check(label: string, x: number, z: number): void {
-  if (!free(x, z)) {
+  if (!standingFree(SOLIDS, x, z)) {
     console.error(`FAIL ${label} (${x}, ${z}) is inside a solid`);
     failures++;
     return;
   }
-  const n = idx(Math.floor((x - X0) / CELL), Math.floor((z - Z0) / CELL));
-  if (!seen[n]) {
+  const n = cellAt(x, z);
+  if (n < 0 || !seen[n]) {
     console.error(`FAIL ${label} (${x}, ${z}) is not reachable on foot`);
     failures++;
   }
@@ -97,7 +58,7 @@ for (const openness of [0, 0.25, 0.5, 0.75, 1]) {
 const walkableCount = walkable.reduce((a, b) => a + b, 0);
 console.log(
   `boxes: ${MAP_BOXES.length} (${SOLIDS.length} solid), spawns: ${SPAWNS.length}, pickups: ${PICKUP_SPOTS.length}, ` +
-  `doors: ${doors.defs.length}, walkable cells: ${walkableCount}, reachable from spawn #0: ${queue.length}`,
+  `doors: ${doors.defs.length}, walkable cells: ${walkableCount}, reachable from spawn #0: ${reachableCount}`,
 );
 if (failures) process.exit(1);
 console.log('verify:map OK');

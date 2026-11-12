@@ -4,6 +4,7 @@
  * setup screen is built from it, so adding a mode (or a mod) means adding an entry here rather than a new screen.
  */
 import { KILLS_TO_WIN } from '@shared/core/constants';
+import { BOT_COUNTS, BOT_SKILLS, BOT_SKILL_NAMES, DEFAULT_BOT_SKILL, botSkillName } from '@shared/rules/bots';
 
 /** Identifier of a game mode. Add new modes here as they are built. */
 export type ModeId = 'dm';
@@ -22,13 +23,17 @@ export interface MatchRules {
   killLimit: number;
   /** Match length in minutes; 0 means no time limit. */
   timeLimitMin: number;
+  /** Server-controlled players added when the room opens (0-7). They count as players for the match clock. */
+  bots: number;
+  /** Bot skill: 1 Easy, 2 Normal, 3 Hard, the same for every bot in the room. */
+  botSkill: number;
 }
 
 /** Rules used when the host does not choose any (and the fallback for anything invalid). */
-export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0 };
+export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL };
 
 /** Numeric rule fields a setup option can control. */
-export type RuleKey = 'killLimit' | 'timeLimitMin';
+export type RuleKey = 'killLimit' | 'timeLimitMin' | 'bots' | 'botSkill';
 
 /** One option a mode shows on the setup screen. */
 export type OptionDef =
@@ -40,6 +45,8 @@ export type OptionDef =
     hint: string;
     choices: readonly number[];
     unit: string;
+    /** Text for each choice, in the same order, when a number alone says little (e.g. skill names). */
+    labels?: readonly string[];
   }
   | {
     /** An on/off switch; when on, pick one of several values. Off stores 0. */
@@ -73,6 +80,14 @@ export const MODES: readonly ModeDef[] = [
         kind: 'optional-choice', key: 'timeLimitMin', label: 'Time limit', unit: 'min', choices: TIME_LIMITS_MIN, defaultOn: DEFAULT_TIME_LIMIT_MIN,
         hint: 'Ends the match when time runs out; the most kills wins. The clock starts once two players are in.',
       },
+      {
+        kind: 'choice', key: 'bots', label: 'Bots', choices: BOT_COUNTS, unit: 'bots',
+        hint: 'Computer players that fill the room from the start. Friends who join take a bot\'s seat, so a room of bots always has space for people.',
+      },
+      {
+        kind: 'choice', key: 'botSkill', label: 'Bot skill', choices: BOT_SKILLS, labels: BOT_SKILL_NAMES, unit: '',
+        hint: 'Easy bots react slowly and miss; Hard bots aim fast, land headshots and use grenades. Ignored with 0 bots.',
+      },
     ],
   },
 ];
@@ -86,7 +101,9 @@ export function sanitizeRules(raw: unknown): MatchRules {
   const mode = MODES.find((m) => m.id === r.mode)?.id ?? DEFAULT_RULES.mode;
   const killLimit = KILL_LIMITS.includes(r.killLimit as number) ? (r.killLimit as number) : DEFAULT_RULES.killLimit;
   const timeLimitMin = r.timeLimitMin === 0 || TIME_LIMITS_MIN.includes(r.timeLimitMin as number) ? (r.timeLimitMin as number) : 0;
-  return { mode, killLimit, timeLimitMin };
+  const bots = BOT_COUNTS.includes(r.bots as number) ? (r.bots as number) : DEFAULT_RULES.bots;
+  const botSkill = BOT_SKILLS.includes(r.botSkill as number) ? (r.botSkill as number) : DEFAULT_RULES.botSkill;
+  return { mode, killLimit, timeLimitMin, bots, botSkill };
 }
 
 /**
@@ -94,5 +111,6 @@ export function sanitizeRules(raw: unknown): MatchRules {
  */
 export function describeRules(rules: MatchRules): string {
   const mode = MODES.find((m) => m.id === rules.mode)?.name ?? 'Deathmatch';
-  return `${mode} · first to ${rules.killLimit}${rules.timeLimitMin > 0 ? ` · ${rules.timeLimitMin} min` : ' · no time limit'}`;
+  const bots = rules.bots > 0 ? ` · ${rules.bots} ${rules.bots === 1 ? 'bot' : 'bots'} (${botSkillName(rules.botSkill).toLowerCase()})` : '';
+  return `${mode} · first to ${rules.killLimit}${rules.timeLimitMin > 0 ? ` · ${rules.timeLimitMin} min` : ' · no time limit'}${bots}`;
 }

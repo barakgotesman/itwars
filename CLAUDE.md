@@ -27,10 +27,12 @@ npm run build          # typecheck (client + server configs) && vite build
 npm start              # one Node process serves dist/ + WebSocket on :3000 and prints LAN URLs
 npm run play           # build + start (use this to host for friends)
 npm run typecheck      # tsc for the whole repo, then again with no DOM types for shared + server
-npm test               # check:deps, verify:map, test:sim, test:smoke, test:settings, test:quality, test:zones, test:boards
+npm test               # check:deps, verify:map, test:sim, test:bots, test:smoke, test:settings, test:quality, test:zones, test:boards
 npm run check:deps     # layering rule: shared is pure, server never imports client, client never imports server
 npm run verify:map     # spawns and pickups are not inside solids and are reachable on foot
 npm run test:sim       # headless server simulation tests (no browser)
+npm run test:bots      # bots: navigation grid and A*, rules and names, room lifecycle, roaming, doors, sight/fairness, fights by skill, healing/looting/grenades, load budget (humans beat bots), tick monitor, startup capacity check
+npm run bench          # server capacity: ms per tick for rooms x humans x bots against the 16.6 ms budget (`-- rooms humans ticks bots skill` for one case)
 npm run test:smoke     # real server + two WebSocket clients
 npm run test:settings  # key rebinding rules and option defaults
 npm run test:quality   # graphics calibration and hardware guess
@@ -55,16 +57,17 @@ One package, three source folders, path aliases `@shared/*`, `@server/*`, `@clie
 src/shared/   used by BOTH sides (no DOM, no Node APIs)
   core/       constants.ts (tick rate, player size, movement tuning, key bits, match rules), physics.ts (stepMovement, rayVsAabb, overlaps, lookDir), characters.ts
   net/        protocol.ts: typed C2S / S2C messages, GameEvent union, parseC2S validator, name/code sanitising
-  rules/      weapons.ts (weapon / grenade / pickup / loot tables, all balance), modes.ts (mode registry, MatchRules, sanitizeRules, setup-screen options)
-  world/      doors.ts (Doors simulation: used by server AND client), map/ (office generated from boxes: index, builder, furniture, shell, dressing, pickups, door-layout, zones (lighting design), accents (local lights), rooms/*)
+  rules/      weapons.ts (weapon / grenade / pickup / loot tables, all balance), modes.ts (mode registry, MatchRules, sanitizeRules, setup-screen options), bots.ts (bot names, counts, skill tuning table)
+  world/      doors.ts (Doors simulation: used by server AND client), nav.ts (walkable 0.5 m grid, A*, line-of-walkability; used by bots and verify:map), map/ (office generated from boxes: index, builder, furniture, shell, dressing, pickups, door-layout, zones (lighting design), accents (local lights), rooms/*)
 src/server/   Node
   index.ts    bootstrap only: http server + gateway + loop
-  loop.ts     fixed 60 Hz step of every room
+  loop.ts     fixed 60 Hz step of every room, plus `TickMonitor` (warns when ticks run slow)
   http/       api.ts (/api/info), static.ts (serves dist/), lan.ts (LAN addresses)
   net/        gateway.ts: WebSocket on /ws, rate limit, validation, routing to the player's room
-  rooms/      room.ts (Room: state + join/enter/leave/input/step, calls the systems), manager.ts (codes, lookup, prune)
+  rooms/      room.ts (Room: state + join/enter/leave/input/step, calls the systems), manager.ts (codes, lookup, prune, load budget: create/admit/status), capacity.ts (startup self-measurement)
   sim/        one system per file, plain functions over the room state (state.ts `Sim`):
               movement, weapons, damage, grenades, pickups, loot, doors, spray, match (spawn, clock, end, restart), snapshot (roster, snapshots, `me`), combat (pure ray/LOS/projectile geometry), player, util
+  sim/bots/   server-controlled players: index (addBots, stepBots), state (BotState), perception, navigate, decide, fight, aim, gun, grenade, angles
 src/client/   Vite + three.js + Tailwind
   main.ts     entry: touch notice or wire menu + room panel + settings; config.ts (server URL, `VITE_SERVER_URL`)
   app/        menu.ts (callsign, character picker, host/join), room-panel.ts (room code, pause, Input, starts the game), setup-ui.ts, settings-ui.ts, preview.ts, appearance.ts, player-name.ts, dom.ts
@@ -72,8 +75,8 @@ src/client/   Vite + three.js + Tailwind
   render/     three.js: world.ts, lighting.ts, renderer.ts (bloom, dust, composer), players.ts, viewmodel.ts, weapon-fx.ts, items.ts, door-visuals.ts, particles.ts, bullet-holes.ts
   hud/        hud.ts, feed.ts, gun-icons.ts, style.css (design tokens: one ground, one ink, one yellow accent; red only for danger; flat, square, no gradients except vignettes and the scope)
   game/       in-room game: index.ts (startGame wiring + message routing), scene.ts (renderer + all visuals), prediction.ts (LocalPlayer), roster.ts, events.ts (server events to effects/HUD), loop.ts (frame)
-tests/        verify-map.ts sim-test.ts smoke-test.ts settings-test.ts quality-test.ts physics-check.ts
-tools/        make-icons.ts, check-deps.ts
+tests/        verify-map.ts sim-test.ts bots-test.ts helpers.ts (FakeConn, makeRoom, run/idle shared by the sim suites) smoke-test.ts settings-test.ts quality-test.ts physics-check.ts
+tools/        make-icons.ts, check-deps.ts, bench.ts
 public/       copied to the site root: favicon (svg/ico), app icons, og-image.png, manifest.webmanifest, robots.txt
 ```
 
@@ -150,6 +153,16 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - Open-plan centre with 12 cubicle pods and a lounge; north row of rooms (Executive, meeting rooms, Server room, Print room, IT Helpdesk); south row (Break room, Storage, Lobby, Conference, phone booths). 3.2 m doors.
 - Generated from boxes; the client merges them per material. Keep decorative-only boxes `solid: false`. Every spawn and pickup must pass `npm run verify:map`.
 
+### Bots
+- **Setup only:** the host picks **Bots** (0-7) and **Bot skill** (Easy / Normal / Hard) on the Game setup screen (`MatchRules.bots`, `botSkill`, plain `choice` options with optional `labels`). Fixed for the room's lifetime, validated by `sanitizeRules`, no in-game commands. Bots are created in the `Room` constructor (`addBots`), count toward `MAX_PLAYERS` (host + 7 bots fills the room) and toward the match clock's "two players" rule. The room (and its bots) is deleted when the **last human** leaves (`Room.isEmpty` ignores bots).
+- **A bot is an ordinary `Player`** (`bot: true`) with a no-op `conn`; `stepBots` (called in `Room.step` before the player loop) queues exactly one `InputMsg` per tick through `queueInput`. So movement, weapons, doors, pickups, loot, grenades, damage, spawn protection and every FUTURE input-driven system apply to bots automatically. Bot code never mutates a player's state directly, only reads `Sim`. All randomness uses `sim.rng()` (seeded tests are reproducible). Bots skip `me`/roster sends in the snapshot code. Names are Unix tools (`BOT_NAMES`), model/colour/spray random; `PlayerInfo.bot` shows a BOT tag on the Tab scoreboard and the wall boards.
+- **Fair, not cheating:** a bot sees an enemy only inside its field of view, within sight range, with a clear `hasLineOfSight` ray (re-checked at the moment it fires; `BotState.lastFire.los` is asserted true by tests), and hears shots, explosions and attacks within `hearRange`. It remembers the last sighting for `memoryTicks` and walks to it. Its view turns at `turnRate` rad/s, never faster (tested); aim wanders around the target (error grows with distance and target speed, shrinks while the target stays in view); it waits `reactionTicks` before the first shot, bursts automatic guns, presses semi-auto fire as fresh presses, and does not shoot spawn-protected players.
+- **Brain modules** (`server/sim/bots/`): `perception` (sight, hearing), `navigate` (A* on the shared grid, waypoint following with corner cutting, opens closed doors by pressing use, stuck recovery: hop, replan, give up the goal), `decide` (every 10 ticks: heal below 70 HP, restock below 35% ammo, loot a bag that helps, investigate a noise, else roam; a wish already under way gets a bonus), `fight` (aim, strafe, hold the weapon's ideal range, back away when hurt), `aim`, `gun` (weapon choice scored from the `WEAPONS` table by damage per second x hit chance, so a new gun is used automatically; trigger and reload discipline), `grenade` (lobs a Coffee Bomb at where a hidden enemy was just seen, using a range-by-pitch table built from the game's own projectile code). The Fire Alarm flash is not used by bots yet.
+- **Tuning** lives in `BOT_TUNING` (`shared/rules/bots.ts`): turn rate, reaction, aim error, settle time, headshot chance, burst length, memory, retreat HP, strafe rate, grenade chance per skill. Tune there, not in the modules. Navigation constants (reach distances, stuck windows) are at the top of `navigate.ts`.
+- **Navigation:** `shared/world/nav.ts` builds a 0.5 m grid from the STATIC solids (door panels excluded, so doorways are always walkable), cached per solids array. A* uses a weighted heuristic and a node cap, one search per room per tick. Desks and partitions count as walls for planning (a stuck bot may hop over them).
+- **Adding things so bots keep up:** a new weapon is handled by `chooseWeapon` from its `WEAPONS` entry; a new pickup kind or goal needs an entry in `decide.ts`; a new key-driven action works for bots once `fight`/`navigate`/`decide` presses its key bit; a change to movement or doors needs no bot change.
+- **Capacity (`npm run bench`, development PC, scripted players):** about 1.1 ms of server time per tick for 4 rooms of 1 human + 7 Hard bots, ~2.1 ms for 8 such rooms, ~5.5 ms for 16 (over the p99 target). 8 rooms of 4+4 is ~3.2 ms. Humans only: 16 rooms of 8 ~2.9 ms. Targets: avg under 5 ms, p99 under 10 ms of the 16.6 ms tick. **Self-measured load budget** (`server/capacity.ts`, `rooms/manager.ts`): every time the server starts, on whatever machine it runs on, it times scripted rooms of 8 players and of 7 Hard bots (~0.5 s) to get the tick cost of ONE player (including JSON for snapshots) and ONE bot, and spends a budget of 2.5 ms per tick (`SERVER_BUDGET_MS`, half the 5 ms target because on a LAN the host also plays on that PC; env `LOAD_BUDGET_MS` overrides) on them. Nothing is hard-coded from the development PC. The console prints what it found (on the dev PC: ~0.02 ms per player, ~0.06 ms per bot, so ~100 players or ~44 bots or a mix). `RoomManager` enforces ONE limit on the SUM: `create` refuses with `server-full` if even the host does not fit and gives a host fewer bots than asked if they do not fit; `admit` (called by the gateway before a join) makes humans win over bots: a full room gives a seat to a human by dropping a bot (`Room.dropBot`, fewest kills first), and a server over budget drops bots from the busiest room until the newcomer fits; it refuses with `server-full` only when the server is full of humans. `MAX_BOTS` is an extra owner cap on bots. `/api/info` returns `status` (`botsAvailable`, `playersAvailable`, `load`); the setup screen reads it each time it opens, greys out bot counts that cannot run and says how much capacity is in use. `TickMonitor` logs a warning when real ticks run slow. Not measured: network bandwidth (~310 KB/s per full room) and the host's browser; re-run `npm run bench` on a new host if in doubt. Raycasts (`rayVsAabb`) were the hotspot (allocation-free now); a spatial grid for `worldDistance` is the next step if more headroom is needed. Bandwidth is about 310 KB/s per 8-player room.
+
 ### Signs and live scoreboards
 - **Door signs** (`LABELS`, drawn by `client/render/signs.ts` into one atlas mesh): one plate above each doorway, on the **outside only** (the room's `side` decides). Hanging banners stay double-sided. Text may use `{KILLS}` / `{MINUTES}`, filled from the room's rules by `fillRuleTokens` (`shared/rules/standings.ts`), so the "Q4 TARGET" banner always shows the real kill limit.
 - **Wall scoreboards**: `scoreboard(...)` in `shared/world/map/builder.ts` registers a screen (`BOARDS`): open-plan north wall (x -34), open-plan south wall (x -12), lobby east wall. `client/render/score-wall.ts` draws one shared canvas: "FIRST TO N KILLS", the match clock, the leader's progress bar, up to 8 ranked rows (your row highlighted), the winner during the intermission, and a "LATEST" strip of the same lines the kill feed shows (`feedLineText`). It redraws only when the data changes. Fed from `game/loop.ts` (2 Hz roster and clock), `game/events.ts` (winner), and a wrapper around the feed in `game/index.ts`.
@@ -220,8 +233,9 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - Doors: the logic is covered headlessly (blocking, pushing, wedged players, bullets, reset) and the models were checked in a rendered scene, but pressing `E` in a live match, the feel of being pushed, and the door sound were not tried.
 - Lighting: the room mood was checked in a rendered contact sheet of every room (with characters standing in them) and by headless tests, but not by walking the live game; the dark rooms' readability against a real opponent has not been playtested.
 - Graphics calibration has only been exercised on simulated machines and a 1 FPS automation tab, not on the owner's slow computer.
-- Public demo deploy not done. No bots, no lag compensation.
+- Bots: built and covered by headless tests (navigation, doors, fairness, fights, healing/looting/grenades, caps), but **not played against**. How they feel, how hard Easy/Normal/Hard are against a moving human, and whether they look natural to other players (30 Hz interpolation of their movement) are untested; expect a tuning pass on `BOT_TUNING`. Known limits: desks are walls for planning, no flash grenades, no teamwork, no "load shedding" (slower bot thinking under load): the load budget is the guard. The capacity numbers come from scripted players on the machine at startup, not from a live match.
+- Public demo deploy not done. No lag compensation.
 
 ## Out of scope for v1
 
-Bots, teams or other modes, accounts and persistence, voice chat, mobile or gamepad, lag compensation, anti-cheat.
+Teams or other modes, accounts and persistence, voice chat, mobile or gamepad, lag compensation, anti-cheat.

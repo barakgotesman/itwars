@@ -7,6 +7,8 @@ import type { GameEvent } from '@shared/net/protocol';
 import type { MatchRules } from '@shared/rules/modes';
 import type { PickupKind } from '@shared/rules/weapons';
 import type { Doors } from '@shared/world/doors';
+import type { NavGrid } from '@shared/world/nav';
+import type { BotState } from './bots/state';
 import type { Grenade } from './grenades';
 import type { Loot } from './loot';
 import type { Player } from './player';
@@ -52,4 +54,10 @@ export interface Sim {
   rosterDirty: boolean;
   /** The room's seeded random numbers. */
   rng(): number;
+  /** Walkable grid of the static map (doors are not in it), built on first use. */
+  readonly nav: NavGrid;
+  /** Brain memory of each bot, by player id. */
+  readonly bots: Map<number, BotState>;
+  /** Last tick a bot ran a path search; only one search per room per tick keeps the cost flat. */
+  lastPlanTick: number;
 }
