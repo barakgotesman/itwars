@@ -1,6 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
 
 /**
  * Adds the tags that need the site's real address (canonical link, og:url, absolute share-image URLs).
@@ -24,7 +25,7 @@ function siteUrlTags(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [tailwindcss(), siteUrlTags()],
+  plugins: [react(), tailwindcss(), siteUrlTags()],
   resolve: {
     alias: {
       '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),

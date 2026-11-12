@@ -19,6 +19,9 @@ export interface ServerStatus {
   botsAvailable: number;
   /** More players that fit before the server is full. */
   playersAvailable: number;
+  /** The most players, or the most bots, this server could run alone (from the startup measurement). */
+  maxPlayers: number;
+  maxBots: number;
 }
 
 /** Owns every `Room` on this server, keyed by join code. */
@@ -76,6 +79,8 @@ export class RoomManager {
       load: Number.isFinite(this.model.budgetMs) ? this.loadMs / this.model.budgetMs : 0,
       botsAvailable: Math.min(7, this.botsThatFit(1)),
       playersAvailable: h > 0 ? Math.max(0, Math.floor(free / h + 1e-9)) : 999,
+      maxPlayers: h > 0 ? Math.floor(this.model.budgetMs / h + 1e-9) : 999,
+      maxBots: Math.min(this.maxBots, this.model.msPerBot > 0 ? Math.floor(this.model.budgetMs / this.model.msPerBot + 1e-9) : 999),
     };
   }
 

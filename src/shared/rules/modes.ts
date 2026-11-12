@@ -47,6 +47,8 @@ export type OptionDef =
     unit: string;
     /** Text for each choice, in the same order, when a number alone says little (e.g. skill names). */
     labels?: readonly string[];
+    /** Only shown while this other rule is above 0 (e.g. bot skill matters only when there are bots). */
+    dependsOn?: RuleKey;
   }
   | {
     /** An on/off switch; when on, pick one of several values. Off stores 0. */
@@ -85,8 +87,8 @@ export const MODES: readonly ModeDef[] = [
         hint: 'Computer players that fill the room from the start. Friends who join take a bot\'s seat, so a room of bots always has space for people.',
       },
       {
-        kind: 'choice', key: 'botSkill', label: 'Bot skill', choices: BOT_SKILLS, labels: BOT_SKILL_NAMES, unit: '',
-        hint: 'Easy bots react slowly and miss; Hard bots aim fast, land headshots and use grenades. Ignored with 0 bots.',
+        kind: 'choice', key: 'botSkill', label: 'Bot skill', choices: BOT_SKILLS, labels: BOT_SKILL_NAMES, unit: '', dependsOn: 'bots',
+        hint: 'Easy bots react slowly and miss; Hard bots aim fast, land headshots and use grenades.',
       },
     ],
   },

@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-11-11T18:20:14.567Z",
         "reason": "Claude judged false positive: the flagged rules (.btn, .choice pressed) use hard-offset box-shadow slabs on the bottom edge for the blocky button look the user asked for; there is no coloured side border; user did not review the finding"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/client/ui/hud/FeedView.tsx"
+        ],
+        "createdAt": "2026-11-12T10:31:36.467Z",
+        "reason": "Claude: pre-existing kill-feed marker for the player's own lines, ported unchanged from hud/feed.ts during the React migration; owner has not reviewed it"
       }
     ]
   }

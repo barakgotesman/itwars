@@ -131,6 +131,15 @@
   animation: low-hp 0.7s ease-in-out infinite alternate;
 }
 
+/* A damage arrow shows at full strength, then fades over a second. */
+@keyframes dmg-fade {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.dmg-arrow {
+  animation: dmg-fade 1s linear forwards;
+}
+
 /* A feed line slides in from the right edge. */
 @keyframes feed-in {
   from { transform: translateX(16px); opacity: 0; }
@@ -143,6 +152,7 @@
 @media (prefers-reduced-motion: reduce) {
   .low-hp { animation: none; opacity: 0.5; }
   .feed-in { animation: none; }
+  .dmg-arrow { animation-duration: 0.3s; }
   .scope-glint { animation: none; }
   .btn, .btn-quiet, .choice { transition: none; }
 }

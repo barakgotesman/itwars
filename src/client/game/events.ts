@@ -7,7 +7,7 @@ import { EYE_HEIGHT } from '@shared/core/constants';
 import type { GameEvent } from '@shared/net/protocol';
 import { GRENADES, WEAPONS } from '@shared/rules/weapons';
 import type { Feed } from '@client/hud/feed';
-import type { Hud } from '@client/hud/hud';
+import type { Hud } from '@client/ui/hud/hud-store';
 import type { Input } from '@client/platform/input';
 import { WEAPON_FX } from '@client/render/weapon-fx';
 import type { LocalPlayer } from './prediction';

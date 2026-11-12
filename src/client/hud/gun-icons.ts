@@ -1,13 +1,13 @@
 /**
- * Flat 2D, pixel-block icons for the four guns and two grenades, drawn as inline SVG so they need no
- * image files. Used by the kill feed and the weapon bar.
+ * Flat 2D, pixel-block icons for the four guns and two grenades, stored as pixel blocks so they need no
+ * image files. The `GunIcon` component draws them; used by the kill feed and the weapon bar.
  */
 
 /** Which icon: a weapon index 0-3, or a grenade. */
 export type IconKind = number | 'frag' | 'flash';
 
 /** One filled rectangle: x, y, width, height, colour. The icon grid is 48 x 24. */
-type Block = readonly [number, number, number, number, string];
+export type Block = readonly [number, number, number, number, string];
 
 const ICONS: Record<string, readonly Block[]> = {
   // Stapler .45: chrome slide with serrations and a brass port, red nose, red-panelled grip.
@@ -49,24 +49,9 @@ const ICONS: Record<string, readonly Block[]> = {
 };
 
 /**
- * SVG markup for an icon.
+ * The pixel blocks of an icon (the 48 x 24 grid), for the `GunIcon` component to draw.
  * @param kind - Weapon index or grenade type.
  */
-export function iconSvg(kind: IconKind): string {
-  const blocks = ICONS[String(kind)] ?? ICONS['0']!;
-  const rects = blocks.map(([x, y, w, h, c]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`).join('');
-  return `<svg viewBox="0 0 48 24" shape-rendering="crispEdges" class="h-full w-full" aria-hidden="true">${rects}</svg>`;
-}
-
-/**
- * A span holding an icon, ready to append to the page.
- * @param kind - Weapon index or grenade type.
- * @param className - Tailwind classes that size the box (the SVG fills it).
- */
-export function iconElement(kind: IconKind, className: string): HTMLElement {
-  const span = document.createElement('span');
-  span.className = className;
-  // Static markup built from the constants above, never from user input.
-  span.innerHTML = iconSvg(kind);
-  return span;
+export function iconBlocks(kind: IconKind): readonly Block[] {
+  return ICONS[String(kind)] ?? ICONS['0']!;
 }

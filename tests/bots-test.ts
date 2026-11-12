@@ -527,6 +527,7 @@ function joinHuman(rooms: RoomManager, room: Room, name: string): number | null 
   check('a third host gets only the host seat: the budget is spent', c.botCount === 0, `${c.botCount} bots`);
   c.join(new FakeConn(), 'HostC');
   check('the total never goes over the budget', rooms.loadMs <= TOY.budgetMs, `${rooms.loadMs}`);
+  check('status reports the measured totals', rooms.status().maxPlayers === 10 && rooms.status().maxBots === 20);
   check('status reports the load and nothing available', rooms.status().load === 1 && rooms.status().botsAvailable === 0 && rooms.status().playersAvailable === 0);
 }
 

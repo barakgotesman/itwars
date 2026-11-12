@@ -3,8 +3,9 @@
  * render loop together, and routes server messages to them. Each piece lives in its own file here.
  */
 import type { JoinedMsg } from '@shared/net/protocol';
-import { createFeed, feedLineText, type Feed } from '@client/hud/feed';
-import type { Hud } from '@client/hud/hud';
+import { feedLineText, type Feed } from '@client/hud/feed';
+import { createFeed } from '@client/ui/hud/feed-store';
+import type { Hud } from '@client/ui/hud/hud-store';
 import type { Input } from '@client/platform/input';
 import type { Net } from '@client/platform/net';
 import { Calibration } from '@client/platform/quality';

@@ -9,7 +9,7 @@ Playable. Milestones 1-5 are built and the game runs end to end on a LAN (host, 
 ## Requirements (from the owner)
 
 - Name: **IT Wars**
-- Stack: **TypeScript, Tailwind, three.js** (server: Node + `ws`). TypeScript only, no jQuery or UI framework.
+- Stack: **TypeScript, React, Tailwind, three.js** (server: Node + `ws`). **All DOM UI is written in React** (function components and hooks, typed props) with Tailwind; no jQuery and no hand-built DOM (`document.createElement`) for new UI. The 3D game itself stays plain TypeScript on three.js (see "UI and React" below).
 - **Desktop only** (keyboard + mouse, pointer lock). Show a "desktop only" notice on touch devices.
 - **LAN multiplayer**: a player hosts a room and gets a **room code**; others on the same network join with it.
 - Mode: **Deathmatch (DM)**; the host picks the kill limit (10/20/30/40/50, default 50) and an optional time limit (off by default; 5/10/15/20/30 min, 10 when switched on). Max 8 players per room, match restarts 10 s after it ends. Modes are a registry (`shared/rules/modes.ts`) so future modes/mods plug in.
@@ -68,9 +68,9 @@ src/server/   Node
   sim/        one system per file, plain functions over the room state (state.ts `Sim`):
               movement, weapons, damage, grenades, pickups, loot, doors, spray, match (spawn, clock, end, restart), snapshot (roster, snapshots, `me`), combat (pure ray/LOS/projectile geometry), player, util
   sim/bots/   server-controlled players: index (addBots, stepBots), state (BotState), perception, navigate, decide, fight, aim, gun, grenade, angles
-src/client/   Vite + three.js + Tailwind
-  main.ts     entry: touch notice or wire menu + room panel + settings; config.ts (server URL, `VITE_SERVER_URL`)
-  app/        menu.ts (callsign, character picker, host/join), room-panel.ts (room code, pause, Input, starts the game), setup-ui.ts, settings-ui.ts, preview.ts, appearance.ts, player-name.ts, dom.ts
+src/client/   Vite + React + three.js + Tailwind. All DOM UI is React in `ui/` (App, screens/, components/, hud/ with its stores, hooks/store.ts, session.ts, app-store.ts); `hud/` keeps only the pure feed text, gun icon data and style.css; menu 3D views are in `render/menu-*.ts`; `platform/` also holds appearance and player-name storage
+  main.tsx    entry: touch notice, or mounts <App/> and gives the game canvas to the session; config.ts (server URL, `VITE_SERVER_URL`)
+  ui/         React: App.tsx, screens/ (Menu, Setup, Room, Settings), components/, hud/ (HudView, FeedView, hud-store, feed-store), hooks/, app-store.ts (which screen), session.ts (Input, Net, game start, enter/leave)
   platform/   input.ts, settings.ts, quality.ts, audio.ts, net.ts (browser plumbing, no game rules)
   render/     three.js: world.ts, lighting.ts, renderer.ts (bloom, dust, composer), players.ts, viewmodel.ts, weapon-fx.ts, items.ts, door-visuals.ts, particles.ts, bullet-holes.ts
   hud/        hud.ts, feed.ts, gun-icons.ts, style.css (design tokens: one ground, one ink, one yellow accent; red only for danger; flat, square, no gradients except vignettes and the scope)
@@ -190,8 +190,17 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 
 ## Conventions
 
-- Strict TypeScript. No `any` unless commented. Small modules with one job. TypeScript only, plain DOM + Tailwind.
+- Strict TypeScript. No `any` unless commented. Small modules with one job. DOM UI is React + Tailwind (below); everything else is plain TypeScript.
 - Tailwind utility classes for DOM UI. Write full class names (no string-built fragments) so Tailwind can see them.
+
+### UI and React
+
+- **Rule:** every new or changed DOM screen is a React function component (`.tsx`, typed props, hooks) styled with Tailwind. Do not add new `document.createElement` / `innerHTML` UI. When you touch an existing hand-built screen in a meaningful way, convert it instead of extending it.
+- **Where it lives:** components in `src/client/ui/` (screens in `ui/screens/`, shared pieces in `ui/components/`, hooks in `ui/hooks/`), mounted from `main.ts` with `createRoot`. Keep rules and data out of components: they import from `@shared/*` (for example the setup screen is built from `MODES`, as before) and from small client modules (`platform/settings.ts`, `platform/net.ts`).
+- **What stays plain TypeScript:** the three.js scene and everything under `render/` and `game/` (the frame loop, prediction, input, audio), the server, and `shared/`. Per-frame HUD values (health, ammo, crosshair, damage arrows, scoreboard at 2 Hz) must NOT go through React state at 60 FPS: the game loop writes them into a small store (or refs) and the HUD components subscribe with `useSyncExternalStore` and re-render only when their own value changes. 60 FPS is a requirement, so measure before moving a hot HUD element to React.
+- **Migration order:** setup screen first (most dynamic), then menu, settings, room panel, then HUD. Each step keeps `npm test` and `npm run build` green; the old DOM file is deleted when its replacement lands. Do not leave two implementations of a screen.
+- **Dev:** React plugin for Vite (`@vitejs/plugin-react`), `react` and `react-dom` as dependencies, `@types/react*` dev dependencies. Use `npm run dev` (Vite hot reload on :5173) while building UI; `npm start` serves the built `dist/` and needs `npm run build` plus a refresh to show changes.
+- **Testing UI:** pure logic (what to show, limits, labels) lives in `shared/` or plain modules so the headless tests cover it; component rendering is checked in a real browser and must be reported as not verified visually when it was not.
 - Game balance and tuning live in `shared/rules/*.ts` and `client/render/weapon-fx.ts` data, never as magic numbers in logic.
 - Coordinate system: x east, z south, y up. `yaw 0` faces -Z, positive yaw turns left; `pitch > 0` looks up. In the gun/viewmodel, -Z is forward.
 - Server timers use integer ticks, not wall-clock time. Tell other players about things with **events**, keep snapshots small.
@@ -234,6 +243,7 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - Lighting: the room mood was checked in a rendered contact sheet of every room (with characters standing in them) and by headless tests, but not by walking the live game; the dark rooms' readability against a real opponent has not been playtested.
 - Graphics calibration has only been exercised on simulated machines and a 1 FPS automation tab, not on the owner's slow computer.
 - Bots: built and covered by headless tests (navigation, doors, fairness, fights, healing/looting/grenades, caps), but **not played against**. How they feel, how hard Easy/Normal/Hard are against a moving human, and whether they look natural to other players (30 Hz interpolation of their movement) are untested; expect a tuning pass on `BOT_TUNING`. Known limits: desks are walls for planning, no flash grenades, no teamwork, no "load shedding" (slower bot thinking under load): the load budget is the guard. The capacity numbers come from scripted players on the machine at startup, not from a live match.
+- UI is fully React: menu, setup, settings, room panel and HUD are React + Tailwind under `src/client/ui/`. Checked in a real browser (menu, host, setup, room screen, settings render, no console errors), but **not played**: the HUD in a live match (hit marker, damage arrows, scope, scoreboard, feed, death screen) and the settings key-rebinding overlay were not tried.
 - Public demo deploy not done. No lag compensation.
 
 ## Out of scope for v1

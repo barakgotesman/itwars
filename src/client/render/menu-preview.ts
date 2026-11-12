@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { PLAYER_COLORS } from '@shared/core/characters';
-import type { Look } from './appearance';
+import type { Look } from '@client/platform/appearance';
 import { PlayerModel } from '@client/render/players';
 
 /** Handle for controlling the preview. */
