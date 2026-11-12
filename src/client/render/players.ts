@@ -76,9 +76,14 @@ export class PlayerModel {
   private readonly gun = new THREE.Group();
   private readonly tag: THREE.Sprite;
   private phase = 0;
-  private death = 0;
   private gunIndex = -1;
   private tagHidden = false;
+  /** True once this model has broken into chunks for its current death; cleared on respawn. */
+  private shattered = false;
+  /** The flying head/arm/leg/torso pieces while shattered, each with its own fall. */
+  private chunks: { obj: THREE.Object3D; vel: THREE.Vector3; angVel: THREE.Vector3; grounded: boolean }[] = [];
+  /** Each limb's local position relative to the body at rest, so it can be reattached after a respawn. */
+  private readonly restPos = new Map<THREE.Object3D, THREE.Vector3>();
   /** This model's own copies of the shared materials, so its tint never leaks onto other players. */
   private readonly own = new Set<THREE.MeshLambertMaterial>();
   private tintR = 1;
@@ -108,6 +113,9 @@ export class PlayerModel {
     this.root.add(this.tag);
     this.setWeapon(1);
     this.adopt();
+    for (const limb of [this.head, this.legL, this.legR, this.armL, this.armR]) {
+      this.restPos.set(limb, limb.position.clone());
+    }
   }
 
   /** Gives every mesh that still uses a shared material its own copy (new gun parts appear when the weapon changes). */
@@ -367,9 +375,9 @@ export class PlayerModel {
    */
   idle(t: number): void {
     this.gun.visible = false;
+    if (this.shattered) this.reassemble();
     const breath = Math.sin(t * 1.8);
-    this.death = 0;
-    this.body.rotation.x = 0;
+    this.body.rotation.set(0, 0, 0);
     this.body.visible = true;
     // Slow weight shift from one foot to the other, with the torso counter-leaning.
     const shift = Math.sin(t * 0.6);
@@ -391,16 +399,22 @@ export class PlayerModel {
    * @param speed - Horizontal speed in m/s (drives stride rate and swing).
    * @param onGround - False tucks the legs.
    * @param pitch - View pitch; the head and arms follow it.
-   * @param alive - False plays the fall-over.
+   * @param alive - False breaks the model into head/arm/leg/torso chunks that tumble and settle.
    * @param weapon - Selected weapon index.
    * @param blink - Hides the model on alternate frames to show spawn protection.
    */
   update(dt: number, speed: number, onGround: boolean, pitch: number, alive: boolean, weapon: number, blink: boolean): void {
     this.setWeapon(weapon);
-    this.death = THREE.MathUtils.clamp(this.death + (alive ? -dt * 3 : dt * 3), 0, 1);
-    this.body.rotation.x = this.death * (Math.PI / 2);
-    this.body.position.y = this.death * 0.18;
-    this.tag.visible = !this.tagHidden && this.death < 0.5;
+    if (!alive) {
+      if (!this.shattered) this.shatter();
+      this.stepShatter(dt);
+      this.tag.visible = false;
+      return;
+    }
+    if (this.shattered) this.reassemble();
+    this.body.position.set(0, 0, 0);
+    this.body.rotation.set(0, 0, 0);
+    this.tag.visible = !this.tagHidden;
     this.body.visible = !blink;
 
     this.phase += dt * speed * 1.15;
@@ -419,6 +433,60 @@ export class PlayerModel {
     this.armR.rotation.x = Math.PI / 2 + pitch * 0.9;
     this.armL.rotation.x = Math.PI / 2.3 + pitch * 0.9;
     this.armL.rotation.y = 0.35;
+  }
+
+  /**
+   * Breaks the model apart on death: the head, both arms and both legs detach from the torso (kept
+   * as the remaining `body` group) and fly outward with a random tumble, each becoming its own chunk
+   * stepped by {@link stepShatter} until the next {@link reassemble}.
+   */
+  private shatter(): void {
+    this.shattered = true;
+    this.chunks = [];
+    const rand = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
+    for (const limb of [this.head, this.armL, this.armR, this.legL, this.legR]) {
+      this.root.attach(limb); // Reparents under root while keeping its current world position/rotation.
+      const out = new THREE.Vector3(rand(-1, 1), rand(0.5, 1.2), rand(-1, 1)).normalize().multiplyScalar(rand(1.6, 3.4));
+      this.chunks.push({ obj: limb, vel: out, angVel: new THREE.Vector3(rand(-7, 7), rand(-7, 7), rand(-7, 7)), grounded: false });
+    }
+    // The torso (this.body, now holding only the chest/hip meshes) becomes a flying chunk of its own.
+    this.chunks.push({
+      obj: this.body,
+      vel: new THREE.Vector3(rand(-0.9, 0.9), rand(0.7, 1.5), rand(-0.9, 0.9)),
+      angVel: new THREE.Vector3(rand(-4, 4), rand(-4, 4), rand(-4, 4)),
+      grounded: false,
+    });
+  }
+
+  /** Falls, tumbles and settles every chunk of a shattered model (blocky, no round trajectories needed). */
+  private stepShatter(dt: number): void {
+    const gravity = 9;
+    const floor = 0; // Root space: y 0 is the ground the model's feet stand on.
+    for (const c of this.chunks) {
+      if (c.grounded) continue;
+      c.vel.y -= gravity * dt;
+      c.obj.position.addScaledVector(c.vel, dt);
+      c.obj.rotation.x += c.angVel.x * dt;
+      c.obj.rotation.y += c.angVel.y * dt;
+      c.obj.rotation.z += c.angVel.z * dt;
+      if (c.obj.position.y <= floor) {
+        c.obj.position.y = floor;
+        c.vel.set(0, 0, 0);
+        c.angVel.set(0, 0, 0);
+        c.grounded = true;
+      }
+    }
+  }
+
+  /** Puts every chunk back onto the torso at its rest pose after a respawn. */
+  private reassemble(): void {
+    this.shattered = false;
+    this.chunks = [];
+    for (const limb of [this.head, this.armL, this.armR, this.legL, this.legR]) {
+      this.body.add(limb);
+      limb.position.copy(this.restPos.get(limb)!);
+      limb.rotation.set(0, 0, 0);
+    }
   }
 }
 
