@@ -165,7 +165,9 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       // The silver barrel stays put, so more of it shows as the slide goes back.
       box(g, 0x9aa3ad, 0.02, 0.02, 0.05, 0, 0.04, -0.262);
       box(slide, 0x15171a, 0.008, 0.014, 0.008, 0, 0.076, -0.226);
-      box(slide, 0x15171a, 0.032, 0.014, 0.008, 0, 0.076, -0.024);
+      // Rear sight: two posts with a notch between them (not one solid block), so aiming down it lines
+      // the crosshair up in the gap instead of burying it in black.
+      for (const x of [-0.011, 0.011]) box(slide, 0x15171a, 0.01, 0.014, 0.008, x, 0.076, -0.024);
       glow(slide, 0xffffff, 0.004, 0.004, 0.004, 0, 0.082, -0.226);
       box(g, 0x23262c, 0.044, 0.006, 0.055, 0, -0.037, -0.075);
       box(g, 0x23262c, 0.044, 0.03, 0.006, 0, -0.022, -0.1);
