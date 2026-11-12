@@ -7,7 +7,6 @@ import * as THREE from 'three';
 import type { Aabb } from '@shared/core/physics';
 import type { JoinedMsg } from '@shared/net/protocol';
 import { Doors } from '@shared/world/doors';
-import { PICKUP_SPOTS, SOLIDS } from '@shared/world/map';
 import { Sfx } from '@client/platform/audio';
 import { effectiveGraphics, initQuality } from '@client/platform/quality';
 import { onSettingsChange, settings } from '@client/platform/settings';
@@ -21,6 +20,7 @@ import { RemotePlayers, SKIN_TONES } from '@client/render/players';
 import { ViewModel } from '@client/render/viewmodel';
 import { Tracers } from '@client/render/weapon-fx';
 import { Atmosphere } from '@client/render/atmosphere';
+import { PICKUP_SPOTS, SOLIDS, setActiveMap } from '@client/render/active-map';
 import { buildWorld } from '@client/render/world';
 import type { Hud } from './ports';
 
@@ -64,6 +64,7 @@ const concatSolids = (doors: Doors): readonly Aabb[] => [...SOLIDS, ...doors.box
  * @param hud - The HUD, so the FPS counter follows the settings.
  */
 export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: Hud): SceneHandle {
+  setActiveMap(joined.rules.mode);
   const myId = joined.id;
   const view = { baseFov: settings.fov };
 

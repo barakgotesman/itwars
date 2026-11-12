@@ -9,7 +9,7 @@ import type { Aabb } from '@shared/core/physics';
 import { parseC2S, type GameEvent } from '@shared/net/protocol';
 import { GRENADES, LOOT_FRACTION, LOOT_LIFETIME_TICKS, PICKUP_DEFS, WEAPONS } from '@shared/rules/weapons';
 import { Doors } from '@shared/world/doors';
-import { DEFAULT_RULES, describeRules, sanitizeRules, type MatchRules } from '@shared/rules/modes';
+import { DEFAULT_RULES, RANGE_RULES, describeRules, sanitizeRules, type MatchRules } from '@shared/rules/modes';
 import type { DoorDef } from '@shared/world/map/door-layout';
 import { Room } from '@server/rooms/room';
 import { FLOOR, FakeConn, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
@@ -216,6 +216,35 @@ function check(name: string, ok: boolean, detail = ''): void {
   place(b.room, ba.id, 0, 0);
   run(b.room, ba, 30, { keys: Key.Fire, weapon: 1 });
   check('SMG fires automatically', mut(b.room, ba.id).mag[1]! <= WEAPONS[1]!.magSize - 5);
+}
+
+// ---------------------------------------------------------------- shooting range
+
+{
+  const { room, add } = makeRoom([FLOOR], [], [], RANGE_RULES);
+  const a = add('A');
+  warm(room);
+  place(room, a.id, 0, 0);
+  const w = WEAPONS[0]!;
+  const reserve0 = mut(room, a.id).reserve[0]!;
+  for (let i = 0; i < w.magSize * 2; i++) {
+    run(room, a, 1, { keys: Key.Fire, weapon: 0 });
+    run(room, a, 1, { keys: 0, weapon: 0 });
+  }
+  check('range mode keeps the magazine full after firing', mut(room, a.id).mag[0] === w.magSize, `mag=${mut(room, a.id).mag[0]}`);
+  check('range mode never touches reserve', mut(room, a.id).reserve[0] === reserve0);
+  run(room, a, 1, { keys: Key.Grenade1, weapon: 0 });
+  check('range mode replenishes a grenade after a throw', mut(room, a.id).gren[0] === GRENADES[0]!.maxCarry, `gren=${mut(room, a.id).gren[0]}`);
+
+  // A grenade at the player's own feet must not hurt or kill them in practice.
+  const g = { id: 99, slot: 0, owner: a.id, x: 0, y: 0.12, z: 0, vx: 0, vy: 0, vz: 0, explodeAt: 0 };
+  (room as unknown as { grenades: unknown[] }).grenades.push(g);
+  room.step();
+  room.step();
+  check('range mode takes no damage from your own grenade', mut(room, a.id).hp === MAX_HP && mut(room, a.id).alive);
+
+  // Solo practice: a second human cannot join the same range room.
+  check('a second human cannot join a range room', room.join(new FakeConn(), 'B') === null);
 }
 
 // ---------------------------------------------------------------- kills, respawn, match

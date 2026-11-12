@@ -23,6 +23,7 @@ export function throwGrenade(sim: Sim, p: Player, slot: number): void {
   if (p.gren[slot]! <= 0 || sim.tick < p.nextThrow) return;
   const def = GRENADES[slot]!;
   p.gren[slot]!--;
+  if (sim.rules.mode === 'range') p.gren[slot] = def.maxCarry;
   p.nextThrow = sim.tick + THROW_COOLDOWN_TICKS;
   // Aim a little above the crosshair, like a lobbed throw.
   const [dx, dy, dz] = lookDir(p.state.yaw, p.state.pitch);

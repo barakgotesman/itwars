@@ -55,9 +55,41 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
   const { room, ready, entered } = useApp();
   if (!room) return null;
   const { joined, lanUrl, players } = room;
+  const isRange = joined.rules.mode === 'range';
   // Scores only mean something once somebody has scored; a fresh room shows names alone.
   const started = players.some((p) => p.kills > 0 || p.deaths > 0);
   const invite = `Join IT Wars: open ${lanUrl} and enter the code ${joined.code}`;
+
+  const actions = (
+    <div className="flex flex-col gap-2">
+      <button type="button" className="btn w-full" disabled={!ready} onClick={enterOffice}>
+        {!ready ? 'Optimizing graphics...' : entered ? 'Resume' : isRange ? 'Enter the range' : 'Enter the office'}
+      </button>
+      <div className="grid grid-cols-2 gap-2">
+        <button type="button" className="btn-quiet inline-flex items-center justify-center gap-2" onClick={onOpenSettings}>
+          <Icon name="settings" /><span>Settings</span>
+        </button>
+        <button type="button" className="btn-quiet inline-flex items-center justify-center gap-2 hover:!bg-danger hover:!text-ground" onClick={leaveRoom}>
+          <Icon name="exit" /><span>Leave room</span>
+        </button>
+      </div>
+    </div>
+  );
+
+  if (isRange) {
+    return (
+      <div className="fixed inset-0 flex overflow-y-auto bg-ground/90 px-6 py-6">
+        <div className="m-auto flex w-full max-w-md flex-col gap-6 text-center">
+          <div>
+            <p className="label">{entered ? 'Paused' : 'Shooting Range'}</p>
+            <p className="mt-2 text-base font-extrabold">Unlimited ammo and grenades. Every gun, no setup.</p>
+          </div>
+          {actions}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 flex overflow-y-auto bg-ground/90 px-6 py-6">
       {/* Two columns on wide screens so the lobby fits a laptop's height; one column when narrow. */}
@@ -90,19 +122,7 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
               ))}
             </ul>
           </div>
-          <div className="flex flex-col gap-2">
-            <button type="button" className="btn w-full" disabled={!ready} onClick={enterOffice}>
-              {!ready ? 'Optimizing graphics...' : entered ? 'Resume' : 'Enter the office'}
-            </button>
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" className="btn-quiet inline-flex items-center justify-center gap-2" onClick={onOpenSettings}>
-                <Icon name="settings" /><span>Settings</span>
-              </button>
-              <button type="button" className="btn-quiet inline-flex items-center justify-center gap-2 hover:!bg-danger hover:!text-ground" onClick={leaveRoom}>
-                <Icon name="exit" /><span>Leave room</span>
-              </button>
-            </div>
-          </div>
+          {actions}
         </section>
       </div>
     </div>

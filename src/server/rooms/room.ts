@@ -12,6 +12,7 @@ import type { PickupKind } from '@shared/rules/weapons';
 import { Doors } from '@shared/world/doors';
 import { DOORS, type DoorDef } from '@shared/world/map/door-layout';
 import { PICKUP_SPOTS, SOLIDS, SPAWNS } from '@shared/world/map';
+import { PICKUP_SPOTS as RANGE_PICKUPS, SOLIDS as RANGE_SOLIDS, SPAWNS as RANGE_SPAWNS, TARGETS as RANGE_TARGETS } from '@shared/world/map/range';
 import { buildNavGrid, type NavGrid } from '@shared/world/nav';
 import { addBots, stepBots } from '@server/sim/bots';
 import type { BotState } from '@server/sim/bots/state';
@@ -24,6 +25,7 @@ import { endByTime, restartMatch, spawn, startClockIfReady } from '@server/sim/m
 import { applyInputs, queueInput } from '@server/sim/movement';
 import { newPlayer, type Conn, type Player } from '@server/sim/player';
 import { tickPickups } from '@server/sim/pickups';
+import { addRangeDummies, stepRangeDummies } from '@server/sim/range-dummy';
 import { flushRoster, roster, sendSnapshots } from '@server/sim/snapshot';
 import type { Sim } from '@server/sim/state';
 import { makeRng } from '@server/sim/util';
@@ -96,13 +98,15 @@ export class Room implements Sim {
     this.code = code;
     this.rng = makeRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.rules = opts.rules ?? DEFAULT_RULES;
-    this.doors = new Doors(opts.doors ?? (opts.solids ? [] : DOORS));
-    this.staticSolids = opts.solids ?? SOLIDS;
+    const isRange = this.rules.mode === 'range';
+    this.doors = new Doors(opts.doors ?? (opts.solids || isRange ? [] : DOORS));
+    this.staticSolids = opts.solids ?? (isRange ? RANGE_SOLIDS : SOLIDS);
     this.solids = [...this.staticSolids, ...this.doors.boxes];
-    this.spawns = opts.spawns ?? SPAWNS;
-    this.spots = opts.pickups ?? PICKUP_SPOTS;
+    this.spawns = opts.spawns ?? (isRange ? RANGE_SPAWNS : SPAWNS);
+    this.spots = opts.pickups ?? (isRange ? RANGE_PICKUPS : PICKUP_SPOTS);
     this.pickupReady = this.spots.map(() => 0);
     if (this.rules.bots > 0) addBots(this, opts.botsPlayImmediately === true);
+    if (isRange) addRangeDummies(this, RANGE_TARGETS);
   }
 
   /** Walkable grid of the static map, built on first use (rooms without bots never pay for it). */
@@ -149,9 +153,9 @@ export class Room implements Sim {
     return this.humans === 0;
   }
 
-  /** True when no more players fit. */
+  /** True when no more players fit (the shooting range is solo: full as soon as its one human is in). */
   get isFull(): boolean {
-    return this.players.size >= MAX_PLAYERS;
+    return this.players.size >= MAX_PLAYERS || (this.rules.mode === 'range' && this.humans >= 1);
   }
 
   /**
@@ -251,9 +255,10 @@ export class Room implements Sim {
     stepDoors(this);
     if (this.phase === 'play' && this.endsAt > 0 && this.tick >= this.endsAt) endByTime(this);
     stepBots(this);
+    if (this.rules.mode === 'range') stepRangeDummies(this);
     for (const p of this.players.values()) {
       applyInputs(this, p);
-      if (p.playing && !p.alive && this.phase === 'play' && this.tick >= p.respawnAt) spawn(this, p);
+      if (p.playing && !p.alive && !p.rangeDummy && this.phase === 'play' && this.tick >= p.respawnAt) spawn(this, p);
       if (p.alive) tickWeapons(this, p);
     }
     tickPickups(this);

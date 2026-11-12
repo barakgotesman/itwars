@@ -71,6 +71,7 @@ function startReload(sim: Sim, p: Player): void {
 /** Fires one shot: spends a round and resolves every pellet against world and players. */
 function fire(sim: Sim, p: Player, w: WeaponDef, aiming: boolean): void {
   p.mag[p.weapon]!--;
+  if (sim.rules.mode === 'range') p.mag[p.weapon] = w.magSize;
   p.nextFire = sim.tick + w.interval;
   p.fireLatch = false;
 

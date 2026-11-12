@@ -4,7 +4,7 @@
  * Only uniform colour changes each frame, so it costs nothing, and it never touches graphics quality.
  */
 import * as THREE from 'three';
-import { zoneAt } from '@shared/world/map/zones';
+import { zoneAt } from './active-map';
 
 /** Seconds for roughly two thirds of a change of atmosphere. */
 const EASE_S = 0.8;

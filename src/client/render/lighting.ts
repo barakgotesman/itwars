@@ -6,8 +6,8 @@
  */
 import * as THREE from 'three';
 import type { LightSource } from '@shared/world/map';
-import { zoneAt } from '@shared/world/map/zones';
 import { rayVsAabb, type Aabb } from '@shared/core/physics';
+import { zoneAt } from './active-map';
 
 /** Brightest a baked vertex may get; keeps ordinary surfaces below the bloom threshold. */
 export const MAX_LIGHT = 1.15;

@@ -90,9 +90,14 @@ export function Setup({ capacity, busy, error, onCreate, onClose }: SetupProps) 
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // The shooting range is solo practice, reached from its own menu button, never a hosted room other
+  // players could join by code -- it never appears as a choice here, and a stale saved choice of it
+  // (from before this rule existed) falls back to Deathmatch rather than silently being sent anyway.
+  const hostableModes = MODES.filter((m) => m.id !== 'range');
+  const base = hostableModes.some((m) => m.id === rules.mode) ? rules : { ...rules, mode: hostableModes[0]!.id };
   // Never offer (or send) more bots than the server can run.
-  const current = capacity && rules.bots > capacity.botsAvailable ? { ...rules, bots: capacity.botsAvailable } : rules;
-  const mode = MODES.find((m) => m.id === current.mode) ?? MODES[0]!;
+  const current = capacity && base.bots > capacity.botsAvailable ? { ...base, bots: capacity.botsAvailable } : base;
+  const mode = hostableModes.find((m) => m.id === current.mode) ?? hostableModes[0]!;
   // Options that depend on another (bot skill needs bots) appear only while that one is on.
   const options = mode.options.filter((o) => o.kind !== 'choice' || !o.dependsOn || current[o.dependsOn] > 0);
 

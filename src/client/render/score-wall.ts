@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { PlayerInfo } from '@shared/net/protocol';
 import { formatClock, rankPlayers } from '@shared/rules/standings';
-import { BOARDS } from '@shared/world/map';
+import { BOARDS } from './active-map';
 
 const W = 1536;
 const H = 768;

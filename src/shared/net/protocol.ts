@@ -100,7 +100,7 @@ export interface MeState {
 export type GameEvent =
   | { k: 'shot'; id: number; w: number; ex: number; ey: number; ez: number; hit: 'none' | 'world' | 'player' }
   | { k: 'hit'; by: number; to: number; dmg: number; head: boolean }
-  | { k: 'kill'; by: number; to: number; w: number | 'frag' }
+  | { k: 'kill'; by: number; to: number; w: number | 'frag'; head: boolean }
   | { k: 'spawn'; id: number; yaw: number }
   | { k: 'pickup'; id: number; i: number; kind: PickupKind }
   | { k: 'pk'; i: number; on: boolean }

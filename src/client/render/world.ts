@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { DEFAULT_RULES, type MatchRules } from '@shared/rules/modes';
-import { LIGHTS, MAP_BOXES, SOLIDS, type MaterialId } from '@shared/world/map';
+import type { MaterialId } from '@shared/world/map';
+import { LIGHTS, MAP_BOXES, SOLIDS } from './active-map';
 import { LightField } from './light-field';
 import { makeBaker, makeLightModel } from './lighting';
 import { ScoreWall } from './score-wall';

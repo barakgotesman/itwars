@@ -5,8 +5,8 @@
  */
 import type { MeState, PlayerInfo } from '@shared/net/protocol';
 
-/** Which icon a feed line or HUD slot shows: a weapon index 0-3, or a grenade. */
-export type IconKind = number | 'frag' | 'flash';
+/** Which icon a feed line or HUD slot shows: a weapon index 0-3, a grenade, or a headshot skull. */
+export type IconKind = number | 'frag' | 'flash' | 'head';
 
 /** Handle for pushing state into the HUD. */
 export interface Hud {

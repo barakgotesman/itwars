@@ -10,6 +10,7 @@
     "check:deps": "tsx tools/check-deps.ts",
     "lint": "eslint .",
     "verify:map": "tsx tests/verify-map.ts",
+    "verify:range-map": "tsx tests/verify-range-map.ts",
     "test:sim": "tsx tests/sim-test.ts",
     "start": "tsx src/server/index.ts",
     "test:bots": "tsx tests/bots-test.ts",
@@ -18,7 +19,7 @@
     "test:quality": "tsx tests/quality-test.ts",
     "test:zones": "tsx tests/zones-test.ts",
     "test:boards": "tsx tests/boards-test.ts",
-    "test": "npm run check:deps && npm run lint && npm run verify:map && npm run test:sim && npm run test:bots && npm run test:smoke && npm run test:settings && npm run test:quality && npm run test:zones && npm run test:boards",
+    "test": "npm run check:deps && npm run lint && npm run verify:map && npm run verify:range-map && npm run test:sim && npm run test:bots && npm run test:smoke && npm run test:settings && npm run test:quality && npm run test:zones && npm run test:boards",
     "play": "npm run build && npm start",
     "make:icons": "tsx tools/make-icons.ts",
     "bench": "tsx tools/bench.ts"

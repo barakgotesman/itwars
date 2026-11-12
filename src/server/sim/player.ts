@@ -21,6 +21,8 @@ export interface Player {
   spray: number;
   /** Server-controlled bot: set only by server code, never from the network. Its `conn` drops every message. */
   bot: boolean;
+  /** A shooting-range target: paces sideways on a fixed line and never fires back (see `range-dummy.ts`). */
+  rangeDummy?: { z: number; amp: number; speed: number; phase: number };
   conn: Conn;
   state: PlayerState;
   hp: number;

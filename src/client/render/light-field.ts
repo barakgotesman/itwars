@@ -4,8 +4,7 @@
  * Built once at load from the same light model as the map's vertex colours; a lookup is a bilinear blend of four
  * cells, so it costs almost nothing per frame.
  */
-import { X0, X1, Z0, Z1 } from '@shared/world/map/builder';
-import { zoneAt } from '@shared/world/map/zones';
+import { mapBounds, zoneAt } from './active-map';
 import type { LightModel } from './lighting';
 
 /** Cell size (m) of the grid. */
@@ -24,18 +23,24 @@ export interface Tint { r: number; g: number; b: number }
 
 /** Baked light by position. */
 export class LightField {
-  private readonly nx = Math.ceil((X1 - X0) / CELL) + 1;
-  private readonly nz = Math.ceil((Z1 - Z0) / CELL) + 1;
+  private readonly x0: number;
+  private readonly z0: number;
+  private readonly nx: number;
+  private readonly nz: number;
   private readonly data: Float32Array;
 
   /** @param model - The light model the map was baked with. */
   constructor(model: LightModel) {
+    const b = mapBounds();
+    this.x0 = b.x0; this.z0 = b.z0;
+    this.nx = Math.ceil((b.x1 - b.x0) / CELL) + 1;
+    this.nz = Math.ceil((b.z1 - b.z0) / CELL) + 1;
     this.data = new Float32Array(this.nx * this.nz * 3);
     for (let i = 0; i < this.nx; i++) {
       for (let j = 0; j < this.nz; j++) {
-        const [r, g, b] = model.irradiance(X0 + i * CELL, SAMPLE_Y, Z0 + j * CELL, 0, 1, 0);
+        const [r, g, b2] = model.irradiance(this.x0 + i * CELL, SAMPLE_Y, this.z0 + j * CELL, 0, 1, 0);
         const k = (j * this.nx + i) * 3;
-        this.data[k] = r; this.data[k + 1] = g; this.data[k + 2] = b;
+        this.data[k] = r; this.data[k + 1] = g; this.data[k + 2] = b2;
       }
     }
   }
@@ -46,8 +51,8 @@ export class LightField {
    * @param out - Receives the tint.
    */
   sample(x: number, z: number, out: Tint): void {
-    const fx = Math.min(Math.max((x - X0) / CELL, 0), this.nx - 1.001);
-    const fz = Math.min(Math.max((z - Z0) / CELL, 0), this.nz - 1.001);
+    const fx = Math.min(Math.max((x - this.x0) / CELL, 0), this.nx - 1.001);
+    const fz = Math.min(Math.max((z - this.z0) / CELL, 0), this.nz - 1.001);
     const i = Math.floor(fx), j = Math.floor(fz);
     const tx = fx - i, tz = fz - j;
     const at = (a: number, b: number, c: number) => this.data[((j + b) * this.nx + (i + a)) * 3 + c]!;

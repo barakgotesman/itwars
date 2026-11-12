@@ -4,7 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { CHARACTERS, PLAYER_COLORS } from '@shared/core/characters';
-import type { MatchRules } from '@shared/rules/modes';
+import { RANGE_RULES, type MatchRules } from '@shared/rules/modes';
 import type { ServerStatus } from '@shared/net/info';
 import { createBackdrop, type Backdrop } from '@client/render/menu-backdrop';
 import { loadLook, saveLook, type Look } from '@client/platform/appearance';
@@ -216,6 +216,13 @@ export function Menu({ onOpenSettings }: MenuProps) {
               <span className="label">Or start your own</span>
               <button type="button" className="btn-quiet !py-3 !text-base" disabled={busy} onClick={openSetup}>Host a game</button>
               <p className="text-xs text-faint">Pick the kill limit and time limit, then share the code.</p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <button type="button" className="btn-quiet !py-3 !text-base" disabled={busy} onClick={() => void attempt({ t: 'host', rules: RANGE_RULES })}>
+                Shooting Range
+              </button>
+              <p className="text-xs text-faint">Solo practice: unlimited ammo and grenades, every gun, no setup.</p>
             </div>
 
             <div className="flex flex-col gap-2 pt-1 [@media(min-height:800px)]:mt-2">

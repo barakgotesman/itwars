@@ -7,7 +7,7 @@ import { KILLS_TO_WIN } from '@shared/core/constants';
 import { BOT_COUNTS, BOT_SKILLS, BOT_SKILL_NAMES, DEFAULT_BOT_SKILL, botSkillName } from '@shared/rules/bots';
 
 /** Identifier of a game mode. Add new modes here as they are built. */
-export type ModeId = 'dm';
+export type ModeId = 'dm' | 'range';
 
 /** Kill limits offered for Deathmatch. */
 export const KILL_LIMITS: readonly number[] = [10, 20, 30, 40, 50];
@@ -92,7 +92,16 @@ export const MODES: readonly ModeDef[] = [
       },
     ],
   },
+  {
+    id: 'range',
+    name: 'Shooting Range',
+    blurb: 'Solo practice: unlimited ammo and grenades on a small target range. No setup needed.',
+    options: [],
+  },
 ];
+
+/** Fixed rules for the menu's one-click "Shooting Range" button: solo, no bots, unlimited ammo (see `server/sim/weapons.ts`/`grenades.ts`). */
+export const RANGE_RULES: MatchRules = { mode: 'range', killLimit: KILL_LIMITS[0]!, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL };
 
 /**
  * Turns anything a client sent into valid rules, falling back to the default for each field that is wrong.

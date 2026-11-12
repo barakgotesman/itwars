@@ -6,7 +6,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { fillRuleTokens } from '@shared/rules/standings';
-import { LABELS, type MaterialId } from '@shared/world/map';
+import type { MaterialId } from '@shared/world/map';
+import { LABELS } from './active-map';
 
 /** Atlas cell size in pixels; its 128 : 22 shape matches the 5.6 : 1 signs. */
 const CELL_W = 512;

@@ -52,13 +52,14 @@ function DamageOverlays() {
   );
 }
 
-/** Top left: the room code and the optional FPS readout. */
+/** Top left: the room code (or, in the range, just its name) and the optional FPS readout. */
 function RoomTag() {
   const code = useHud((s) => s.code);
+  const isRange = useHud((s) => s.rules?.mode === 'range');
   const fps = useHud((s) => s.fps);
   return (
     <div className="absolute left-4 top-4 flex flex-col gap-1 text-xs font-bold text-white/70">
-      <div>Room <span className="text-sm font-extrabold tracking-widest text-ink">{code}</span></div>
+      <div>{isRange ? 'Shooting Range' : <>Room <span className="text-sm font-extrabold tracking-widest text-ink">{code}</span></>}</div>
       {fps !== null && <div className="tabular-nums">{fps}</div>}
     </div>
   );
