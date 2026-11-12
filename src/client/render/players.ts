@@ -81,7 +81,7 @@ export class PlayerModel {
   /** True once this model has broken into chunks for its current death; cleared on respawn. */
   private shattered = false;
   /** The flying head/arm/leg/torso pieces while shattered, each with its own fall. */
-  private chunks: { obj: THREE.Object3D; vel: THREE.Vector3; angVel: THREE.Vector3; grounded: boolean }[] = [];
+  private chunks: { obj: THREE.Object3D; vel: THREE.Vector3; angVel: THREE.Vector3; grounded: boolean; floorY: number }[] = [];
   /** Each limb's local position relative to the body at rest, so it can be reattached after a respawn. */
   private readonly restPos = new Map<THREE.Object3D, THREE.Vector3>();
   /** This model's own copies of the shared materials, so its tint never leaks onto other players. */
@@ -447,7 +447,7 @@ export class PlayerModel {
     for (const limb of [this.head, this.armL, this.armR, this.legL, this.legR]) {
       this.root.attach(limb); // Reparents under root while keeping its current world position/rotation.
       const out = new THREE.Vector3(rand(-1, 1), rand(0.5, 1.2), rand(-1, 1)).normalize().multiplyScalar(rand(1.6, 3.4));
-      this.chunks.push({ obj: limb, vel: out, angVel: new THREE.Vector3(rand(-7, 7), rand(-7, 7), rand(-7, 7)), grounded: false });
+      this.chunks.push({ obj: limb, vel: out, angVel: new THREE.Vector3(rand(-7, 7), rand(-7, 7), rand(-7, 7)), grounded: false, floorY: this.restFloor(limb) });
     }
     // The torso (this.body, now holding only the chest/hip meshes) becomes a flying chunk of its own.
     this.chunks.push({
@@ -455,13 +455,35 @@ export class PlayerModel {
       vel: new THREE.Vector3(rand(-0.9, 0.9), rand(0.7, 1.5), rand(-0.9, 0.9)),
       angVel: new THREE.Vector3(rand(-4, 4), rand(-4, 4), rand(-4, 4)),
       grounded: false,
+      floorY: this.restFloor(this.body),
     });
+  }
+
+  /**
+   * The root-space y at which a chunk's own lowest point (in its unrotated rest pose, e.g. a shoe sole or the
+   * hip line) touches the ground. A chunk's group origin (hip height for a leg, feet height for the torso) is
+   * rarely at that lowest point, so falling until the ORIGIN reaches y 0 would float some chunks and sink others.
+   */
+  private restFloor(obj: THREE.Object3D): number {
+    const pos = obj.position.clone();
+    const quat = obj.quaternion.clone();
+    obj.position.set(0, 0, 0);
+    obj.quaternion.identity();
+    obj.updateMatrixWorld(true);
+    const bottomWorldY = new THREE.Box3().setFromObject(obj).min.y;
+    obj.position.copy(pos);
+    obj.quaternion.copy(quat);
+    obj.updateMatrixWorld(true);
+    // Root only ever yaws (rotation.y), which leaves world Y untouched, so a plain subtraction is exact.
+    // The content sits `offset` above (or below) the chunk's own origin, so the origin must fall to
+    // -offset for the content's lowest point to reach the floor.
+    const offset = bottomWorldY - this.root.position.y;
+    return -offset;
   }
 
   /** Falls, tumbles and settles every chunk of a shattered model (blocky, no round trajectories needed). */
   private stepShatter(dt: number): void {
     const gravity = 9;
-    const floor = 0; // Root space: y 0 is the ground the model's feet stand on.
     for (const c of this.chunks) {
       if (c.grounded) continue;
       c.vel.y -= gravity * dt;
@@ -469,8 +491,8 @@ export class PlayerModel {
       c.obj.rotation.x += c.angVel.x * dt;
       c.obj.rotation.y += c.angVel.y * dt;
       c.obj.rotation.z += c.angVel.z * dt;
-      if (c.obj.position.y <= floor) {
-        c.obj.position.y = floor;
+      if (c.obj.position.y <= c.floorY) {
+        c.obj.position.y = c.floorY;
         c.vel.set(0, 0, 0);
         c.angVel.set(0, 0, 0);
         c.grounded = true;
