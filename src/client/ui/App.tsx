@@ -6,6 +6,7 @@
 import { appStore, useApp } from './app-store';
 import { HudView } from './hud/HudView';
 import { useHud } from './hud/hud-store';
+import { PodiumView } from './hud/PodiumView';
 import { Menu } from './screens/Menu';
 import { Room } from './screens/Room';
 import { Settings } from './screens/Settings';
@@ -27,7 +28,8 @@ function Crosshair() {
 
 /** The whole UI layer. */
 export function App() {
-  const { room, locked, covered, settingsOpen, disconnected } = useApp();
+  const { room, locked, covered, settingsOpen, disconnected, closedByHost } = useApp();
+  const podiumActive = useHud((s) => s.matchEnd !== null);
   const openSettings = () => appStore.set({ settingsOpen: true });
   return (
     <>
@@ -37,11 +39,18 @@ export function App() {
       {room && locked && <Crosshair />}
       <HudView />
       {!room && <Menu onOpenSettings={openSettings} />}
-      {room && !locked && <Room onOpenSettings={openSettings} />}
+      {room && !locked && !podiumActive && <Room onOpenSettings={openSettings} />}
+      <PodiumView />
       {settingsOpen && <Settings onClose={() => appStore.set({ settingsOpen: false })} />}
       {disconnected && (
         <div className="voxel-bg fixed inset-0 z-40 flex flex-col items-center justify-center gap-4">
           <p className="text-3xl font-black text-danger">Disconnected from the server</p>
+          <button type="button" className="btn" onClick={() => location.reload()}>Back to menu</button>
+        </div>
+      )}
+      {closedByHost && (
+        <div className="voxel-bg fixed inset-0 z-40 flex flex-col items-center justify-center gap-4">
+          <p className="text-3xl font-black text-accent">The host ended the match</p>
           <button type="button" className="btn" onClick={() => location.reload()}>Back to menu</button>
         </div>
       )}

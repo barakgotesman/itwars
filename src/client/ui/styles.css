@@ -149,10 +149,20 @@
   animation: feed-in 140ms ease-out;
 }
 
+/* The podium's rematch countdown: a full-width bar shrinking to nothing over the intermission. */
+@keyframes shrink-bar {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+.shrink-bar {
+  animation: shrink-bar linear forwards;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .low-hp { animation: none; opacity: 0.5; }
   .feed-in { animation: none; }
   .dmg-arrow { animation-duration: 0.3s; }
   .scope-glint { animation: none; }
+  .shrink-bar { animation: none; width: 0%; }
   .btn, .btn-quiet, .choice { transition: none; }
 }

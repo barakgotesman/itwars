@@ -158,7 +158,9 @@ function MatchInfo() {
 /** The big match-result message. */
 function Banner() {
   const banner = useHud((s) => s.banner);
-  if (!banner) return null;
+  // The podium screen carries its own headline; showing both would say the same thing twice.
+  const onPodium = useHud((s) => s.matchEnd !== null);
+  if (!banner || onPodium) return null;
   return (
     <div className="absolute left-0 right-0 top-28 flex flex-col items-center gap-1 text-center">
       <div className="bg-ground/80 px-6 py-2 text-5xl font-black uppercase tracking-widest text-accent">{banner.title}</div>

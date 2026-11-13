@@ -20,6 +20,15 @@
         ],
         "createdAt": "2026-11-12T10:31:36.467Z",
         "reason": "Claude: pre-existing kill-feed marker for the player's own lines, ported unchanged from hud/feed.ts during the React migration; owner has not reviewed it"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/client/ui/styles.css"
+        ],
+        "createdAt": "2026-11-13T22:20:59.129Z",
+        "reason": "pre-existing project-wide .btn/.choice blocky voxel button system (inset+outer box-shadow for a raised/pressed block), established before this session and used everywhere; not an AI side-tab accent border"
       }
     ]
   }

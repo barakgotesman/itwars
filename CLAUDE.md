@@ -100,8 +100,8 @@ To host the client apart from the server (later, for an online game), build with
 
 ### Messages
 
-C2S: `host {name, model, color, spray, rules}`, `join {code, name, model, color, spray}`, `enter`, `input {...}` (key bits include `Interact` and `Spray`).
-S2C: `joined {id, code, players, rules, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped).
+C2S: `host {name, model, color, spray, rules}`, `join {code, name, model, color, spray}`, `enter`, `closeMatch` (host only; ends the room for everyone from the podium screen), `input {...}` (key bits include `Interact` and `Spray`).
+S2C: `joined {id, code, players, rules, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped), `closed` (the host ended the room; everyone returns to the main menu).
 Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `throw`, `boom`, `reload`, `hole {x,y,z,a,s}`, `spray {id,x,y,z,a,s,r}`, `door {i,o,t}`, `lootDrop`, `lootTake`, `lootGone`, `matchEnd`, `matchStart`.
 
 ### Rooms, codes and the lobby
@@ -115,7 +115,7 @@ Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `thr
 - DM, free-for-all; scoreboard on `Tab`. The host chooses the **rules** on the Game setup screen ("Host game"); they are sent in the `host` message, validated by `sanitizeRules` (bad values fall back to defaults), fixed for the room's lifetime, and echoed to everyone in `joined.rules`. The setup screen is generated from `MODES` (`OptionDef`: `choice` and `optional-choice`), so a new mode or option needs a registry entry, not new screen code. The last choice is remembered in `localStorage`.
 - **Kill limit:** first to `rules.killLimit` ends the match (`matchEnd` reason `kills`).
 - **Time limit** (`timeLimitMin`, 0 = off): the match clock starts once **two players are in the match** (so waiting for friends costs nothing), counts down on the server (`me.timeLeft` seconds, -1 without a limit, the full limit while waiting, 0 in the intermission) and ends the match at zero: most kills wins, a tie for first is a **draw** (`winner -1`, reason `time`). The clock restarts with each match.
-- Intermission 10 s, then scores, pickups, loot, doors, bullet holes reset and everyone respawns.
+- Intermission 15 s (`INTERMISSION_TICKS`), shown as the **podium** screen (DM only, not the shooting range): pedestals for the top 3 players by kills (winner centre and tallest, each with a name/kills plate) are built straight into the real map at a fixed spot in the lobby (`client/render/podium.ts`, `scene.podium` in `client/game/scene.ts`), not a separate stage, so it shares the office's own geometry; the camera cuts to a fixed close shot of it, the room's ambient light and fog are dimmed for the duration, and three coloured spotlights (with visible ceiling fixtures and a floor pool each) light the pedestals. A countdown bar (`client/ui/hud/PodiumView.tsx`) tracks the automatic rematch, and, for the **host only**, a "Close the room" button ends the room for everyone instead of waiting (`closeMatch`/`closed` messages, validated server-side against `Room.hostId`). The podium releases pointer lock so its button is clickable; the room's pause screen ("Resume") naturally reappears once the rematch starts. After the countdown (or immediately if the host closes it): scores, pickups, loot, doors, bullet holes reset and everyone respawns, or (on close) everyone is sent back to the main menu.
 - Respawn after 3 s at the spawn farthest from other players, 2 s spawn protection (own-model blink).
 - Kill feed shows `X [gun icon] Y`; hit marker (red for headshot/kill), damage direction arrows, death screen.
 
@@ -251,6 +251,7 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - Bots: built and covered by headless tests (navigation, doors, fairness, fights, healing/looting/grenades, caps), but **not played against**. How they feel, how hard Easy/Normal/Hard are against a moving human, and whether they look natural to other players (30 Hz interpolation of their movement) are untested; expect a tuning pass on `BOT_TUNING`. Known limits: desks are walls for planning, no flash grenades, no teamwork, no "load shedding" (slower bot thinking under load): the load budget is the guard. The capacity numbers come from scripted players on the machine at startup, not from a live match.
 - UI is fully React: menu, setup, settings, room panel and HUD are React + Tailwind under `src/client/ui/`. Checked in a real browser (menu, host, setup, room screen, settings render, no console errors), but **not played**: the HUD in a live match (hit marker, damage arrows, scope, scoreboard, feed, death screen) and the settings key-rebinding overlay were not tried.
 - Public demo deploy not done. No lag compensation.
+- The post-match podium (3D top-3 scene, countdown bar, host "Close the room") is covered by typecheck/lint/check:deps and the headless suites (it does not change simulation logic beyond `INTERMISSION_TICKS` and the host-only `closeMatch` gate), but the 3D scene itself, its camera framing and the close-room flow have only been checked with a rendered screenshot, not played through a real match end with multiple humans.
 
 ## Out of scope for v1
 

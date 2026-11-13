@@ -119,6 +119,11 @@ export class Input {
     void this.canvas.requestPointerLock();
   }
 
+  /** Releases pointer lock from script (unlike `lock`, exiting needs no user gesture); a no-op if not locked. */
+  unlock(): void {
+    if (this.locked) document.exitPointerLock();
+  }
+
   /** @returns The current input as one tick command (`keys` masked to known bits). */
   sample() {
     return { keys: this.keys & KEY_MASK, yaw: this.yaw, pitch: this.pitch, weapon: this.weapon };

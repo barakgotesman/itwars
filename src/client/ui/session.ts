@@ -44,6 +44,7 @@ export function joinRoom(conn: Net, joined: JoinedMsg, lanUrl: string): void {
   conn.on((m) => {
     const room = appStore.get().room;
     if (m.t === 'roster' && room) appStore.set({ room: { ...room, players: m.players } });
+    if (m.t === 'closed') appStore.set({ closedByHost: true });
   });
   conn.onClose(() => appStore.set({ disconnected: true }));
   game = startGame({ canvas, input, net: conn, joined, hud, feed });
@@ -66,4 +67,9 @@ export function enterOffice(): void {
 export function leaveRoom(): void {
   net?.close();
   location.reload();
+}
+
+/** Host-only: ends the room for everyone right from the podium screen, instead of waiting for the rematch. */
+export function closeMatch(): void {
+  net?.send({ t: 'closeMatch' });
 }

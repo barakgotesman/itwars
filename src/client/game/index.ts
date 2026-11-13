@@ -51,7 +51,7 @@ export function startGame(ctx: GameContext): GameHandle {
   const roster = new RosterTracker(joined.players, myId, feed);
   const local = new LocalPlayer(scene.solids);
   const camFx: CameraFx = { shake: 0, kick: 0 };
-  const onEvent = createEventHandler({ myId, scene, local, input, hud, feed, roster, camFx });
+  const onEvent = createEventHandler({ myId, scene, local, input, hud, feed, roster, camFx, isRange: joined.rules.mode === 'range' });
 
   /**
    * One-time graphics calibration, run while the player is still on the room screen with the map hidden.

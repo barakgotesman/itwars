@@ -106,21 +106,26 @@ export function startFrameLoop(d: LoopDeps): void {
       hud.scope(scoped);
     }
 
-    // Camera: interpolated position, view angles, recoil kick and explosion shake.
-    camFx.shake *= Math.exp(-dt * 6);
-    camFx.kick *= Math.exp(-dt * 9);
-    const { shake, kick } = camFx;
-    const prev = local.prev;
-    const eye = alive ? EYE_HEIGHT : 0.35;
-    camera.position.set(
-      prev.x + (me.x - prev.x) * a + (Math.random() - 0.5) * shake,
-      prev.y + (me.y - prev.y) * a + eye + (Math.random() - 0.5) * shake,
-      prev.z + (me.z - prev.z) * a + (Math.random() - 0.5) * shake,
-    );
-    camera.rotation.set((alive ? input.pitch : -0.3) + kick + (Math.random() - 0.5) * shake * 0.5, input.yaw, 0);
+    // Camera: the podium cuts away to its own fixed, deliberately dim view (and holds the fog there itself);
+    // otherwise interpolated position, view angles, recoil kick, explosion shake and the room's own atmosphere.
+    if (scene.podium.active) {
+      scene.podium.update(camera, now / 1000);
+    } else {
+      camFx.shake *= Math.exp(-dt * 6);
+      camFx.kick *= Math.exp(-dt * 9);
+      const { shake, kick } = camFx;
+      const prev = local.prev;
+      const eye = alive ? EYE_HEIGHT : 0.35;
+      camera.position.set(
+        prev.x + (me.x - prev.x) * a + (Math.random() - 0.5) * shake,
+        prev.y + (me.y - prev.y) * a + eye + (Math.random() - 0.5) * shake,
+        prev.z + (me.z - prev.z) * a + (Math.random() - 0.5) * shake,
+      );
+      camera.rotation.set((alive ? input.pitch : -0.3) + kick + (Math.random() - 0.5) * shake * 0.5, input.yaw, 0);
+      scene.atmosphere.update(dt, camera.position.x, camera.position.z);
+    }
 
-    // Atmosphere and weapon light follow the room the camera is in.
-    scene.atmosphere.update(dt, camera.position.x, camera.position.z);
+    // Weapon light follows the room the camera is in.
     scene.world.lightField.sample(camera.position.x, camera.position.z, localTint);
     viewmodel.setTint(localTint.r, localTint.g, localTint.b);
 

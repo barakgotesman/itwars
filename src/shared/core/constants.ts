@@ -56,7 +56,8 @@ export const MAX_PLAYERS = 8;
 export const KILLS_TO_WIN = 50;
 export const RESPAWN_TICKS = 3 * TICK_RATE;
 export const SPAWN_PROTECT_TICKS = 2 * TICK_RATE;
-export const INTERMISSION_TICKS = 10 * TICK_RATE;
+/** Length of the podium screen after a match ends, before the automatic rematch. */
+export const INTERMISSION_TICKS = 15 * TICK_RATE;
 /** Delay between switching weapons and being able to fire. */
 export const SWITCH_TICKS = 15;
 /** Minimum ticks between two grenade throws by one player. */

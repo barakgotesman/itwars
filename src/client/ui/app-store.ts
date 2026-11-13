@@ -28,11 +28,14 @@ export interface AppState {
   entered: boolean;
   /** The connection to the server was lost. */
   disconnected: boolean;
+  /** The host closed the room from the podium screen; everyone is sent back to the main menu. */
+  closedByHost: boolean;
 }
 
 /** The app-wide store. */
 export const appStore = createStore<AppState>({
   room: null, settingsOpen: false, locked: false, covered: true, ready: true, entered: false, disconnected: false,
+  closedByHost: false,
 });
 
 /** Reads the app state in a component. */

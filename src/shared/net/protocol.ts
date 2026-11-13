@@ -24,8 +24,10 @@ export interface InputMsg {
 }
 /** The player clicked "Enter the office": spawn them into the match. Until then they only sit in the room lobby. */
 export interface EnterMsg { t: 'enter' }
+/** The host ends the room for everyone from the post-match podium screen, instead of waiting for the rematch. */
+export interface CloseMatchMsg { t: 'closeMatch' }
 /** Everything a client may send. */
-export type C2S = HostMsg | JoinMsg | InputMsg | EnterMsg;
+export type C2S = HostMsg | JoinMsg | InputMsg | EnterMsg | CloseMatchMsg;
 
 /** Public identity of a player in a room. */
 export interface PlayerInfo {
@@ -160,8 +162,10 @@ export interface SnapMsg {
   /** Door states, present only while a door is moving or just stopped. */
   doors?: number[];
 }
+/** The host closed the room from the podium screen; everyone is sent back to the main menu. */
+export interface ClosedMsg { t: 'closed' }
 /** Everything the server may send. */
-export type S2C = JoinedMsg | ErrorMsg | RosterMsg | SnapMsg;
+export type S2C = JoinedMsg | ErrorMsg | RosterMsg | SnapMsg | ClosedMsg;
 
 /** Reads the character and colour choice; colour -1 means "server picks". */
 function parseLook(m: Record<string, unknown>): { model: number; color: number; spray: number } {
@@ -232,6 +236,8 @@ export function parseC2S(raw: unknown): C2S | null {
     }
     case 'enter':
       return { t: 'enter' };
+    case 'closeMatch':
+      return { t: 'closeMatch' };
     case 'input': {
       if (!isNum(m.seq) || !isNum(m.keys) || !isNum(m.yaw) || !isNum(m.pitch) || !isNum(m.weapon)) return null;
       if (!Number.isInteger(m.seq) || m.seq < 0 || !Number.isInteger(m.keys)) return null;

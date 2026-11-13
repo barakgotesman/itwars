@@ -118,4 +118,9 @@ export class RoomManager {
   prune(room: Room): void {
     if (room.isEmpty) this.rooms.delete(room.code);
   }
+
+  /** Deletes the room outright, even with players still in it: the host chose to end it for everyone. */
+  close(room: Room): void {
+    this.rooms.delete(room.code);
+  }
 }

@@ -4,9 +4,24 @@
  * these; `ui/session.ts` builds the implementations and hands them to `startGame` (see `game/index.ts`).
  */
 import type { MeState, PlayerInfo } from '@shared/net/protocol';
+import type { PodiumEntry } from '@client/render/podium';
+
+export type { PodiumEntry };
 
 /** Which icon a feed line or HUD slot shows: a weapon index 0-3, a grenade, or a headshot skull. */
 export type IconKind = number | 'frag' | 'flash' | 'head';
+
+/** Everything the podium screen shows after a match ends. */
+export interface MatchEndInfo {
+  winner: number;
+  reason: 'kills' | 'time';
+  /** Up to the top 3 players by kills, ranked first to third. */
+  top: PodiumEntry[];
+  /** Seconds until the automatic rematch. */
+  restartSeconds: number;
+  /** Whether the local player may close the room instead of waiting. */
+  isHost: boolean;
+}
 
 /** Handle for pushing state into the HUD. */
 export interface Hud {
@@ -28,6 +43,8 @@ export interface Hud {
   killedBy(name: string | null, icon?: IconKind): void;
   /** Shows a big message (match winner) or hides it with null. */
   banner(title: string | null, sub?: string): void;
+  /** Shows the post-match podium (top 3 by kills) with a countdown to the rematch, or hides it with null. */
+  matchEnd(info: MatchEndInfo | null): void;
   /** Shows or hides the sniper scope overlay. */
   scope(visible: boolean): void;
   /** Shows an FPS readout, or hides it with null. */

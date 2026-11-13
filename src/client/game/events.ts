@@ -3,7 +3,7 @@
  * into particles, sound, HUD feedback, feed lines and camera kicks.
  */
 import * as THREE from 'three';
-import { EYE_HEIGHT } from '@shared/core/constants';
+import { EYE_HEIGHT, TICK_RATE } from '@shared/core/constants';
 import type { GameEvent } from '@shared/net/protocol';
 import { GRENADES, WEAPONS } from '@shared/rules/weapons';
 import type { Input } from '@client/platform/input';
@@ -34,6 +34,8 @@ export interface EventDeps {
   feed: Feed;
   roster: RosterTracker;
   camFx: CameraFx;
+  /** The shooting range has no podium: it is solo practice, not a scored match. */
+  isRange: boolean;
 }
 
 /**
@@ -41,7 +43,7 @@ export interface EventDeps {
  * @returns A function to call once per event, in order.
  */
 export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
-  const { myId, scene, local, input, hud, feed, roster, camFx } = d;
+  const { myId, scene, local, input, hud, feed, roster, camFx, isRange } = d;
   const { camera, viewmodel, remotes, particles, blasts, pickups, lootBags, bulletHoles, sprays, tracers, doors, sfx } = scene;
   const me = local.me;
   const who = (id: number) => roster.who(id);
@@ -203,6 +205,22 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
           feed.push([who(e.winner), { text: e.reason === 'time' ? ' won on time!' : ' won the match!', tone: 'kill' }]);
           hud.banner(`${e.winner === myId ? 'You' : (roster.nameOf(e.winner) ?? 'Someone')} won!`, e.reason === 'time' ? 'Time is up. Most kills wins.' : 'Next match starts shortly');
         }
+        if (!isRange) {
+          const top = [...roster.players]
+            .sort((a, b) => b.kills - a.kills)
+            .slice(0, 3)
+            .map((p) => ({ id: p.id, name: p.name, model: p.model, color: p.color, kills: p.kills }));
+          hud.matchEnd({
+            winner: e.winner,
+            reason: e.reason,
+            top,
+            restartSeconds: Math.round(e.restartIn / TICK_RATE),
+            isHost: roster.players.find((p) => p.host)?.id === myId,
+          });
+          scene.podium.show(top);
+          // Free the mouse so the podium's close button (host only) can be clicked.
+          input.unlock();
+        }
         break;
       case 'door': {
         doors.setState(e.i, e.o, e.t);
@@ -217,6 +235,8 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         sprays.clear();
         feed.push([{ text: 'New match started' }]);
         hud.banner(null);
+        hud.matchEnd(null);
+        scene.podium.hide();
         break;
     }
   };

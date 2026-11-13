@@ -8,7 +8,7 @@
 import { useSyncExternalStore } from 'react';
 import type { MatchRules } from '@shared/rules/modes';
 import type { MeState, PlayerInfo } from '@shared/net/protocol';
-import type { Hud, IconKind } from '@client/game/ports';
+import type { Hud, IconKind, MatchEndInfo } from '@client/game/ports';
 import { createStore, type Store } from '../hooks/store';
 
 export type { Hud };
@@ -45,12 +45,14 @@ export interface HudState {
   banner: { title: string; sub: string } | null;
   scope: boolean;
   fps: string | null;
+  /** The post-match podium, or null while a match is on. */
+  matchEnd: MatchEndInfo | null;
 }
 
 /** The state of a HUD with nothing happening. */
 const BLANK: HudState = {
   visible: false, code: '', rules: null, me: null, hurt: false, marker: null, arrows: [], board: null,
-  youKills: 0, leadName: '', leadKills: null, killedBy: null, banner: null, scope: false, fps: null,
+  youKills: 0, leadName: '', leadKills: null, killedBy: null, banner: null, scope: false, fps: null, matchEnd: null,
 };
 
 /** The single HUD store (there is one HUD per page). */
@@ -121,6 +123,7 @@ export function createHud(code: string, rules: MatchRules): Hud {
     },
     killedBy: (name, icon) => hudStore.set({ killedBy: name === null ? null : { name, icon } }),
     banner: (title, sub = '') => hudStore.set({ banner: title === null ? null : { title, sub } }),
+    matchEnd: (info) => hudStore.set({ matchEnd: info }),
     scope: (scope) => hudStore.set({ scope }),
     fps: (fps) => hudStore.set({ fps }),
   };

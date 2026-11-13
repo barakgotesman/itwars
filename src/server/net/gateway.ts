@@ -67,6 +67,12 @@ export function createGateway(server: Server, rooms: RoomManager): void {
       case 'enter':
         s.room?.enter(s.id);
         break;
+      case 'closeMatch':
+        if (s.room && s.id === s.room.hostId) {
+          for (const p of s.room.players.values()) if (!p.bot) p.conn.send({ t: 'closed' });
+          rooms.close(s.room);
+        }
+        break;
       case 'input':
         s.room?.input(s.id, msg);
         break;
