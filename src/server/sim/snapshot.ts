@@ -12,6 +12,8 @@ export function roster(sim: Sim): PlayerInfo[] {
   return [...sim.players.values()].map((p) => ({
     id: p.id, name: p.name, model: p.model, color: p.color, spray: p.spray, kills: p.kills, deaths: p.deaths,
     ...(p.bot ? { bot: true as const } : {}),
+    ...(p.id === sim.hostId ? { host: true as const } : {}),
+    ...(p.playing ? { playing: true as const } : {}),
   }));
 }
 

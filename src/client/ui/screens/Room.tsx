@@ -60,10 +60,23 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
   const started = players.some((p) => p.kills > 0 || p.deaths > 0);
   const invite = `Join IT Wars: open ${lanUrl} and enter the code ${joined.code}`;
 
+  // Only the host may be first through the door; everyone else waits until the host has entered.
+  const isHost = players.find((p) => p.host)?.id === joined.id;
+  const matchStarted = players.some((p) => p.playing);
+  const canEnter = isRange || entered || isHost || matchStarted;
+
   const actions = (
     <div className="flex flex-col gap-2">
-      <button type="button" className="btn w-full" disabled={!ready} onClick={enterOffice}>
-        {!ready ? 'Optimizing graphics...' : entered ? 'Resume' : isRange ? 'Enter the range' : 'Enter the office'}
+      <button type="button" className="btn w-full" disabled={!ready || !canEnter} onClick={enterOffice}>
+        {!ready
+          ? 'Optimizing graphics...'
+          : entered
+            ? 'Resume'
+            : isRange
+              ? 'Enter the range'
+              : !canEnter
+                ? 'Waiting for the host to start...'
+                : 'Enter the office'}
       </button>
       <div className="grid grid-cols-2 gap-2">
         <button type="button" className="btn-quiet inline-flex items-center justify-center gap-2" onClick={onOpenSettings}>
@@ -113,7 +126,10 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
             <ul className="flex flex-col gap-1 text-sm">
               {players.map((p) => (
                 <li key={p.id} className="plate flex items-center justify-between gap-6 bg-raised px-3 py-2 font-bold">
-                  <span className={p.id === joined.id ? 'text-accent' : ''}>{p.id === joined.id ? `${p.name} (you)` : p.name}</span>
+                  <span className={p.id === joined.id ? 'text-accent' : ''}>
+                    {p.id === joined.id ? `${p.name} (you)` : p.name}
+                    {p.host && <span className="ml-2 text-xs text-dim">HOST</span>}
+                  </span>
                   <span className="text-xs text-dim">{started ? `${p.kills} ${p.kills === 1 ? 'kill' : 'kills'}` : ''}</span>
                 </li>
               ))}

@@ -41,6 +41,10 @@ export interface PlayerInfo {
   deaths: number;
   /** Present (and true) only for server-controlled bots; the scoreboard shows a BOT tag. */
   bot?: true;
+  /** Present (and true) only for the player who created the room; only they can start the match. */
+  host?: true;
+  /** Present (and true) once this player has entered the match (pressed "Enter the office"). */
+  playing?: true;
 }
 
 /** Per-player state in a snapshot (what other players can see). */

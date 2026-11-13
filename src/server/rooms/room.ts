@@ -65,6 +65,10 @@ export class Room implements Sim {
   winner = -1;
 
   readonly players = new Map<number, Player>();
+  /** Id of the player who created the room (the first human to join); shown to everyone as "the host". */
+  hostId: number | null = null;
+  /** True once anyone has ever entered the match; before that, only the host may be the first. */
+  private started = false;
   readonly solids: readonly Aabb[];
   /** Sliding doors; their collision boxes are part of `solids` and move in place. */
   readonly doors: Doors;
@@ -171,6 +175,7 @@ export class Room implements Sim {
     const id = this.nextPlayerId++;
     const color = PLAYER_COLORS[look.color ?? -1] ?? PLAYER_COLORS[Math.floor(this.rng() * PLAYER_COLORS.length)]!;
     this.players.set(id, newPlayer(id, this.uniqueName(name), conn, look.model ?? 0, color, look.spray ?? 0, opts.bot === true));
+    if (!opts.bot && this.hostId === null) this.hostId = id;
     conn.send({
       t: 'joined', id, code: this.code, players: roster(this), tick: this.tick,
       pickups: this.pickupReady.map((r) => (r <= this.tick ? '1' : '0')).join(''),
@@ -188,11 +193,17 @@ export class Room implements Sim {
    * @remarks During the intermission they wait and are spawned by the restart with everyone else.
    * The first human to enter also brings every waiting bot into the match (see {@link enterWaitingBots}),
    * so bots never fight each other in a room nobody is actually playing in yet.
+   * Only the host may be the one to start the match: nobody else can enter until the host has
+   * (the client also disables their button; this is the authoritative backstop). Once the match has
+   * started this way, anyone may enter, even if the host later leaves and a new one takes the title.
    */
   enter(id: number): void {
     const p = this.players.get(id);
     if (!p || p.playing) return;
+    if (!this.started && !p.bot && id !== this.hostId) return;
     p.playing = true;
+    this.started = true;
+    this.rosterDirty = true;
     if (this.phase === 'play') spawn(this, p);
     if (!p.bot) this.enterWaitingBots();
     startClockIfReady(this);
@@ -222,9 +233,17 @@ export class Room implements Sim {
   /**
    * Removes a player; their grenades stay live.
    * @param id - Player id from `join`.
+   * @remarks If the host leaves before starting the match, the next human (lowest id) becomes host so
+   * the lobby never gets stuck waiting for someone who is gone.
    */
   leave(id: number): void {
-    if (this.players.delete(id)) this.rosterDirty = true;
+    if (!this.players.delete(id)) return;
+    this.rosterDirty = true;
+    if (id === this.hostId) {
+      let next: number | null = null;
+      for (const p of this.players.values()) if (!p.bot && (next === null || p.id < next)) next = p.id;
+      this.hostId = next;
+    }
   }
 
   /**

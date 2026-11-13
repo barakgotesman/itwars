@@ -31,6 +31,8 @@ export interface Sim {
   /** Id of the last round's winner, or -1. */
   winner: number;
   readonly players: Map<number, Player>;
+  /** Id of the player who created the room (the first human to join); only they may start the match. Null once they leave with nobody else to take over. */
+  hostId: number | null;
   /** Static collision plus the doors' moving boxes. */
   readonly solids: readonly Aabb[];
   readonly doors: Doors;

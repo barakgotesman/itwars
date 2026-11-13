@@ -85,6 +85,7 @@ try {
   const gj = await waitFor(guest, (m) => m.t === 'joined');
   check('guest joins by (lower-case) code', gj?.t === 'joined' && gj.players.length === 2);
   host.ws.send(JSON.stringify({ t: 'enter' }));
+  await sleep(50); // only the host may be first through the door; let that land before the guest follows
   guest.ws.send(JSON.stringify({ t: 'enter' }));
   check('host sees guest in roster', (await waitFor(host, (m) => m.t === 'roster' && m.players.length === 2)) !== undefined);
 
