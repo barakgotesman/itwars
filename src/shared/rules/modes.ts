@@ -46,6 +46,8 @@ export type OptionDef =
     key: RuleKey;
     label: string;
     hint: string;
+    /** Section heading the option is listed under on the setup screen ("Match", "Players", "Weapons"). */
+    group: string;
     choices: readonly number[];
     unit: string;
     /** Text for each choice, in the same order, when a number alone says little (e.g. skill names). */
@@ -59,11 +61,33 @@ export type OptionDef =
     key: RuleKey;
     label: string;
     hint: string;
+    /** Section heading the option is listed under on the setup screen. */
+    group: string;
     choices: readonly number[];
     unit: string;
     /** Value selected when the switch is turned on. */
     defaultOn: number;
   };
+
+/** Options that share a heading on the setup screen, in the order the group first appears. */
+export interface OptionGroup {
+  group: string;
+  options: readonly OptionDef[];
+}
+
+/**
+ * Splits a mode's options into their headed groups, keeping the registry order of both groups and options.
+ * @param options - A mode's options.
+ */
+export function groupOptions(options: readonly OptionDef[]): OptionGroup[] {
+  const groups: { group: string; options: OptionDef[] }[] = [];
+  for (const o of options) {
+    const found = groups.find((g) => g.group === o.group);
+    if (found) found.options.push(o);
+    else groups.push({ group: o.group, options: [o] });
+  }
+  return groups;
+}
 
 /** A game mode and the options it offers. */
 export interface ModeDef {
@@ -80,21 +104,21 @@ export const MODES: readonly ModeDef[] = [
     name: 'Deathmatch',
     blurb: 'Free-for-all. Frag everyone in the office. First to the kill limit wins.',
     options: [
-      { kind: 'choice', key: 'killLimit', label: 'Kill limit', hint: 'First player to reach this many kills wins.', choices: KILL_LIMITS, unit: 'kills' },
+      { kind: 'choice', key: 'killLimit', group: 'Match', label: 'Kill limit', hint: 'First player to reach this many kills wins.', choices: KILL_LIMITS, unit: 'kills' },
       {
-        kind: 'optional-choice', key: 'timeLimitMin', label: 'Time limit', unit: 'min', choices: TIME_LIMITS_MIN, defaultOn: DEFAULT_TIME_LIMIT_MIN,
+        kind: 'optional-choice', key: 'timeLimitMin', group: 'Match', label: 'Time limit', unit: 'min', choices: TIME_LIMITS_MIN, defaultOn: DEFAULT_TIME_LIMIT_MIN,
         hint: 'Ends the match when time runs out; the most kills wins. The clock starts once two players are in.',
       },
       {
-        kind: 'choice', key: 'loadout', label: 'Loadout', choices: LOADOUT_IDS, labels: LOADOUT_NAMES, unit: '',
+        kind: 'choice', key: 'loadout', group: 'Weapons', label: 'Loadout', choices: LOADOUT_IDS, labels: LOADOUT_NAMES, unit: '',
         hint: 'Pistol only: everyone spawns with the stapler and hunts the office for the other guns. Full arsenal: all four guns from the start.',
       },
       {
-        kind: 'choice', key: 'bots', label: 'Bots', choices: BOT_COUNTS, unit: 'bots',
+        kind: 'choice', key: 'bots', group: 'Players', label: 'Bots', choices: BOT_COUNTS, unit: 'bots',
         hint: 'Computer players that fill the room from the start. Friends who join take a bot\'s seat, so a room of bots always has space for people.',
       },
       {
-        kind: 'choice', key: 'botSkill', label: 'Bot skill', choices: BOT_SKILLS, labels: BOT_SKILL_NAMES, unit: '', dependsOn: 'bots',
+        kind: 'choice', key: 'botSkill', group: 'Players', label: 'Bot skill', choices: BOT_SKILLS, labels: BOT_SKILL_NAMES, unit: '', dependsOn: 'bots',
         hint: 'Easy bots react slowly and miss; Hard bots aim fast, land headshots and use grenades.',
       },
     ],

@@ -14,14 +14,16 @@ interface ChipsProps {
   labels?: readonly string[];
   /** Choices above this are disabled (a server limit). */
   maxChoice?: number;
+  /** Smaller chips, for rows that share a line with a label. */
+  compact?: boolean;
   /** Called with the picked value. */
   onPick(value: number): void;
 }
 
 /** Renders the choices as pressable chips. */
-export function Chips({ choices, value, unit, labels, maxChoice = Infinity, onPick }: ChipsProps) {
+export function Chips({ choices, value, unit, labels, maxChoice = Infinity, compact = false, onPick }: ChipsProps) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap justify-end gap-1.5">
       {choices.map((c, k) => {
         const tooMany = c > maxChoice;
         return (
@@ -31,7 +33,7 @@ export function Chips({ choices, value, unit, labels, maxChoice = Infinity, onPi
             disabled={tooMany}
             aria-pressed={c === value}
             title={tooMany ? 'This server cannot run that many bots right now' : (labels?.[k] ?? `${c} ${unit}`)}
-            className={tooMany ? 'choice pointer-events-none min-w-16 opacity-35' : 'choice min-w-16'}
+            className={`choice ${compact ? 'min-w-10 !px-2.5 !py-1' : 'min-w-16'}${tooMany ? ' pointer-events-none opacity-35' : ''}`}
             onClick={() => onPick(c)}
           >
             {labels?.[k] ?? `${c}`}

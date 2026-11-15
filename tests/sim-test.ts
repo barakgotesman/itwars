@@ -10,7 +10,7 @@ import { newPlayerState, stepMovement, type Aabb } from '@shared/core/physics';
 import { parseC2S, type GameEvent } from '@shared/net/protocol';
 import { GRENADES, LOOT_FRACTION, LOOT_LIFETIME_TICKS, PICKUP_DEFS, WEAPONS } from '@shared/rules/weapons';
 import { Doors } from '@shared/world/doors';
-import { DEFAULT_RULES, MODES, RANGE_RULES, describeRules, sanitizeRules, type MatchRules } from '@shared/rules/modes';
+import { DEFAULT_RULES, MODES, RANGE_RULES, describeRules, groupOptions, sanitizeRules, type MatchRules } from '@shared/rules/modes';
 import type { DoorDef } from '@shared/world/map/door-layout';
 import type { PickupSpot } from '@shared/world/map/pickups';
 import { Room } from '@server/rooms/room';
@@ -1169,6 +1169,16 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   check('sanitizeRules keeps a valid loadout', sanitizeRules({ ...DEFAULT_RULES, loadout: 1 }).loadout === 1);
   check('sanitizeRules fixes a bad loadout', sanitizeRules({ ...DEFAULT_RULES, loadout: 7 }).loadout === 0 && sanitizeRules({}).loadout === 0);
   check('the setup screen offers the loadout', MODES[0]!.options.some((o) => o.key === 'loadout' && o.kind === 'choice' && o.labels?.length === 2));
+}
+{
+  // The setup screen lists options under group headings: none may be missing a group, and grouping loses nothing.
+  const all = MODES.flatMap((m) => m.options);
+  check('every setup option has a group heading', all.every((o) => o.group.length > 0));
+  const dm = MODES[0]!.options;
+  const groups = groupOptions(dm);
+  check('grouping keeps every option exactly once', groups.flatMap((g) => g.options).length === dm.length && dm.every((o) => groups.some((g) => g.options.includes(o))));
+  check('groups keep registry order', groups.map((g) => g.group).join(',') === 'Match,Weapons,Players' || groups.map((g) => g.group).join(',') === 'Match,Players,Weapons', groups.map((g) => g.group).join(','));
+  check('bot skill sits in the same group as bots', groups.some((g) => g.options.some((o) => o.key === 'bots') && g.options.some((o) => o.key === 'botSkill')));
 }
 
 // ---------------------------------------------------------------- the RPG: pickup only, three rockets, heavy, explosive

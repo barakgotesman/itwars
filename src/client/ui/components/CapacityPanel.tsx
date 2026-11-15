@@ -1,21 +1,20 @@
 /**
- * The server's measured limits and how much of them is free, shown above the options on the setup screen.
+ * What the server measured about itself and how much of it is free, as the one line the Game setup screen shows
+ * under the Bots row (and the same figures spelled out for its tooltip).
  */
 import type { ServerStatus } from '@shared/net/info';
 
-/** Renders the capacity summary. */
-export function CapacityPanel({ capacity }: { capacity: ServerStatus }) {
+/**
+ * One short line, and whether it is a limit worth the host's attention.
+ * @param capacity - The server's status from `/api/info`.
+ */
+export function capacityNote(capacity: ServerStatus): { text: string; warn: boolean } {
   const pct = Math.round(capacity.load * 100);
-  return (
-    <div className="slab flex flex-col gap-1 bg-panel p-4">
-      <div className="text-base font-black">Server capacity</div>
-      <div className="text-xs text-dim">
-        Measured on this machine when the server started: it can run about {capacity.maxPlayers} players, or{' '}
-        {capacity.maxBots} bots, or a mix. Players always get priority over bots.
-      </div>
-      <div className={pct >= 90 ? 'text-xs font-bold text-accent' : 'text-xs font-bold text-ink'}>
-        Right now: {pct}% in use, room for {capacity.playersAvailable} more players and up to {capacity.botsAvailable} bots in your room.
-      </div>
-    </div>
-  );
+  const limited = capacity.botsAvailable < 7;
+  return {
+    text: limited
+      ? `Server is ${pct}% busy: up to ${capacity.botsAvailable} bots right now. Players who join take priority over bots.`
+      : `Server is ${pct}% busy: room for a full set of bots.`,
+    warn: limited,
+  };
 }
