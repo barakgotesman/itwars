@@ -6,6 +6,7 @@
 import { Key } from '@shared/core/constants';
 import type { BotTuning } from '@shared/rules/bots';
 import { WEAPONS, type WeaponDef } from '@shared/rules/weapons';
+import { owns } from '../arsenal';
 import type { Player } from '../player';
 import type { Sim } from '../state';
 import type { BotState } from './state';
@@ -37,6 +38,8 @@ function falloff(w: WeaponDef, d: number): number {
 /** How useful a weapon is at a distance: damage per second, discounted by how many shots will miss. */
 function usefulness(p: Player, i: number, d: number, aiming: boolean): number {
   const w = WEAPONS[i]!;
+  // A gun the bot has not found yet is no option at all (the server would ignore the switch anyway).
+  if (!owns(p, i)) return 0;
   const mag = p.mag[i] ?? 0;
   const reserve = p.reserve[i] ?? 0;
   if (mag + reserve <= 0) return 0;
@@ -51,6 +54,8 @@ function usefulness(p: Player, i: number, d: number, aiming: boolean): number {
  * @returns The weapon index to put in the input.
  */
 export function chooseWeapon(sim: Sim, p: Player, st: BotState, dist: number): number {
+  // After a respawn the wanted gun may be one the bot no longer owns: fall back to what is in hand.
+  if (!owns(p, st.wantWeapon)) st.wantWeapon = p.weapon;
   const aiming = dist > ADS_DISTANCE;
   const current = usefulness(p, st.wantWeapon, dist, aiming);
   let best = st.wantWeapon;

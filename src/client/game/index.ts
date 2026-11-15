@@ -75,6 +75,7 @@ export function startGame(ctx: GameContext): GameHandle {
       scene.remotes.onSnapshot(msg.players, performance.now());
       scene.grenadeVisuals.sync(msg.grenades);
       local.reconcile(msg);
+      input.setOwned(msg.me.guns, msg.me.w);
       hud.update(msg.me);
     }
   });

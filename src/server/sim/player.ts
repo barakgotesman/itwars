@@ -32,6 +32,8 @@ export interface Player {
   kills: number;
   deaths: number;
   weapon: number;
+  /** Bitmask of owned guns (bit `w` = weapon `w`); see `arsenal.ts`. */
+  guns: number;
   mag: number[];
   reserve: number[];
   gren: number[];
@@ -67,7 +69,7 @@ export interface Player {
 export function newPlayer(id: number, name: string, conn: Conn, model: number, color: number, spray = 0, bot = false): Player {
   return {
     id, name, conn, model, color, spray, bot, sprayReadyAt: 0,
-    state: newPlayerState(0, 0, 0), hp: MAX_HP, alive: false, playing: false, kills: 0, deaths: 0, weapon: 1,
+    state: newPlayerState(0, 0, 0), hp: MAX_HP, alive: false, playing: false, kills: 0, deaths: 0, weapon: 0, guns: 0,
     mag: [], reserve: [], gren: [], reloadEnd: 0, nextFire: 0, nextThrow: 0, fireLatch: false,
     protectUntil: 0, respawnAt: 0, blindEnd: 0, blindMax: 0, queue: [], lastCmd: null, prevKeys: 0,
     ack: 0, credit: 0,

@@ -92,6 +92,8 @@ export interface MeState {
   reserve: number[];
   /** Grenades carried per slot. */
   gren: number[];
+  /** Bitmask of owned guns (bit `w` = weapon `w`); unowned guns have zero ammo and cannot be selected. */
+  guns: number;
   /** Ticks left of the current reload, 0 if not reloading. */
   reload: number;
   /** Ticks of flashbang blindness left. */
@@ -108,7 +110,8 @@ export type GameEvent =
   | { k: 'hit'; by: number; to: number; dmg: number; head: boolean }
   | { k: 'kill'; by: number; to: number; w: number | 'frag'; head: boolean }
   | { k: 'spawn'; id: number; yaw: number }
-  | { k: 'pickup'; id: number; i: number; kind: PickupKind }
+  /** A pickup was taken; `w` is the gun for a weapon pickup, and `got` says whether it was a new gun or just its ammo. */
+  | { k: 'pickup'; id: number; i: number; kind: PickupKind; w?: number; got?: 'gun' | 'ammo' }
   | { k: 'pk'; i: number; on: boolean }
   | { k: 'throw'; id: number; s: number }
   | { k: 'boom'; s: number; x: number; y: number; z: number }
@@ -118,8 +121,10 @@ export type GameEvent =
   | { k: 'hole'; x: number; y: number; z: number; a: number; s: number }
   /** A spray tag on a wall: surface point, face axis and sign, and `r` quarter turns so floor and ceiling tags face the sprayer. */
   | { k: 'spray'; id: number; x: number; y: number; z: number; a: number; s: number; r: number }
-  | { k: 'lootDrop'; id: number; from: number; x: number; y: number; z: number }
-  | { k: 'lootTake'; id: number; by: number; from: number }
+  /** A loot bag landed; `w` is the gun inside it, or -1 for ammo only. */
+  | { k: 'lootDrop'; id: number; from: number; x: number; y: number; z: number; w: number }
+  /** Someone took from a bag; `w` is the gun they got out of it, or -1 for ammo only. */
+  | { k: 'lootTake'; id: number; by: number; from: number; w: number }
   | { k: 'lootGone'; id: number }
   | { k: 'matchStart' };
 
@@ -129,6 +134,8 @@ export interface LootInfo {
   /** Player the bag came from. */
   from: number;
   x: number; y: number; z: number;
+  /** Gun inside the bag, or -1 for ammo only. */
+  w: number;
 }
 
 /** Reply to a successful host/join. */

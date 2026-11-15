@@ -4,6 +4,7 @@
  * setup screen is built from it, so adding a mode (or a mod) means adding an entry here rather than a new screen.
  */
 import { KILLS_TO_WIN } from '@shared/core/constants';
+import { LOADOUT_IDS, LOADOUT_NAMES } from '@shared/rules/loadout';
 import { BOT_COUNTS, BOT_SKILLS, BOT_SKILL_NAMES, DEFAULT_BOT_SKILL, botSkillName } from '@shared/rules/bots';
 
 /** Identifier of a game mode. Add new modes here as they are built. */
@@ -27,13 +28,15 @@ export interface MatchRules {
   bots: number;
   /** Bot skill: 1 Easy, 2 Normal, 3 Hard, the same for every bot in the room. */
   botSkill: number;
+  /** Spawn kit, index into `LOADOUTS`: 0 pistol only (guns are map pickups), 1 full arsenal. */
+  loadout: number;
 }
 
 /** Rules used when the host does not choose any (and the fallback for anything invalid). */
-export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL };
+export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0 };
 
 /** Numeric rule fields a setup option can control. */
-export type RuleKey = 'killLimit' | 'timeLimitMin' | 'bots' | 'botSkill';
+export type RuleKey = 'killLimit' | 'timeLimitMin' | 'bots' | 'botSkill' | 'loadout';
 
 /** One option a mode shows on the setup screen. */
 export type OptionDef =
@@ -83,6 +86,10 @@ export const MODES: readonly ModeDef[] = [
         hint: 'Ends the match when time runs out; the most kills wins. The clock starts once two players are in.',
       },
       {
+        kind: 'choice', key: 'loadout', label: 'Loadout', choices: LOADOUT_IDS, labels: LOADOUT_NAMES, unit: '',
+        hint: 'Pistol only: everyone spawns with the stapler and hunts the office for the other guns. Full arsenal: all four guns from the start.',
+      },
+      {
         kind: 'choice', key: 'bots', label: 'Bots', choices: BOT_COUNTS, unit: 'bots',
         hint: 'Computer players that fill the room from the start. Friends who join take a bot\'s seat, so a room of bots always has space for people.',
       },
@@ -101,7 +108,7 @@ export const MODES: readonly ModeDef[] = [
 ];
 
 /** Fixed rules for the menu's one-click "Shooting Range" button: solo, no bots, unlimited ammo (see `server/sim/weapons.ts`/`grenades.ts`). */
-export const RANGE_RULES: MatchRules = { mode: 'range', killLimit: KILL_LIMITS[0]!, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL };
+export const RANGE_RULES: MatchRules = { mode: 'range', killLimit: KILL_LIMITS[0]!, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0 };
 
 /**
  * Turns anything a client sent into valid rules, falling back to the default for each field that is wrong.
@@ -114,7 +121,8 @@ export function sanitizeRules(raw: unknown): MatchRules {
   const timeLimitMin = r.timeLimitMin === 0 || TIME_LIMITS_MIN.includes(r.timeLimitMin as number) ? (r.timeLimitMin as number) : 0;
   const bots = BOT_COUNTS.includes(r.bots as number) ? (r.bots as number) : DEFAULT_RULES.bots;
   const botSkill = BOT_SKILLS.includes(r.botSkill as number) ? (r.botSkill as number) : DEFAULT_RULES.botSkill;
-  return { mode, killLimit, timeLimitMin, bots, botSkill };
+  const loadout = LOADOUT_IDS.includes(r.loadout as number) ? (r.loadout as number) : DEFAULT_RULES.loadout;
+  return { mode, killLimit, timeLimitMin, bots, botSkill, loadout };
 }
 
 /**
@@ -123,5 +131,6 @@ export function sanitizeRules(raw: unknown): MatchRules {
 export function describeRules(rules: MatchRules): string {
   const mode = MODES.find((m) => m.id === rules.mode)?.name ?? 'Deathmatch';
   const bots = rules.bots > 0 ? ` · ${rules.bots} ${rules.bots === 1 ? 'bot' : 'bots'} (${botSkillName(rules.botSkill).toLowerCase()})` : '';
-  return `${mode} · first to ${rules.killLimit}${rules.timeLimitMin > 0 ? ` · ${rules.timeLimitMin} min` : ' · no time limit'}${bots}`;
+  const kit = rules.loadout === 1 ? ' · full arsenal' : '';
+  return `${mode} · first to ${rules.killLimit}${rules.timeLimitMin > 0 ? ` · ${rules.timeLimitMin} min` : ' · no time limit'}${kit}${bots}`;
 }

@@ -9,10 +9,10 @@ import type { Aabb } from '@shared/core/physics';
 import { parseC2S, type GameEvent } from '@shared/net/protocol';
 import { GRENADES, LOOT_FRACTION, LOOT_LIFETIME_TICKS, PICKUP_DEFS, WEAPONS } from '@shared/rules/weapons';
 import { Doors } from '@shared/world/doors';
-import { DEFAULT_RULES, RANGE_RULES, describeRules, sanitizeRules, type MatchRules } from '@shared/rules/modes';
+import { DEFAULT_RULES, MODES, RANGE_RULES, describeRules, sanitizeRules, type MatchRules } from '@shared/rules/modes';
 import type { DoorDef } from '@shared/world/map/door-layout';
 import { Room } from '@server/rooms/room';
-import { FLOOR, FakeConn, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
+import { FLOOR, FULL_RULES, FakeConn, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
 
 let failed = 0;
 let passed = 0;
@@ -221,7 +221,7 @@ function check(name: string, ok: boolean, detail = ''): void {
 // ---------------------------------------------------------------- shooting range
 
 {
-  const { room, add } = makeRoom([FLOOR], [], [], RANGE_RULES);
+  const { room, add } = makeRoom([FLOOR], [], [], { ...RANGE_RULES, loadout: 1 });
   const a = add('A');
   warm(room);
   place(room, a.id, 0, 0);
@@ -506,7 +506,7 @@ const doorOf = (room: Room, i = 0) => (room as unknown as DoorPeek).doors.states
   place(room, a.id, 1.5, -3, 0, 0);
   run(room, a, 2, { keys: Key.Interact });
   check('using a half-closed door opens it', doorOf(room).target === 1);
-  run(room, a, 2, { weapon: 1 });
+  run(room, a, 2);
   run(room, a, 2, { keys: Key.Interact });
   check('using it again before it settles is ignored for a moment (no stutter)', doorOf(room).target === 1);
 }
@@ -677,7 +677,7 @@ const spraysSeen = (c: FakeConn): SprayEv[] => c.events().filter((e): e is Spray
 // ---------------------------------------------------------------- match rules: kill limit and time limit
 
 /** Shorthand for rules in tests. */
-const rulesOf = (killLimit: number, timeLimitMin = 0): MatchRules => ({ ...DEFAULT_RULES, killLimit, timeLimitMin });
+const rulesOf = (killLimit: number, timeLimitMin = 0): MatchRules => ({ ...FULL_RULES, killLimit, timeLimitMin });
 type EndEv = Extract<GameEvent, { k: 'matchEnd' }>;
 const endEvent = (c: FakeConn): EndEv | undefined => c.events().find((e): e is EndEv => e.k === 'matchEnd');
 
@@ -687,7 +687,8 @@ const endEvent = (c: FakeConn): EndEv | undefined => c.events().find((e): e is E
   check('sanitizeRules fixes a bad time limit', sanitizeRules({ mode: 'dm', killLimit: 20, timeLimitMin: 7 }).timeLimitMin === 0);
   check('sanitizeRules fixes an unknown mode', sanitizeRules({ mode: 'ctf', killLimit: 20, timeLimitMin: 0 }).mode === 'dm');
   check('sanitizeRules survives junk', JSON.stringify(sanitizeRules(null)) === JSON.stringify(DEFAULT_RULES) && JSON.stringify(sanitizeRules('x')) === JSON.stringify(DEFAULT_RULES));
-  check('describeRules reads well', describeRules(rulesOf(30, 10)) === 'Deathmatch · first to 30 · 10 min' && describeRules(rulesOf(50)).includes('no time limit'));
+  check('describeRules reads well', describeRules({ ...DEFAULT_RULES, killLimit: 30, timeLimitMin: 10 }) === 'Deathmatch · first to 30 · 10 min' && describeRules(rulesOf(50)).includes('no time limit'));
+  check('describeRules names the full arsenal', describeRules(rulesOf(30, 10)) === 'Deathmatch · first to 30 · 10 min · full arsenal');
   const h = parseC2S({ t: 'host', name: 'x', rules: { mode: 'dm', killLimit: 20, timeLimitMin: 15 } });
   check('parse: a host message carries validated rules', h?.t === 'host' && h.rules.killLimit === 20 && h.rules.timeLimitMin === 15);
   const h2 = parseC2S({ t: 'host', name: 'x' });
@@ -1005,6 +1006,151 @@ const lootEvents = (c: FakeConn): LootEv[] => c.events().filter((e): e is LootEv
   idle(room, 10);
   check('snapshots arrive at 30 Hz', a.conn.msgs.filter((m) => m.t === 'snap').length === 5);
   check('TICK_DT is 1/60', Math.abs(TICK_DT - 1 / 60) < 1e-9);
+}
+
+// ---------------------------------------------------------------- loadouts: pistol only, the other guns are pickups
+
+type PickEv = Extract<GameEvent, { k: 'pickup' }>;
+const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is PickEv => e.k === 'pickup');
+
+{
+  const { room, add } = makeRoom([FLOOR], [{ kind: 'weapon', weapon: 1, x: 10, z: 0 }, { kind: 'ammo', x: 20, z: 0 }], [], DEFAULT_RULES);
+  const a = add('A');
+  const b = add('B');
+  warm(room);
+  const m = mut(room, a.id);
+  check('default rules spawn the pistol only', m.guns === 1 && m.weapon === 0 && a.conn.snap?.me.guns === 1);
+  check('unowned guns carry no ammo', m.mag[1] === 0 && m.reserve[1] === 0 && m.mag[0] === WEAPONS[0]!.magSize);
+  run(room, a, 4, { weapon: 1 });
+  check('switching to a gun you have not found is ignored', m.weapon === 0);
+
+  place(room, a.id, 10, 0);
+  run(room, a, 2);
+  const smg = WEAPONS[1]!;
+  check('a gun pickup grants the gun with a full magazine and half its reserve', m.guns === 0b11 && m.mag[1] === smg.magSize && m.reserve[1] === Math.floor(smg.maxReserve * 0.5), `guns=${m.guns} mag=${m.mag[1]} res=${m.reserve[1]}`);
+  check('the pickup event names the gun', pickupEvents(a.conn).some((e) => e.kind === 'weapon' && e.w === 1 && e.got === 'gun'));
+  check('the gun spot goes away like any box', a.conn.events().some((e) => e.k === 'pk' && !e.on));
+  run(room, a, 4, { weapon: 1 });
+  check('a found gun can be selected', m.weapon === 1);
+
+  // Step off the spot while it respawns, or it is taken again the moment it comes back.
+  place(room, a.id, 0, 0);
+  idle(room, PICKUP_DEFS.weapon.respawnTicks + 2);
+  m.reserve[1] = 0;
+  place(room, a.id, 10, 0);
+  run(room, a, 2);
+  check('walking over a gun you own tops up only that gun', m.reserve[1] === Math.ceil(smg.maxReserve * PICKUP_DEFS.weapon.amount) && m.guns === 0b11 && m.reserve[2] === 0);
+  check('the pickup event says it was ammo', pickupEvents(a.conn).some((e) => e.kind === 'weapon' && e.w === 1 && e.got === 'ammo'));
+  place(room, a.id, 0, 0);
+  idle(room, PICKUP_DEFS.weapon.respawnTicks + 2);
+  m.reserve[1] = smg.maxReserve;
+  const before = pickupEvents(a.conn).length;
+  place(room, a.id, 10, 0);
+  run(room, a, 2);
+  check('a gun spot is left alone when that gun is full', pickupEvents(a.conn).length === before);
+
+  place(room, a.id, 20, 0);
+  m.reserve = [0, 0, 0, 0];
+  run(room, a, 2);
+  check('an ammo box refills only the guns you own', m.reserve[0] === Math.ceil(WEAPONS[0]!.maxReserve / 2) && m.reserve[1] === Math.ceil(smg.maxReserve / 2) && m.reserve[2] === 0 && m.reserve[3] === 0, `reserve=${m.reserve}`);
+  place(room, a.id, 0, 0);
+  idle(room, PICKUP_DEFS.ammo.respawnTicks + 2);
+  m.reserve = [WEAPONS[0]!.maxReserve, smg.maxReserve, 0, 0];
+  const before2 = pickupEvents(a.conn).length;
+  place(room, a.id, 20, 0);
+  run(room, a, 2);
+  check('an ammo box is left alone when every owned gun is full', pickupEvents(a.conn).length === before2);
+
+  // A dies holding the SMG: the bag carries the gun; B (pistol only) takes the gun out of it.
+  place(room, a.id, 0, -10, 0, 0);
+  run(room, a, 4, { weapon: 1 });
+  m.hp = 1;
+  place(room, b.id, 0, 0, 0, aimPitch(10, 1.0));
+  run(room, b, 1, { keys: Key.Fire | Key.Aim, weapon: 0, pitch: aimPitch(10, 1.0) });
+  const drop = lootEvents(b.conn).find((e) => e.k === 'lootDrop');
+  check('dying with a found gun in hand drops it in the bag', drop?.k === 'lootDrop' && drop.w === 1, `w=${drop?.k === 'lootDrop' ? drop.w : 'none'}`);
+  const mb = mut(room, b.id);
+  check('the victim respawns without it', (() => { idle(room, RESPAWN_TICKS + 2); return m.guns === 1 && m.weapon === 0; })());
+  place(room, b.id, 0, -10);
+  run(room, b, 3);
+  check('looting a bag with a gun grants that gun', (mb.guns & 0b10) !== 0 && mb.mag[1] === smg.magSize, `guns=${mb.guns}`);
+  check('the loot event says which gun was taken', lootEvents(b.conn).some((e) => e.k === 'lootTake' && e.by === b.id && e.w === 1));
+  check('late joiners see which gun a bag holds', (() => {
+    const late = new FakeConn();
+    room.join(late, 'Late');
+    const j = late.msgs[0] as { loot: { w: number }[] };
+    return Array.isArray(j.loot) && j.loot.every((l) => typeof l.w === 'number');
+  })());
+}
+{
+  const { room, add } = makeRoom([FLOOR], [], [], DEFAULT_RULES);
+  const a = add('A');
+  const b = add('B');
+  warm(room);
+  killB(room, a, b);
+  const drop = lootEvents(a.conn).find((e) => e.k === 'lootDrop');
+  check('the starter pistol never drops (ammo-only bag)', drop?.k === 'lootDrop' && drop.w === -1);
+  idle(room, RESPAWN_TICKS + 2);
+  warm(room);
+  run(room, a, 2); // release the trigger so the next shot is a fresh press
+  // B carries a dry SMG: no ammo anywhere, yet the gun itself is worth a bag.
+  const mb = mut(room, b.id);
+  mb.guns = 0b11;
+  run(room, b, 4, { weapon: 1 });
+  mb.mag = [0, 0, 0, 0];
+  mb.reserve = [0, 0, 0, 0];
+  mb.gren = [0, 0];
+  const n = lootEvents(a.conn).filter((e) => e.k === 'lootDrop').length;
+  killB(room, a, b);
+  const drops = lootEvents(a.conn).filter((e) => e.k === 'lootDrop');
+  check('a gun with no ammo still drops a bag', drops.length === n + 1 && drops[n]!.k === 'lootDrop' && drops[n]!.w === 1);
+  const ma = mut(room, a.id);
+  place(room, a.id, 0, -10);
+  run(room, a, 3);
+  check('taking the gun out empties the bag', (ma.guns & 0b10) !== 0 && lootEvents(a.conn).some((e) => e.k === 'lootGone' && e.id === drops[n]!.id));
+  check('bag ammo for a gun you do not own stays (nothing taken)', (() => {
+    // A fresh victim with only pistol ammo; C owns the pistol so takes it; the SMG rounds would have stayed, but there are none to begin with: cover the rule directly.
+    const c = add('C');
+    warm(room);
+    const mc = mut(room, c.id);
+    mc.reserve = [0, 0, 0, 0];
+    room.loot.push({ id: 900, from: 1, x: 30, y: 0, z: 30, ammo: [0, 40, 0, 0], gren: [0, 0], w: -1, expiresAt: room.tick + 3000 });
+    place(room, c.id, 30, 30);
+    run(room, c, 3);
+    return mc.reserve[1] === 0 && room.loot.some((l) => l.id === 900 && l.ammo[1] === 40);
+  })());
+}
+{
+  // Full arsenal restores the old game: every gun at spawn, SMG in hand, and the map's gun spots stay off.
+  const { room, add } = makeRoom([FLOOR], [{ kind: 'weapon', weapon: 2, x: 10, z: 0 }], [], FULL_RULES);
+  const a = add('A');
+  warm(room);
+  const m = mut(room, a.id);
+  check('full arsenal spawns with every gun, SMG in hand', m.guns === 0b1111 && m.weapon === 1 && WEAPONS.every((w, i) => m.mag[i] === w.magSize));
+  place(room, a.id, 10, 0);
+  m.reserve[2] = 0;
+  run(room, a, 2);
+  check('gun spots are inert under the full arsenal', pickupEvents(a.conn).length === 0 && m.reserve[2] === 0);
+}
+{
+  // Shooting range: pistol at spawn, guns on the armory table, the table is never emptied.
+  const { room, add } = makeRoom([FLOOR], [{ kind: 'weapon', weapon: 2, x: 5, z: 0, y: 0.9 }], [], RANGE_RULES);
+  const a = add('A');
+  warm(room);
+  const m = mut(room, a.id);
+  check('the range starts with the pistol only', m.guns === 1 && m.weapon === 0);
+  place(room, a.id, 5, 0);
+  run(room, a, 2);
+  check('an armory gun is picked up', (m.guns & 0b100) !== 0);
+  check('the armory table is never emptied', !a.conn.events().some((e) => e.k === 'pk' && !e.on) && room.pickupReady[0] === 0);
+  m.reserve[2] = 0;
+  run(room, a, 2);
+  check('walking over it again gives ammo at once (no respawn wait)', m.reserve[2] > 0);
+}
+{
+  check('sanitizeRules keeps a valid loadout', sanitizeRules({ ...DEFAULT_RULES, loadout: 1 }).loadout === 1);
+  check('sanitizeRules fixes a bad loadout', sanitizeRules({ ...DEFAULT_RULES, loadout: 7 }).loadout === 0 && sanitizeRules({}).loadout === 0);
+  check('the setup screen offers the loadout', MODES[0]!.options.some((o) => o.key === 'loadout' && o.kind === 'choice' && o.labels?.length === 2));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -3,11 +3,12 @@
  */
 import { INTERMISSION_TICKS, MAX_HP, SPAWN_PROTECT_TICKS, SWITCH_TICKS, TICK_RATE } from '@shared/core/constants';
 import { newPlayerState } from '@shared/core/physics';
+import { loadoutOf, maskOf, ownsBit } from '@shared/rules/loadout';
 import { GRENADES, START_RESERVE_FRACTION, WEAPONS } from '@shared/rules/weapons';
 import type { Player } from './player';
 import type { Sim } from './state';
 
-/** Puts a player at the spawn point farthest from everyone else, with a full loadout. */
+/** Puts a player at the spawn point farthest from everyone else, with the room's spawn loadout. */
 export function spawn(sim: Sim, p: Player): void {
   let best = sim.spawns[0]!;
   let bestScore = -1;
@@ -26,9 +27,12 @@ export function spawn(sim: Sim, p: Player): void {
   p.state.yaw = Math.atan2(best[0], best[1]);
   p.hp = MAX_HP;
   p.alive = true;
-  p.weapon = 1;
-  p.mag = WEAPONS.map((w) => w.magSize);
-  p.reserve = WEAPONS.map((w) => Math.floor(w.maxReserve * START_RESERVE_FRACTION));
+  const kit = loadoutOf(sim.rules.loadout);
+  p.guns = maskOf(kit.startWeapons);
+  p.weapon = kit.startWeapons[0] ?? 0;
+  // Unowned guns carry nothing: finding one on the map (or in a bag) is what fills these in.
+  p.mag = WEAPONS.map((w, i) => (ownsBit(p.guns, i) ? w.magSize : 0));
+  p.reserve = WEAPONS.map((w, i) => (ownsBit(p.guns, i) ? Math.floor(w.maxReserve * START_RESERVE_FRACTION) : 0));
   p.gren = GRENADES.map((g) => g.startCarry);
   p.reloadEnd = 0;
   p.nextFire = sim.tick + SWITCH_TICKS;

@@ -6,6 +6,7 @@ import { EYE_HEIGHT, Key, SWITCH_TICKS } from '@shared/core/constants';
 import { lookDir } from '@shared/core/physics';
 import { MAX_RANGE, WEAPONS, type WeaponDef } from '@shared/rules/weapons';
 import { castRay, type Target } from './combat';
+import { owns } from './arsenal';
 import { damage } from './damage';
 import { useDoor } from './doors';
 import { throwGrenade } from './grenades';
@@ -36,7 +37,8 @@ export function tickWeapons(sim: Sim, p: Player): void {
     return;
   }
 
-  if (cmd.weapon !== p.weapon) {
+  // Switching to a gun the player has not found is ignored: they keep what is in hand.
+  if (cmd.weapon !== p.weapon && owns(p, cmd.weapon)) {
     p.weapon = cmd.weapon;
     p.reloadEnd = 0;
     p.fireLatch = false;

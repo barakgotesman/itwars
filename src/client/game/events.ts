@@ -142,7 +142,14 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         sfx.reload(e.id === myId ? undefined : posOf(e.id));
         break;
       case 'pickup':
-        if (e.id === myId) sfx.pickup();
+        if (e.id !== myId) break;
+        sfx.pickup();
+        if (e.kind === 'weapon' && e.w !== undefined) {
+          const name = WEAPONS[e.w]?.name ?? 'a gun';
+          feed.push(e.got === 'gun'
+            ? [who(myId), { text: ` found the ${name}`, tone: 'dim' }]
+            : [who(myId), { text: ` picked up ${name} ammo`, tone: 'dim' }]);
+        }
         break;
       case 'pk':
         pickups.setActive(e.i, e.on);
@@ -162,16 +169,19 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         break;
       }
       case 'lootDrop':
-        lootBags.add(e.id, e.x, e.y, e.z);
+        lootBags.add(e.id, e.x, e.y, e.z, e.w);
         // A little puff of brown and gold cubes where the bag lands.
         particles.emit(e.x, e.y + 0.3, e.z, 8, 0xc8a24a, 2.5, 0.6, 9, undefined, 0.07);
         break;
       case 'lootTake':
         if (e.by !== myId) break;
         sfx.pickup();
-        feed.push(e.from === myId
-          ? [who(e.by), { text: ' picked up their own ammo', tone: 'dim' }]
-          : [who(e.by), { text: ' looted ', tone: 'dim' }, who(e.from), { text: "'s ammo", tone: 'dim' }]);
+        {
+          const what = e.w >= 0 ? (WEAPONS[e.w]?.name ?? 'gun') : 'ammo';
+          feed.push(e.from === myId
+            ? [who(e.by), { text: ` picked up their own ${what}`, tone: 'dim' }]
+            : [who(e.by), { text: ' looted ', tone: 'dim' }, who(e.from), { text: `'s ${what}`, tone: 'dim' }]);
+        }
         break;
       case 'lootGone':
         lootBags.remove(e.id);

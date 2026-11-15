@@ -111,7 +111,7 @@ export const SELF_DAMAGE_MUL = 0.5;
 export const FRAG_MIN_MUL = 0.1;
 
 /** What a pickup box gives. */
-export type PickupKind = 'hp' | 'ammo' | 'grenade';
+export type PickupKind = 'hp' | 'ammo' | 'grenade' | 'weapon';
 
 /** Static description of one pickup kind. */
 export interface PickupDef {
@@ -119,7 +119,7 @@ export interface PickupDef {
   respawnTicks: number;
   /** Horizontal pickup radius. */
   radius: number;
-  /** HP restored (hp) or fraction of max reserve refilled (ammo). */
+  /** HP restored (hp), fraction of max reserve refilled (ammo), grenades per slot (grenade), or the reserve fraction a gun you already own gets (weapon). */
   amount: number;
 }
 
@@ -140,7 +140,10 @@ export const PICKUP_DEFS: Record<PickupKind, PickupDef> = {
   hp: { respawnTicks: 20 * TICK_RATE, radius: 1.1, amount: 35 },
   ammo: { respawnTicks: 20 * TICK_RATE, radius: 1.1, amount: 0.5 },
   grenade: { respawnTicks: 30 * TICK_RATE, radius: 1.1, amount: 1 },
+  weapon: { respawnTicks: 30 * TICK_RATE, radius: 1.1, amount: 0.5 },
 };
 
 /** Fraction of each weapon's `maxReserve` a player spawns with. */
 export const START_RESERVE_FRACTION = 0.5;
+/** Fraction of `maxReserve` that comes with a gun found on the map or in a loot bag (the magazine comes full). */
+export const GUN_PICKUP_RESERVE_FRACTION = 0.5;

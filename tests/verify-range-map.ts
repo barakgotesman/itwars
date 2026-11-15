@@ -6,7 +6,8 @@
  * applies here. With one spawn and no pickups, that is also all "reachable" means for this map.
  * Run with `npm run verify:range-map`; exits non-zero on failure.
  */
-import { MAP_BOXES, SOLIDS, SPAWNS } from '@shared/world/map/range';
+import { MAP_BOXES, PICKUP_SPOTS, SOLIDS, SPAWNS } from '@shared/world/map/range';
+import { PICKUP_DEFS } from '@shared/rules/weapons';
 import { standingFree } from '@shared/world/nav';
 
 let failures = 0;
@@ -23,6 +24,12 @@ SPAWNS.forEach(([x, z], k) => check(`spawn #${k}`, x, z));
 // A sample point beside each target's distance (the dummies themselves sit at x 0, blocking it on
 // purpose, and the firing line at z -2 is meant to block x 0 too) and in the standing area.
 check('standing area', 2, 4);
+// The armory guns sit ON the table, so the player takes them from the free floor just in front of it: that spot
+// must be clear and within the pickup radius.
+PICKUP_SPOTS.forEach((s, k) => {
+  const r = PICKUP_DEFS[s.kind].radius;
+  check(`in front of armory gun #${k}`, s.x, s.z + r * 0.8);
+});
 for (const z of [-6, -16, -27, -37]) check(`range at z ${z}`, 2, z);
 
 console.log(`boxes: ${MAP_BOXES.length} (${SOLIDS.length} solid), spawns: ${SPAWNS.length}`);

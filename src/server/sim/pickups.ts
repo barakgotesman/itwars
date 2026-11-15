@@ -3,13 +3,21 @@
  * A box is left alone unless it would actually help the player.
  */
 import { MAX_HP } from '@shared/core/constants';
+import { loadoutOf } from '@shared/rules/loadout';
 import { GRENADES, PICKUP_DEFS, WEAPONS, type PickupKind } from '@shared/rules/weapons';
+import type { PickupSpot } from '@shared/world/map/pickups';
+import { ammoFull, giveAmmo, giveGun, owns } from './arsenal';
 import type { Player } from './player';
 import type { Sim } from './state';
+
+/** What taking a pickup did: nothing (it stays), or something, with the gun involved for weapon pickups. */
+type Taken = false | { w?: number; got?: 'gun' | 'ammo' };
 
 /** Re-enables pickups whose timer ran out and lets living players collect nearby ones. */
 export function tickPickups(sim: Sim): void {
   sim.spots.forEach((s, i) => {
+    // Gun pickups are pointless when everyone spawns with every gun: they stay switched off.
+    if (!spotEnabled(sim, s)) return;
     const ready = sim.pickupReady[i]!;
     if (ready === sim.tick) sim.events.push({ k: 'pk', i, on: true });
     if (ready > sim.tick) return;
@@ -17,32 +25,47 @@ export function tickPickups(sim: Sim): void {
     for (const p of sim.players.values()) {
       if (!p.alive || Math.abs(p.state.y) > 1.6) continue;
       if (Math.hypot(p.state.x - s.x, p.state.z - s.z) > def.radius) continue;
-      if (!applyPickup(p, s.kind)) continue;
-      sim.pickupReady[i] = sim.tick + def.respawnTicks;
-      sim.events.push({ k: 'pickup', id: p.id, i, kind: s.kind }, { k: 'pk', i, on: false });
+      const taken = applyPickup(p, s);
+      if (!taken) continue;
+      sim.events.push({ k: 'pickup', id: p.id, i, kind: s.kind, ...taken });
+      // The range's armory table is never emptied; everywhere else the box goes away for a while.
+      if (!(s.kind === 'weapon' && sim.rules.mode === 'range')) {
+        sim.pickupReady[i] = sim.tick + def.respawnTicks;
+        sim.events.push({ k: 'pk', i, on: false });
+      }
       break;
     }
   });
 }
 
+/** Whether a spot exists for the room's loadout: gun pickups are off when everyone spawns with every gun. */
+export function spotEnabled(sim: Sim, s: PickupSpot): boolean {
+  return s.kind !== 'weapon' || loadoutOf(sim.rules.loadout).mapGuns;
+}
+
 /** Gives a pickup's contents to a player. @returns False if they could not use it (so it stays). */
-function applyPickup(p: Player, kind: PickupKind): boolean {
+function applyPickup(p: Player, s: PickupSpot): Taken {
+  const kind: PickupKind = s.kind;
   const def = PICKUP_DEFS[kind];
   if (kind === 'hp') {
     if (p.hp >= MAX_HP) return false;
     p.hp = Math.min(MAX_HP, p.hp + def.amount);
-    return true;
+    return {};
+  }
+  if (kind === 'weapon') {
+    const w = s.weapon ?? 0;
+    // A gun you already carry is just ammo for that gun; one you do not is the gun itself.
+    if (!owns(p, w)) return giveGun(p, w) ? { w, got: 'gun' } : false;
+    return giveAmmo(p, w, def.amount) ? { w, got: 'ammo' } : false;
   }
   if (kind === 'ammo') {
-    if (WEAPONS.every((w, i) => p.reserve[i]! >= w.maxReserve)) return false;
-    WEAPONS.forEach((w, i) => {
-      p.reserve[i] = Math.min(w.maxReserve, p.reserve[i]! + Math.ceil(w.maxReserve * def.amount));
-    });
-    return true;
+    if (ammoFull(p)) return false;
+    WEAPONS.forEach((_, i) => giveAmmo(p, i, def.amount));
+    return {};
   }
   if (GRENADES.every((g, i) => p.gren[i]! >= g.maxCarry)) return false;
   GRENADES.forEach((g, i) => {
     p.gren[i] = Math.min(g.maxCarry, p.gren[i]! + def.amount);
   });
-  return true;
+  return {};
 }

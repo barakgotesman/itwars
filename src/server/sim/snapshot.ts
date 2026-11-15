@@ -54,7 +54,7 @@ function meState(sim: Sim, p: Player): MeState {
     ack: p.ack, x: s.x, y: s.y, z: s.z, vx: s.vx, vy: s.vy, vz: s.vz, onGround: s.onGround,
     hp: p.hp, alive: p.alive, playing: p.playing, respawnIn: p.alive || !p.playing ? 0 : Math.max(0, p.respawnAt - sim.tick),
     prot: Math.max(0, p.protectUntil - sim.tick), w: p.weapon,
-    mag: p.mag, reserve: p.reserve, gren: p.gren,
+    mag: p.mag, reserve: p.reserve, gren: p.gren, guns: p.guns,
     reload: p.reloadEnd ? Math.max(0, p.reloadEnd - sim.tick) : 0,
     blind: Math.max(0, p.blindEnd - sim.tick), blindMax: p.blindMax, timeLeft: timeLeft(sim),
   };

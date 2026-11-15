@@ -5,7 +5,7 @@
 import type { Pt } from '@shared/world/nav';
 
 /** Why the bot is travelling: what the current goal is for. */
-export type GoalKind = 'roam' | 'chase' | 'investigate' | 'heal' | 'ammo' | 'loot';
+export type GoalKind = 'roam' | 'chase' | 'investigate' | 'heal' | 'ammo' | 'loot' | 'weapon';
 
 /** Where an enemy was last seen, with how fast it was moving, and when. */
 export interface Sighting {
@@ -119,7 +119,7 @@ export function newBotState(doorCount: number): BotState {
     doorReadyAt: new Array<number>(doorCount).fill(0), holdSince: 0, ignoreDoorsUntil: 0,
     targetId: -1, visible: false, visibleSince: 0, engageStart: 0, seen: null, heard: null, chasing: false, wasFighting: false,
     errYaw: 0, errPitch: 0, aimHead: false, aimRollAt: 0, fireHeld: false, burstUntil: 0, pauseUntil: 0,
-    firePulse: false, reloadPulse: false, semiNextAt: 0, wantWeapon: 1, switchedAt: 0, strafeDir: 1, strafeAt: 0, throwAt: null, grenadeReadyAt: 0, lastFire: null,
+    firePulse: false, reloadPulse: false, semiNextAt: 0, wantWeapon: 0, switchedAt: 0, strafeDir: 1, strafeAt: 0, throwAt: null, grenadeReadyAt: 0, lastFire: null,
   };
 }
 

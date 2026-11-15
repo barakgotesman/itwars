@@ -1,12 +1,15 @@
 /**
- * What a bot wants to do when it is not in a fight: heal when hurt, restock when low, loot a fallen player's bag,
- * check out a noise, otherwise wander. Each wish gets a score and the highest wins, with a margin before the bot
+ * What a bot wants to do when it is not in a fight: find a gun it lacks, heal when hurt, restock when low, loot a
+ * fallen player's bag, check out a noise, otherwise wander. Each wish gets a score and the highest wins, with a margin before the bot
  * changes its mind so it does not dither. Pickups are read from the same tables the server uses.
  */
+import { loadoutOf } from '@shared/rules/loadout';
 import { GRENADES, WEAPONS } from '@shared/rules/weapons';
 import { MAX_HP } from '@shared/core/constants';
 import type { BotTuning } from '@shared/rules/bots';
+import { owns } from '../arsenal';
 import type { Loot } from '../loot';
+import { spotEnabled } from '../pickups';
 import type { Player } from '../player';
 import type { Sim } from '../state';
 import { setGoal } from './navigate';
@@ -26,6 +29,9 @@ const ROAM_SCORE = 0.25;
 const INVESTIGATE_SCORE = 0.45;
 const LOOT_SCORE = 0.5;
 const GRENADE_CRATE_WEIGHT = 0.3;
+/** A gun the bot lacks is the best reason to leave the open plan, as it is for a human; the pull fades with each gun owned. */
+const WEAPON_SCORE = 0.6;
+const WEAPON_NEED_DECAY = 0.5;
 /** A new wish must beat the current one by this much. */
 const SWITCH_MARGIN = 0.1;
 /** Extra weight on the wish being acted on, so a long trip is not dropped half way as the news gets old. */
@@ -43,17 +49,44 @@ interface Wish {
   z: number;
 }
 
-/** Share of the bot's total ammo capacity it carries (magazines plus reserves, over every weapon). */
+/** Share of the bot's ammo capacity it carries (magazines plus reserves) over the guns it owns. */
 export function ammoShare(p: Player): number {
   let have = 0, cap = 0;
-  WEAPONS.forEach((w, i) => { have += (p.mag[i] ?? 0) + (p.reserve[i] ?? 0); cap += w.magSize + w.maxReserve; });
-  return have / cap;
+  WEAPONS.forEach((w, i) => {
+    if (!owns(p, i)) return;
+    have += (p.mag[i] ?? 0) + (p.reserve[i] ?? 0);
+    cap += w.magSize + w.maxReserve;
+  });
+  return cap > 0 ? have / cap : 1;
+}
+
+/** How many guns the bot owns beyond its spawn kit, so the wish for another one fades as the kit fills. */
+function extraGuns(sim: Sim, p: Player): number {
+  const start = loadoutOf(sim.rules.loadout).startWeapons.length;
+  let n = 0;
+  WEAPONS.forEach((_, i) => { if (owns(p, i)) n++; });
+  return Math.max(0, n - start);
 }
 
 /** True if looting the bag would give the bot something (the server leaves what does not fit). */
 function bagHelps(p: Player, bag: Loot): boolean {
-  return WEAPONS.some((w, i) => bag.ammo[i]! > 0 && (p.reserve[i] ?? 0) < w.maxReserve) ||
+  return (bag.w >= 0 && !owns(p, bag.w)) ||
+    WEAPONS.some((w, i) => owns(p, i) && bag.ammo[i]! > 0 && (p.reserve[i] ?? 0) < w.maxReserve) ||
     GRENADES.some((g, i) => bag.gren[i]! > 0 && (p.gren[i] ?? 0) < g.maxCarry);
+}
+
+/** The closest active gun pickup the bot does not own, as a wish that fades with every gun already found. */
+function nearestGun(sim: Sim, p: Player): Wish | null {
+  const need = Math.pow(WEAPON_NEED_DECAY, extraGuns(sim, p));
+  let best: Wish | null = null;
+  sim.spots.forEach((spot, i) => {
+    if (spot.kind !== 'weapon' || !spotEnabled(sim, spot) || sim.pickupReady[i]! > sim.tick || owns(p, spot.weapon ?? 0)) return;
+    const d = Math.hypot(spot.x - p.state.x, spot.z - p.state.z);
+    if (d > PICKUP_RANGE) return;
+    const score = WEAPON_SCORE * need * Math.max(0.2, 1 - d / PICKUP_RANGE);
+    if (!best || score > best.score) best = { kind: 'weapon', score, x: spot.x, z: spot.z };
+  });
+  return best;
 }
 
 /** The closest active pickup of a kind, as a wish scored by `need` (0..1) and distance. */
@@ -78,6 +111,8 @@ export function decide(sim: Sim, p: Player, st: BotState, tune: BotTuning): void
   if (!st.goal && st.goalKind === 'investigate') st.heard = null;
 
   const wishes: Wish[] = [{ kind: 'roam', score: ROAM_SCORE, x: 0, z: 0 }];
+  const gun = nearestGun(sim, p);
+  if (gun) wishes.push(gun);
   if (p.hp < HEAL_BELOW) {
     const w = nearestSpot(sim, p, 'hp', (MAX_HP - p.hp) / MAX_HP, 'heal');
     if (w) wishes.push(w);

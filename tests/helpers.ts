@@ -4,8 +4,9 @@
  */
 import type { Aabb } from '@shared/core/physics';
 import type { GameEvent, S2C, SnapMsg } from '@shared/net/protocol';
-import type { MatchRules } from '@shared/rules/modes';
+import { DEFAULT_RULES, type MatchRules } from '@shared/rules/modes';
 import type { DoorDef } from '@shared/world/map/door-layout';
+import type { PickupSpot } from '@shared/world/map/pickups';
 import { Room, type Conn } from '@server/rooms/room';
 
 /** Fake connection that stores everything it receives. */
@@ -28,14 +29,17 @@ export class FakeConn implements Conn {
 
 export const FLOOR: Aabb = { minX: -500, maxX: 500, minY: -1, maxY: 0, minZ: -500, maxZ: 500 };
 export const SPAWNS: [number, number][] = [[0, 0], [20, 20], [-20, 20], [20, -20]];
+/** Default rules with the full arsenal, so tests about shooting can name any gun without first finding it. */
+export const FULL_RULES: MatchRules = { ...DEFAULT_RULES, loadout: 1 };
 
 export interface Mutable {
   state: { x: number; y: number; z: number; vx: number; vy: number; vz: number; yaw: number; pitch: number };
   hp: number; kills: number; alive: boolean; mag: number[]; reserve: number[]; gren: number[];
+  weapon: number; guns: number;
 }
 
 /** New empty room with a floor, plus a helper to add players with fake connections. */
-export function makeRoom(solids: Aabb[] = [FLOOR], pickups: { kind: 'hp' | 'ammo' | 'grenade'; x: number; z: number }[] = [], doors: DoorDef[] = [], rules?: MatchRules) {
+export function makeRoom(solids: Aabb[] = [FLOOR], pickups: PickupSpot[] = [], doors: DoorDef[] = [], rules: MatchRules = FULL_RULES) {
   const room = new Room('TEST', { seed: 7, solids, spawns: SPAWNS, pickups, doors, rules });
   const add = (name: string) => {
     const conn = new FakeConn();

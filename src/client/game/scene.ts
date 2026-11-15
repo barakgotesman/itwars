@@ -142,7 +142,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   doors.applyWire(joined.doors);
   const doorVisuals = new DoorVisuals(scene, doors);
   const solids = concatSolids(doors);
-  for (const l of joined.loot) lootBags.add(l.id, l.x, l.y, l.z);
+  for (const l of joined.loot) lootBags.add(l.id, l.x, l.y, l.z, l.w);
   const sfx = new Sfx();
   const tracers = new Tracers(scene);
 

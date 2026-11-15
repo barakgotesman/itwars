@@ -5,20 +5,15 @@
 import type { Aabb } from '@shared/core/physics';
 import type { GameEvent } from '@shared/net/protocol';
 import type { MatchRules } from '@shared/rules/modes';
-import type { PickupKind } from '@shared/rules/weapons';
 import type { Doors } from '@shared/world/doors';
 import type { NavGrid } from '@shared/world/nav';
 import type { BotState } from './bots/state';
 import type { Grenade } from './grenades';
+import type { PickupSpot } from '@shared/world/map/pickups';
 import type { Loot } from './loot';
 import type { Player } from './player';
 
-/** A pickup location from the map. */
-export interface PickupSpot {
-  kind: PickupKind;
-  x: number;
-  z: number;
-}
+export type { PickupSpot };
 
 /** Everything the systems share. All timers are integer ticks. */
 export interface Sim {

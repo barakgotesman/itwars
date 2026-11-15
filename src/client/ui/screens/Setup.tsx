@@ -112,7 +112,7 @@ export function Setup({ capacity, busy, error, onCreate, onClose }: SetupProps) 
           <section className="flex flex-col gap-2">
             <h3 className="label">Mode</h3>
             <div className="flex flex-col gap-2">
-              {MODES.map((m) => {
+              {hostableModes.map((m) => {
                 const active = m.id === current.mode;
                 return (
                   <button

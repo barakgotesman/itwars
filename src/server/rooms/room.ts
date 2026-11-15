@@ -7,8 +7,9 @@ import { MAX_NAME_LEN, MAX_PLAYERS, SNAPSHOT_EVERY } from '@shared/core/constant
 import { PLAYER_COLORS } from '@shared/core/characters';
 import type { Aabb } from '@shared/core/physics';
 import type { GameEvent, InputMsg } from '@shared/net/protocol';
+import { loadoutOf } from '@shared/rules/loadout';
 import { DEFAULT_RULES, type MatchRules } from '@shared/rules/modes';
-import type { PickupKind } from '@shared/rules/weapons';
+import type { PickupSpot } from '@shared/world/map/pickups';
 import { Doors } from '@shared/world/doors';
 import { DOORS, type DoorDef } from '@shared/world/map/door-layout';
 import { PICKUP_SPOTS, SOLIDS, SPAWNS } from '@shared/world/map';
@@ -24,7 +25,7 @@ import { tickLoot } from '@server/sim/loot';
 import { endByTime, restartMatch, spawn, startClockIfReady } from '@server/sim/match';
 import { applyInputs, queueInput } from '@server/sim/movement';
 import { newPlayer, type Conn, type Player } from '@server/sim/player';
-import { tickPickups } from '@server/sim/pickups';
+import { spotEnabled, tickPickups } from '@server/sim/pickups';
 import { addRangeDummies, stepRangeDummies } from '@server/sim/range-dummy';
 import { flushRoster, roster, sendSnapshots } from '@server/sim/snapshot';
 import type { Sim } from '@server/sim/state';
@@ -46,7 +47,7 @@ export interface RoomOptions {
   /** Sliding doors; defaults to the office doors, or none when custom `solids` are given. */
   doors?: readonly DoorDef[];
   /** Pickup spots; defaults to the office pickups. */
-  pickups?: readonly { kind: PickupKind; x: number; z: number }[];
+  pickups?: readonly PickupSpot[];
   /**
    * Skips the lobby for bots and puts them straight into the match. Real rooms leave this off: bots wait
    * there like a human would, and `enter` brings them in once the first human does. Used only by the
@@ -76,7 +77,7 @@ export class Room implements Sim {
   endsAt = 0;
   restartAt = 0;
   readonly spawns: readonly (readonly [number, number])[];
-  readonly spots: readonly { kind: PickupKind; x: number; z: number }[];
+  readonly spots: readonly PickupSpot[];
   readonly pickupReady: number[];
   grenades: Grenade[] = [];
   nextGrenadeId = 1;
@@ -174,12 +175,16 @@ export class Room implements Sim {
     if (this.isFull) return null;
     const id = this.nextPlayerId++;
     const color = PLAYER_COLORS[look.color ?? -1] ?? PLAYER_COLORS[Math.floor(this.rng() * PLAYER_COLORS.length)]!;
-    this.players.set(id, newPlayer(id, this.uniqueName(name), conn, look.model ?? 0, color, look.spray ?? 0, opts.bot === true));
+    const p = newPlayer(id, this.uniqueName(name), conn, look.model ?? 0, color, look.spray ?? 0, opts.bot === true);
+    // The gun shown in the lobby and wanted by a bot brain before its first spawn is the loadout's first one.
+    p.weapon = loadoutOf(this.rules.loadout).startWeapons[0] ?? 0;
+    this.players.set(id, p);
     if (!opts.bot && this.hostId === null) this.hostId = id;
     conn.send({
       t: 'joined', id, code: this.code, players: roster(this), tick: this.tick,
-      pickups: this.pickupReady.map((r) => (r <= this.tick ? '1' : '0')).join(''),
-      loot: this.loot.map((l) => ({ id: l.id, from: l.from, x: l.x, y: l.y, z: l.z })),
+      // Spots the loadout switches off (map guns under Full arsenal) are sent as off so they are never drawn.
+      pickups: this.pickupReady.map((r, i) => (r <= this.tick && spotEnabled(this, this.spots[i]!) ? '1' : '0')).join(''),
+      loot: this.loot.map((l) => ({ id: l.id, from: l.from, x: l.x, y: l.y, z: l.z, w: l.w })),
       doors: this.doors.wire(),
       rules: this.rules,
     });

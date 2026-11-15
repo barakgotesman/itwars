@@ -5,7 +5,9 @@
  * invisible firing line, then a long dark range with a spotlit target dummy at each gun's falloff
  * distance. Used only by `rules.mode === 'range'` rooms (see `server/rooms/room.ts`); that mode also
  * turns off all damage (`server/sim/damage.ts`) and keeps every magazine and grenade full
- * (`server/sim/weapons.ts`, `grenades.ts`).
+ * (`server/sim/weapons.ts`, `grenades.ts`). The player arrives with the pistol only, like in a match; the
+ * other three guns wait on the armory table behind the spawn, and that table is never emptied
+ * (`server/sim/pickups.ts`), so any gun can be tried at any time.
  */
 import type { Aabb } from '@shared/core/physics';
 import { CEILING_H, WALL_T } from './builder';
@@ -76,14 +78,20 @@ invisible.push({ minX: X0, maxX: X1, minY: 0, maxY: FIRING_LINE_H, minZ: FIRING_
 stripe('hazard', X0, X1, FIRING_LINE_Z - 0.15, FIRING_LINE_Z + 0.15);
 plaque('FIRING LINE', X0 - 0.05, 2.1, FIRING_LINE_Z, 'z', 1, 1.6, 0.4, 'accentRed');
 
-// Standing area: a counter with ammo-crate decor, a mat, and a rack suggesting ear protection. The
-// lamp sits at ceiling height, well above head height, so it never flares or dims sharply as the
-// player walks underneath (a lamp low and close to a walkway bakes a harsh, fast-changing gradient).
-box('wood', 0, 0, Z_NEAR - 1.4, 3.2, 0.9, 0.6);
-box('crate', -0.8, 0.9, Z_NEAR - 1.4, 0.5, 0.4, 0.5);
-box('cardboard', 0.6, 0.9, Z_NEAR - 1.4, 0.5, 0.35, 0.5);
-for (const s of [-1, 1] as const) box('metal', s * 2.2, 1.6, Z_NEAR - 0.3, 0.06, 0.8, 0.06, false);
+// Standing area: the armory, a long counter along the back wall with the three guns to pick up on it
+// (the player spawns with the pistol only) and ammo-crate decor at the ends, plus a rack suggesting ear
+// protection. The lamp sits at ceiling height, well above head height, so it never flares or dims
+// sharply as the player walks underneath (a lamp low and close to a walkway bakes a harsh gradient).
+const TABLE_Z = Z_NEAR - 1.4;
+const TABLE_H = 0.9;
+box('wood', 0, 0, TABLE_Z, 10, TABLE_H, 0.6);
+box('crate', -4.6, TABLE_H, TABLE_Z, 0.5, 0.4, 0.5);
+box('cardboard', 4.6, TABLE_H, TABLE_Z, 0.5, 0.35, 0.5);
+for (const s of [-1, 1] as const) box('metal', s * 5.6, 1.6, Z_NEAR - 0.3, 0.06, 0.8, 0.06, false);
+plaque('ARMORY', 0, 2.3, Z_NEAR - 0.05, 'x', -1, 2.4, 0.5, 'accentRed');
 lamp(0, CEILING_H - 0.4, Z_NEAR - 1, 0xffdcb0, 0.9, 8);
+/** The guns on the table, in slot order: SMG, Shredder, Laser Pointer. Pickup radius reaches them from in front of the table. */
+const ARMORY: PickupSpot[] = ([1, 2, 3] as const).map((weapon, k) => ({ kind: 'weapon', weapon, x: (k - 1) * 3, z: TABLE_Z, y: TABLE_H }));
 
 /** Each target's distance down the range and its marker text; the dummy itself is a real bot (see `server/sim/range-dummy.ts`). */
 export const TARGETS: readonly { z: number; label: string }[] = [
@@ -113,8 +121,8 @@ export const LIGHTS: readonly LightSource[] = lights;
 export const LABELS: readonly LabelSpec[] = labels;
 /** No live scoreboards here. */
 export const BOARDS: readonly BoardSpec[] = [];
-/** No pickups: ammo and grenades are replenished server-side instead. */
-export const PICKUP_SPOTS: readonly PickupSpot[] = [];
+/** The armory table's guns; ammo and grenades are replenished server-side instead of being pickups. */
+export const PICKUP_SPOTS: readonly PickupSpot[] = ARMORY;
 /** One spawn, behind the firing line, facing down the range (yaw 0 faces -z). */
 export const SPAWNS: readonly [number, number][] = [[0, 3]];
 /** One zone: dark and moody down the range, lifted only by the targets' own spotlights. */

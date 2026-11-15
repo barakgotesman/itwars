@@ -34,6 +34,11 @@ function slotClass(size: string, selected: boolean, empty: boolean): string {
   return `relative flex ${size} items-center justify-center gap-1 pt-3 ${selected ? 'bg-accent text-ground' : 'bg-ground/75 text-ink'} ${empty ? 'opacity-35' : ''}`;
 }
 
+/** A gun slot for a weapon not found yet: a hollow outline with a ghost of the icon, no key hint. */
+function missingSlotClass(size: string): string {
+  return `relative flex ${size} items-center justify-center border-2 border-dashed border-ink/30 bg-ground/40 text-ink opacity-50`;
+}
+
 /** Full-screen white that holds for a second and fades (flashbang). */
 function Whiteout() {
   const blind = useHud((s) => s.me?.blind ?? 0);
@@ -209,6 +214,8 @@ function AmmoPanel() {
   const reload = useHud((s) => s.me?.reload ?? 0);
   // One entry per gun: has it any ammo at all (an empty gun slot is dimmed).
   const stock = useHud((s) => WEAPONS.map((_, i) => (s.me?.mag[i] ?? 0) + (s.me?.reserve[i] ?? 0)).join(','));
+  // Bitmask of guns found so far (the pistol alone at spawn under the default loadout).
+  const guns = useHud((s) => s.me?.guns ?? 1);
   const def = WEAPONS[w];
   const size = def?.magSize ?? 1;
   // Low magazine turns the number orange and empty turns it red, so you know before the click.
@@ -241,11 +248,18 @@ function AmmoPanel() {
         </div>
       </div>
       <div className="flex gap-1.5">
-        {WEAPONS.map((wp, i) => (
-          <div key={wp.name} title={wp.name} className={slotClass('h-12 w-[4.5rem]', i === w, stocks[i] === '0')}>
-            <SlotKey action={WEAPON_KEYS[i]!} />
-            <GunIcon kind={i} className="h-7 w-14" />
-          </div>
+        {WEAPONS.map((wp, i) => ((guns & (1 << i)) === 0
+          ? (
+            <div key={wp.name} title={`${wp.name}: find it in the office`} className={missingSlotClass('h-12 w-[4.5rem]')}>
+              <GunIcon kind={i} className="h-7 w-14 opacity-40" />
+            </div>
+          )
+          : (
+            <div key={wp.name} title={wp.name} className={slotClass('h-12 w-[4.5rem]', i === w, stocks[i] === '0')}>
+              <SlotKey action={WEAPON_KEYS[i]!} />
+              <GunIcon kind={i} className="h-7 w-14" />
+            </div>
+          )
         ))}
       </div>
     </div>

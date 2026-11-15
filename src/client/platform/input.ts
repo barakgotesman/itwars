@@ -32,8 +32,10 @@ export class Input {
   scoreboard = false;
   /** Multiplier on mouse sensitivity; below 1 while zoomed in. */
   sensScale = 1;
-  /** Selected weapon index 0-3 (starts on the SMG, the server's spawn weapon). */
-  weapon = 1;
+  /** Selected weapon index 0-3 (starts on the pistol, the default spawn weapon). */
+  weapon = 0;
+  /** Bitmask of guns the player owns (from the server's `me.guns`); selection skips the rest. */
+  owned = 1;
   /** Binding code (`KeyW`, `Mouse0`, `WheelUp`...) to the actions it triggers. */
   private lookup = new Map<string, Action[]>();
 
@@ -102,9 +104,32 @@ export class Input {
     const bit = HOLD_BITS[a];
     if (bit) this.keys |= bit;
     else if (a === 'scoreboard') this.scoreboard = true;
-    else if (a === 'nextWeapon') this.weapon = (this.weapon + 1) % 4;
-    else if (a === 'prevWeapon') this.weapon = (this.weapon + 3) % 4;
-    else if (WEAPON_SLOT[a] !== undefined) this.weapon = WEAPON_SLOT[a]!;
+    else if (a === 'nextWeapon') this.weapon = this.nextOwned(1);
+    else if (a === 'prevWeapon') this.weapon = this.nextOwned(-1);
+    else if (WEAPON_SLOT[a] !== undefined && this.owns(WEAPON_SLOT[a]!)) this.weapon = WEAPON_SLOT[a]!;
+  }
+
+  /** True when the player has found weapon `w`. */
+  owns(w: number): boolean {
+    return (this.owned & (1 << w)) !== 0;
+  }
+
+  /** The next owned weapon in `dir` from the current one, skipping guns not yet found (wraps around). */
+  private nextOwned(dir: 1 | -1): number {
+    for (let k = 1; k <= 4; k++) {
+      const w = (this.weapon + dir * k + 8) % 4;
+      if (this.owns(w)) return w;
+    }
+    return this.weapon;
+  }
+
+  /**
+   * Takes the server's ownership mask; if the gun in hand is no longer owned (a respawn), falls back to the
+   * server's own choice so the viewmodel and the next input agree with it.
+   */
+  setOwned(mask: number, serverWeapon: number): void {
+    this.owned = mask;
+    if (!this.owns(this.weapon)) this.weapon = serverWeapon;
   }
 
   /** Ends a held action. */

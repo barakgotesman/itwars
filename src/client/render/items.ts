@@ -5,7 +5,9 @@
 import * as THREE from 'three';
 import type { PickupSpot } from '@shared/world/map';
 import type { SnapGrenade } from '@shared/net/protocol';
-import type { PickupKind } from '@shared/rules/weapons';
+import { WEAPONS, type PickupKind } from '@shared/rules/weapons';
+import { buildGunProp } from './players';
+import { WEAPON_FX } from './weapon-fx';
 
 const matCache = new Map<number, THREE.MeshLambertMaterial>();
 /** Shared flat-shaded material per colour. */
@@ -65,11 +67,25 @@ function buildGrenadeCrate(): THREE.Group {
   return g;
 }
 
-const BEAM_COLOR: Record<PickupKind, number> = { hp: 0xff4a4a, ammo: 0xffd34a, grenade: 0x4ac8ff };
+const BEAM_COLOR: Record<PickupKind, number> = { hp: 0xff4a4a, ammo: 0xffd34a, grenade: 0x4ac8ff, weapon: 0xffffff };
+
+/** A gun on a slim stand, so a weapon pickup reads as "take me", not as a dropped prop. */
+function buildGunPickup(w: number): THREE.Group {
+  const g = new THREE.Group();
+  box(g, 0x2b2f36, 0.5, 0.06, 0.3, 0, -0.2, 0);
+  box(g, 0x55606d, 0.06, 0.16, 0.06, 0, -0.1, 0);
+  g.add(buildGunProp(w));
+  return g;
+}
+
+/** Beam colour of a spot: a gun's tracer colour, otherwise the kind's own. */
+function beamColor(spot: PickupSpot): number {
+  return spot.kind === 'weapon' ? (WEAPON_FX[spot.weapon ?? 0]?.tracerColor ?? BEAM_COLOR.weapon) : BEAM_COLOR[spot.kind];
+}
 
 /** Rotating, bobbing pickups that switch on and off with the server's state. */
 export class PickupVisuals {
-  private readonly items: { group: THREE.Group; phase: number }[] = [];
+  private readonly items: { group: THREE.Group; phase: number; base: number }[] = [];
 
   /**
    * @param scene - Scene to add pickups to.
@@ -82,10 +98,13 @@ export class PickupVisuals {
     spots.forEach((spot, i) => {
       const root = new THREE.Group();
       root.position.set(spot.x, 0, spot.z);
-      const body = spot.kind === 'hp' ? buildHpBox() : spot.kind === 'ammo' ? buildAmmoBox() : buildGrenadeCrate();
-      body.position.y = 0.7;
+      const body = spot.kind === 'hp' ? buildHpBox() : spot.kind === 'ammo' ? buildAmmoBox()
+        : spot.kind === 'weapon' ? buildGunPickup(spot.weapon ?? 0) : buildGrenadeCrate();
+      // A spot may sit on a table (`y`); the item floats the same height above it as it would above the floor.
+      const base = (spot.y ?? 0) + 0.7;
+      body.position.y = base;
       root.add(body);
-      const color = BEAM_COLOR[spot.kind];
+      const color = beamColor(spot);
       const glow = new THREE.MeshBasicMaterial({
         color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
       });
@@ -98,7 +117,7 @@ export class PickupVisuals {
       root.add(ring);
       root.visible = initial[i] !== '0';
       scene.add(root);
-      this.items.push({ group: body, phase: i * 1.3 });
+      this.items.push({ group: body, phase: i * 1.3, base });
       (body.userData as { root: THREE.Group }).root = root;
     });
   }
@@ -113,7 +132,7 @@ export class PickupVisuals {
   update(t: number): void {
     for (const it of this.items) {
       it.group.rotation.y = t * 1.6 + it.phase;
-      it.group.position.y = 0.7 + Math.sin(t * 2.2 + it.phase) * 0.08;
+      it.group.position.y = it.base + Math.sin(t * 2.2 + it.phase) * 0.08;
     }
   }
 }
@@ -190,7 +209,7 @@ function buildLootBag(): THREE.Group {
   return g;
 }
 
-/** Loot bags on the floor: a spinning satchel with a short orange beam, so they are easy to spot. */
+/** Loot bags on the floor: a spinning satchel (with the dropped gun resting on it) and a short orange beam, so they are easy to spot. */
 export class LootVisuals {
   private readonly bags = new Map<number, { root: THREE.Group; body: THREE.Group; phase: number }>();
   private readonly beamGeo = new THREE.BoxGeometry(0.12, 2, 0.12);
@@ -204,13 +223,20 @@ export class LootVisuals {
    * Puts a bag on the floor.
    * @param id - Server's loot id.
    * @param x - World position of the body it came from; `y` is the floor height there.
+   * @param w - Gun inside the bag (shown on top), or -1 for ammo only.
    */
-  add(id: number, x: number, y: number, z: number): void {
+  add(id: number, x: number, y: number, z: number, w = -1): void {
     if (this.bags.has(id)) return;
     const root = new THREE.Group();
     root.position.set(x, y, z);
     const body = buildLootBag();
     body.position.y = 0.4;
+    if (w >= 0 && WEAPONS[w]) {
+      const gun = buildGunProp(w);
+      // Laid across the top of the satchel, a touch proud of it so the two never share a face.
+      gun.position.y = 0.21;
+      body.add(gun);
+    }
     root.add(body);
     const beam = new THREE.Mesh(this.beamGeo, this.beamMat);
     beam.position.y = 1;

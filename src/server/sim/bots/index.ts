@@ -51,7 +51,10 @@ export function addBots(room: Room, playImmediately: boolean): void {
       spray: Math.floor(room.rng() * SPRAY_COUNT),
     }, { bot: true });
     if (id === null) break;
-    room.bots.set(id, newBotState(room.doors.defs.length));
+    const st = newBotState(room.doors.defs.length);
+    // Wants the gun it will spawn holding (the loadout's first), set by `Room.join`.
+    st.wantWeapon = room.players.get(id)?.weapon ?? 0;
+    room.bots.set(id, st);
     if (playImmediately) room.enter(id);
   }
 }

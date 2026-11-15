@@ -63,6 +63,47 @@ function nameTag(name: string): THREE.Sprite {
   return s;
 }
 
+/**
+ * Builds the third-person gun silhouette for weapon `w` into a group: a body sized by `GUN_LOOK` plus the signature
+ * colours of each gun, matching the first-person models. In the gun's local space -Y is the barrel direction
+ * and -Z is up. Shared by held guns, map pickups and loot bags so a gun looks the same everywhere.
+ */
+export function buildGunInto(g: THREE.Object3D, w: number): void {
+  const look = GUN_LOOK[w] ?? GUN_LOOK[0];
+  const { len, thick: t } = look;
+  // The arm's local -Y points along the aim, so the barrel runs down -Y.
+  part(g, look.color, t, len, t * 1.3, 0, -len / 2 + 0.08, 0);
+  part(g, 0x111114, t * 0.7, 0.1, t, 0, 0.0, 0.06);
+  switch (w) {
+    case 0:
+      part(g, 0xc4cbd3, t * 1.05, len * 0.8, t * 0.6, 0, -len * 0.45, -t * 0.55);
+      part(g, 0xc0392b, t * 1.1, 0.05, t * 1.4, 0, -len + 0.1, 0);
+      break;
+    case 1:
+      part(g, 0xf4f4f1, t * 1.1, 0.09, 0.08, 0, -0.1, -t * 1.3);
+      part(g, 0xf39c12, t * 1.2, 0.04, t * 1.4, 0, -len + 0.08, 0);
+      part(g, 0xf2c230, t * 0.9, 0.05, 0.1, 0, -0.12, t * 1.4);
+      break;
+    case 2:
+      part(g, 0x7a4f2c, t * 1.3, 0.12, t * 1.1, 0, -0.32, t * 0.8);
+      part(g, 0x7a4f2c, t * 1.1, 0.2, t * 1.4, 0, 0.14, 0);
+      part(g, 0xf2c230, t * 1.15, 0.03, t * 1.4, 0, -0.18, 0);
+      break;
+    default:
+      part(g, 0x2a2d33, t * 1.2, 0.2, t * 1.2, 0, -0.28, -t * 1.5);
+      part(g, 0x4aa8ff, t * 1.0, 0.02, t * 1.0, 0, -0.18, -t * 1.5);
+      part(g, 0xc0392b, t * 1.1, 0.04, t * 1.4, 0, 0.12, 0);
+  }
+}
+
+/** A free-standing gun prop lying level (barrel along +X, sights up), for pickups and loot bags. */
+export function buildGunProp(w: number): THREE.Group {
+  const g = new THREE.Group();
+  buildGunInto(g, w);
+  g.rotation.set(Math.PI / 2, 0, -Math.PI / 2);
+  return g;
+}
+
 /** One player's meshes plus the procedural animation state. Origin is at the feet; the face points -Z. */
 export class PlayerModel {
   /** Add this to the scene; position it at the feet and set `rotation.y` to the yaw. */
@@ -333,40 +374,8 @@ export class PlayerModel {
     if (w === this.gunIndex) return;
     this.gunIndex = w;
     this.gun.clear();
-    const look = GUN_LOOK[w] ?? GUN_LOOK[0];
-    // The arm's local -Y points along the aim, so the barrel runs down -Y.
-    part(this.gun, look.color, look.thick, look.len, look.thick * 1.3, 0, -look.len / 2 + 0.08, 0);
-    part(this.gun, 0x111114, look.thick * 0.7, 0.1, look.thick, 0, 0.0, 0.06);
-    this.addGunDetails(w, look.len, look.thick);
+    buildGunInto(this.gun, w);
     this.adopt();
-  }
-
-  /**
-   * Signature colours for each held gun, matching the first-person models. In the gun's local space -Y is
-   * the barrel direction and -Z is up.
-   */
-  private addGunDetails(w: number, len: number, t: number): void {
-    const g = this.gun;
-    switch (w) {
-      case 0:
-        part(g, 0xc4cbd3, t * 1.05, len * 0.8, t * 0.6, 0, -len * 0.45, -t * 0.55);
-        part(g, 0xc0392b, t * 1.1, 0.05, t * 1.4, 0, -len + 0.1, 0);
-        break;
-      case 1:
-        part(g, 0xf4f4f1, t * 1.1, 0.09, 0.08, 0, -0.1, -t * 1.3);
-        part(g, 0xf39c12, t * 1.2, 0.04, t * 1.4, 0, -len + 0.08, 0);
-        part(g, 0xf2c230, t * 0.9, 0.05, 0.1, 0, -0.12, t * 1.4);
-        break;
-      case 2:
-        part(g, 0x7a4f2c, t * 1.3, 0.12, t * 1.1, 0, -0.32, t * 0.8);
-        part(g, 0x7a4f2c, t * 1.1, 0.2, t * 1.4, 0, 0.14, 0);
-        part(g, 0xf2c230, t * 1.15, 0.03, t * 1.4, 0, -0.18, 0);
-        break;
-      default:
-        part(g, 0x2a2d33, t * 1.2, 0.2, t * 1.2, 0, -0.28, -t * 1.5);
-        part(g, 0x4aa8ff, t * 1.0, 0.02, t * 1.0, 0, -0.18, -t * 1.5);
-        part(g, 0xc0392b, t * 1.1, 0.04, t * 1.4, 0, 0.12, 0);
-    }
   }
 
   /**
