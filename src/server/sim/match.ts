@@ -92,6 +92,7 @@ export function restartMatch(sim: Sim): void {
   sim.phase = 'play';
   sim.winner = -1;
   sim.grenades = [];
+  sim.rockets = [];
   for (const l of sim.loot) sim.events.push({ k: 'lootGone', id: l.id });
   sim.loot = [];
   sim.spots.forEach((_, i) => {

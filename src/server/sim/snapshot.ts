@@ -1,7 +1,7 @@
 /**
  * Outgoing state: the public roster, the 30 Hz world snapshot and each player's private `me` block.
  */
-import type { MeState, PlayerInfo, SnapGrenade, SnapPlayer } from '@shared/net/protocol';
+import type { MeState, PlayerInfo, SnapGrenade, SnapPlayer, SnapRocket } from '@shared/net/protocol';
 import { timeLeft } from './match';
 import type { Player } from './player';
 import type { Sim } from './state';
@@ -36,6 +36,7 @@ export function sendSnapshots(sim: Sim): void {
   const snapGrenades: SnapGrenade[] = sim.grenades.map((g) => ({
     id: g.id, s: g.slot, x: round2(g.x), y: round2(g.y), z: round2(g.z),
   }));
+  const snapRockets: SnapRocket[] = sim.rockets.map((r) => ({ id: r.id, x: round2(r.x), y: round2(r.y), z: round2(r.z) }));
   const ev = sim.events;
   sim.events = [];
   const doors = sim.doorsDirty ? sim.doors.wire() : undefined;
@@ -43,7 +44,7 @@ export function sendSnapshots(sim: Sim): void {
   for (const p of sim.players.values()) {
     // Bots read the simulation directly, so building their private block would be wasted work.
     if (p.bot) continue;
-    p.conn.send({ t: 'snap', tick: sim.tick, players: snapPlayers, grenades: snapGrenades, me: meState(sim, p), ev, doors });
+    p.conn.send({ t: 'snap', tick: sim.tick, players: snapPlayers, grenades: snapGrenades, rockets: snapRockets, me: meState(sim, p), ev, doors });
   }
 }
 

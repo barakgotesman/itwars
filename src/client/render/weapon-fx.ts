@@ -46,6 +46,8 @@ export const WEAPON_FX: readonly WeaponFx[] = [
   { tracerColor: 0xffc766, tracerLife: 0.12, beam: false, beamRadius: 0, extraTracers: 7, flashColor: 0xff6a1a, flashSize: 2.1, flashLife: 0.09, flashLight: 4, kick: 1.1, impactColor: 0xffd28a, impactCount: 10, impactSpeed: 4, impactBits: 16, smoke: 8 },
   // Laser Pointer: a glowing red beam that hangs in the air and fades, with a bloom-y flash.
   { tracerColor: 0xff2a3a, tracerLife: 0.85, beam: true, beamRadius: 0.028, extraTracers: 0, flashColor: 0xff2a4a, flashSize: 1.7, flashLife: 0.16, flashLight: 3.5, kick: 1.25, impactColor: 0xff4a5a, impactCount: 22, impactSpeed: 5, impactBits: 0, smoke: 5 },
+  // RPG: no tracer (the rocket itself is the visible thing); a huge orange fireball at the muzzle and a wall of smoke.
+  { tracerColor: 0xffb04a, tracerLife: 0, beam: false, beamRadius: 0, extraTracers: 0, flashColor: 0xff7a1a, flashSize: 3.4, flashLife: 0.22, flashLight: 6, kick: 2.2, impactColor: 0xffb04a, impactCount: 0, impactSpeed: 0, impactBits: 0, smoke: 16 },
 ];
 
 /** A live tracer: its meshes plus fade state. */

@@ -149,6 +149,7 @@ export function startFrameLoop(d: LoopDeps): void {
     scene.particles.update(dt);
     scene.blasts.update(dt);
     scene.grenadeVisuals.update(dt);
+    scene.rocketVisuals.update(dt);
     scene.pickups.update(now / 1000);
     scene.bulletHoles.update(dt);
     scene.sprays.update(dt);

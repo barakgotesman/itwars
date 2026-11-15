@@ -19,6 +19,8 @@ const GUN_LOOK = [
   { len: 0.42, thick: 0.09, color: 0x2f3a2f },
   { len: 0.62, thick: 0.1, color: 0x6a4a2a },
   { len: 0.85, thick: 0.06, color: 0x1e1e24 },
+  // RPG: a fat olive tube, the longest and thickest of them all.
+  { len: 0.95, thick: 0.13, color: 0x5c6b3a },
 ] as const;
 
 const matCache = new Map<number, THREE.MeshLambertMaterial>();
@@ -88,6 +90,14 @@ export function buildGunInto(g: THREE.Object3D, w: number): void {
       part(g, 0x7a4f2c, t * 1.3, 0.12, t * 1.1, 0, -0.32, t * 0.8);
       part(g, 0x7a4f2c, t * 1.1, 0.2, t * 1.4, 0, 0.14, 0);
       part(g, 0xf2c230, t * 1.15, 0.03, t * 1.4, 0, -0.18, 0);
+      break;
+    case 4:
+      // Flared rear cone, the warhead sticking out of the front, a sight on top and a dark grip band.
+      part(g, 0x3a4224, t * 1.5, 0.14, t * 1.7, 0, 0.16, 0);
+      part(g, 0xc0392b, t * 0.9, 0.12, t * 1.0, 0, -len + 0.02, 0);
+      part(g, 0xd62828, t * 0.55, 0.08, t * 0.6, 0, -len - 0.07, 0);
+      part(g, 0x14161a, t * 0.4, 0.06, t * 0.5, 0, -0.3, -t * 1.0);
+      part(g, 0x2a2d33, t * 1.1, 0.1, t * 1.4, 0, -0.4, 0);
       break;
     default:
       part(g, 0x2a2d33, t * 1.2, 0.2, t * 1.2, 0, -0.28, -t * 1.5);

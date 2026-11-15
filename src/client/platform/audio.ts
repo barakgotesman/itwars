@@ -117,6 +117,14 @@ export class Sfx {
         this.burst(d, t, 0.4, 'lowpass', 1800, 1.0);
         this.tone(d, t, 0.3, 'sine', 95, 38, 0.9);
         break;
+      case 4:
+        // RPG: a hollow thump at the muzzle, a long rising rocket hiss and a rumbling backblast.
+        this.tone(d, t, 0.35, 'sine', 140, 34, 1.0);
+        this.burst(d, t, 0.9, 'lowpass', 1200, 1.0);
+        this.burst(d, t + 0.05, 1.4, 'bandpass', 1800, 0.55, 0.5);
+        this.tone(d, t + 0.05, 0.8, 'sawtooth', 180, 520, 0.18);
+        this.burst(d, t + 0.1, 0.5, 'highpass', 3000, 0.4);
+        break;
       default:
         // Laser Pointer: a cracking zap over a deep boom, with a noisy tail and two fading echoes.
         this.tone(d, t, 0.45, 'sawtooth', 2600, 180, 0.5);
@@ -131,11 +139,24 @@ export class Sfx {
     }
   }
 
-  /** Magazine out / slide / magazine in. */
-  reload(pos?: { x: number; z: number }): void {
+  /** Magazine out / slide / magazine in; the RPG has its own slow, staged reload that follows its animation. */
+  reload(pos?: { x: number; z: number }, weapon = 0): void {
     const d = this.out(pos);
     if (!d || !this.ctx) return;
     const t = this.ctx.currentTime;
+    if (weapon === 4) {
+      // Cues line up with the viewmodel: reach for the rocket, pull it free, bring it round, slide it in, clunk, cock the hammer.
+      this.burst(d, t + 0.5, 0.15, 'lowpass', 600, 0.35);
+      this.burst(d, t + 1.0, 0.1, 'bandpass', 1500, 0.5, 2);
+      this.burst(d, t + 1.1, 0.45, 'bandpass', 900, 0.2, 0.6);
+      this.burst(d, t + 2.5, 0.12, 'bandpass', 1100, 0.35, 1.5);
+      this.burst(d, t + 2.7, 0.9, 'bandpass', 500, 0.18, 0.6);
+      this.tone(d, t + 3.6, 0.2, 'square', 120, 60, 0.5);
+      this.burst(d, t + 3.6, 0.1, 'lowpass', 900, 0.8);
+      this.burst(d, t + 3.96, 0.04, 'highpass', 3000, 0.6);
+      this.burst(d, t + 4.05, 0.05, 'highpass', 2500, 0.5);
+      return;
+    }
     this.burst(d, t, 0.05, 'highpass', 2000, 0.4);
     this.burst(d, t + 0.35, 0.07, 'bandpass', 1200, 0.5, 2);
     this.burst(d, t + 0.8, 0.05, 'highpass', 2500, 0.45);
@@ -198,7 +219,14 @@ export class Sfx {
     const d = this.out(pos);
     if (!d || !this.ctx) return;
     const t = this.ctx.currentTime;
-    if (slot === 0) {
+    if (slot === 2) {
+      // Rocket: a huge, long boom with a deep rolling rumble and a crack on top.
+      this.burst(d, t, 1.6, 'lowpass', 600, 1.0);
+      this.tone(d, t, 1.4, 'sine', 70, 20, 1.0);
+      this.tone(d, t + 0.05, 0.9, 'sine', 120, 30, 0.7);
+      this.burst(d, t, 0.25, 'highpass', 1200, 0.9);
+      this.burst(d, t + 0.2, 1.2, 'bandpass', 300, 0.5, 0.5);
+    } else if (slot === 0) {
       this.burst(d, t, 0.9, 'lowpass', 700, 1.0);
       this.tone(d, t, 0.8, 'sine', 80, 28, 1.0);
       this.burst(d, t, 0.15, 'highpass', 1500, 0.6);

@@ -21,7 +21,7 @@ export function giveGun(p: Player, w: number): boolean {
   if (!def || owns(p, w)) return false;
   p.guns = withGun(p.guns, w);
   p.mag[w] = def.magSize;
-  p.reserve[w] = Math.floor(def.maxReserve * GUN_PICKUP_RESERVE_FRACTION);
+  p.reserve[w] = Math.floor(def.maxReserve * (def.pickupReserveFraction ?? GUN_PICKUP_RESERVE_FRACTION));
   return true;
 }
 
@@ -36,7 +36,7 @@ export function giveAmmo(p: Player, w: number, fraction: number): boolean {
   return true;
 }
 
-/** True when every gun the player owns has a full reserve (an ammo box would do nothing). */
+/** True when every gun an ammo box can refill has a full reserve (the box would do nothing). Guns boxes skip do not count. */
 export function ammoFull(p: Player): boolean {
-  return WEAPONS.every((w, i) => !owns(p, i) || p.reserve[i]! >= w.maxReserve);
+  return WEAPONS.every((w, i) => w.boxAmmo === false || !owns(p, i) || p.reserve[i]! >= w.maxReserve);
 }

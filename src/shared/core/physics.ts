@@ -2,6 +2,7 @@ import {
   AIR_ACCEL, GRAVITY, GROUND_ACCEL, JUMP_SPEED, Key, MAX_PITCH, PLAYER_HEIGHT, PLAYER_RADIUS,
   SPRINT_SPEED, WALK_SPEED,
 } from './constants';
+import { WEAPONS } from '../rules/weapons';
 
 /** Axis-aligned box in world space (x east, y up, z south). */
 export interface Aabb {
@@ -22,6 +23,8 @@ export interface InputCmd {
   keys: number;
   yaw: number;
   pitch: number;
+  /** Weapon in hand; heavy guns slow the walk (`WeaponDef.moveMul`). Omitted means no slowdown. */
+  weapon?: number;
 }
 
 /**
@@ -174,7 +177,8 @@ export function stepMovement(s: PlayerState, cmd: InputCmd, dt: number, solids: 
   fwd /= len; side /= len;
 
   const sin = Math.sin(s.yaw), cos = Math.cos(s.yaw);
-  const speed = cmd.keys & Key.Sprint ? SPRINT_SPEED : WALK_SPEED;
+  const heavy = cmd.weapon === undefined ? 1 : (WEAPONS[cmd.weapon]?.moveMul ?? 1);
+  const speed = (cmd.keys & Key.Sprint ? SPRINT_SPEED : WALK_SPEED) * heavy;
   const wishX = (-sin * fwd + cos * side) * speed;
   const wishZ = (-cos * fwd - sin * side) * speed;
 

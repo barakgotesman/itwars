@@ -11,6 +11,7 @@ import { damage } from './damage';
 import { useDoor } from './doors';
 import { throwGrenade } from './grenades';
 import type { Player } from './player';
+import { fireRocket } from './rockets';
 import { useSpray } from './spray';
 import type { Sim } from './state';
 import { round2 } from './util';
@@ -76,6 +77,11 @@ function fire(sim: Sim, p: Player, w: WeaponDef, aiming: boolean): void {
   if (sim.rules.mode === 'range') p.mag[p.weapon] = w.magSize;
   p.nextFire = sim.tick + w.interval;
   p.fireLatch = false;
+  // A launcher sends a rocket instead of casting rays.
+  if (w.rocket) {
+    fireRocket(sim, p, w);
+    return;
+  }
 
   const ox = p.state.x, oy = p.state.y + EYE_HEIGHT, oz = p.state.z;
   const base = lookDir(p.state.yaw, p.state.pitch);

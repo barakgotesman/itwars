@@ -12,6 +12,7 @@ import type { Grenade } from './grenades';
 import type { PickupSpot } from '@shared/world/map/pickups';
 import type { Loot } from './loot';
 import type { Player } from './player';
+import type { Rocket } from './rockets';
 
 export type { PickupSpot };
 
@@ -43,6 +44,8 @@ export interface Sim {
   readonly pickupReady: number[];
   grenades: Grenade[];
   nextGrenadeId: number;
+  rockets: Rocket[];
+  nextRocketId: number;
   loot: Loot[];
   nextLootId: number;
   /** One-off events since the last snapshot. */

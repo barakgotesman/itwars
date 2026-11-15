@@ -13,7 +13,7 @@ import { useSettingsVersion } from '../hooks/useSettings';
 import { FeedView } from './FeedView';
 import { useHud } from './hud-store';
 
-const WEAPON_KEYS: readonly Action[] = ['weapon1', 'weapon2', 'weapon3', 'weapon4'];
+const WEAPON_KEYS: readonly Action[] = ['weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5'];
 const GRENADE_KEYS: readonly Action[] = ['grenade1', 'grenade2'];
 
 /** Colour class for a value that warns as it gets low: ink, then orange, then red. */

@@ -13,7 +13,7 @@ Playable. Milestones 1-5 are built and the game runs end to end on a LAN (host, 
 - **Desktop only** (keyboard + mouse, pointer lock). Show a "desktop only" notice on touch devices.
 - **LAN multiplayer**: a player hosts a room and gets a **room code**; others on the same network join with it.
 - Mode: **Deathmatch (DM)**; the host picks the loadout (next line), the kill limit (10/20/30/40/50, default 50) and an optional time limit (off by default; 5/10/15/20/30 min, 10 when switched on). Max 8 players per room, match restarts 10 s after it ends. Modes are a registry (`shared/rules/modes.ts`) so future modes/mods plug in.
-- **4 gun types**, **2 grenade slots**, **100 HP**. Under the default **Loadout** ("Pistol only") everyone spawns with the Stapler .45 and finds the other three guns as **3D pickups** placed in specific rooms; the host can pick "Full arsenal" on the setup screen to spawn with all four.
+- **5 gun types** (four standard guns plus the **RPG**), **2 grenade slots**, **100 HP**. Under the default **Loadout** ("Pistol only") everyone spawns with the Stapler .45 and finds the other guns as **3D pickups** placed in specific rooms; the host can pick "Full arsenal" on the setup screen to spawn with the four standard guns. The RPG is never in a spawn kit: it is found in the Server room under every loadout.
 - **Map**: a big office with rooms *and* open-plan space. **3D pickups**: ammo, HP, grenades.
 - **Main menu** with a **settings screen**; **rebindable controls**.
 - **60 FPS is a must.** Graphics are chosen once per computer (see "Graphics quality") and must never change while the player is playing.
@@ -101,8 +101,9 @@ To host the client apart from the server (later, for an online game), build with
 ### Messages
 
 C2S: `host {name, model, color, spray, rules}`, `join {code, name, model, color, spray}`, `enter`, `closeMatch` (host only; ends the room for everyone from the podium screen), `input {...}` (key bits include `Interact` and `Spray`).
-S2C: `joined {id, code, players, rules, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped), `closed` (the host ended the room; everyone returns to the main menu).
+S2C: `joined {id, code, players, rules, pickups, loot, doors, tick}`, `error`, `roster`, `snap` (carries `doors` only while a door is moving or has just stopped, and `rockets`, the rockets in flight), `closed` (the host ended the room; everyone returns to the main menu).
 Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `throw`, `boom`, `reload`, `hole {x,y,z,a,s}`, `spray {id,x,y,z,a,s,r}`, `door {i,o,t}`, `lootDrop`, `lootTake`, `lootGone`, `matchEnd`, `matchStart`.
+- `boom.s` is the grenade slot, or `ROCKET_BOOM` (2) for a rocket blast.
 - `MeState.guns` is a bitmask of owned weapons; `pickup` events carry `w`/`got` for gun spots; `lootDrop`/`lootTake`/`LootInfo` carry `w` (the gun in the bag, -1 for ammo only).
 
 ### Rooms, codes and the lobby
@@ -124,13 +125,14 @@ Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `thr
 - 100 HP. Walk, sprint, jump (can stand on desks). No fall damage, no crouch.
 - 7 blocky characters chosen on the welcome screen with a rotating 3D preview (drag to rotate, wheel to zoom) and 8 shirt colours: Sysadmin, Hoodie Dev, Manager, Intern, HR, CTO, CFO. Choice is saved in `localStorage` and shown to other players.
 
-### Weapons (default keys 1-4)
+### Weapons (default keys 1-5)
 | # | Name | Type | Notes |
 |---|------|------|-------|
 | 1 | Stapler .45 | pistol, semi-auto | slide slides back, barrel shows, locks open when empty |
 | 2 | Label Gun SMG | automatic | bolt cycles, tape reel spins, open-frame red-dot sight |
 | 3 | Paper Shredder | **shotgun** (8 pellets) | pump racks each shot, paper-confetti impacts |
 | 4 | Laser Pointer | sniper, scope | glass scope overlay, red beam that fades, bolt is worked after each shot |
+| 5 | RPG | rocket launcher | **pickup only**. 1 rocket per magazine, 3 in all, 4.5 s reload, walk speed x0.6 while held, never refilled by ammo boxes |
 
 Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; muzzle flash, tracer and impact style per gun are data in `client/render/weapon-fx.ts`. Tune there, not in logic. Keep anything tall off the centre line of a gun's ADS pose so it never hides the crosshair.
 
@@ -138,8 +140,9 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - **Coffee Bomb** (frag, radius damage with falloff, needs line of sight) and **Fire Alarm** (flashbang). Each slot holds up to 2, start with 1.
 
 ### Loadouts and gun ownership
-- `shared/rules/loadout.ts`: `LOADOUTS[0]` "Pistol only" (default: start with weapon 0, map gun spots active), `LOADOUTS[1]` "Full arsenal" (all four, SMG in hand, gun spots inert). `MatchRules.loadout` picks one; it is a `choice` option on the setup screen (so future modes/mods just add a loadout). The server keeps `Player.guns` as a bitmask (`server/sim/arsenal.ts`: `owns`, `giveGun`, `giveAmmo`, `ammoFull`); unowned guns have zero ammo, cannot be selected (`weapons.ts` ignores the switch) and are shown as hollow slots in the HUD. The client `Input` skips unowned guns when cycling (`setOwned` from each snapshot).
-- **Gun pickups** (`PickupSpot.kind 'weapon'` with `weapon`): walking over one you lack gives the gun (full magazine, `GUN_PICKUP_RESERVE_FRACTION` of its reserve); one you own gives that gun's ammo (`PICKUP_DEFS.weapon.amount`) or is left alone when full. Placement (`shared/world/map/pickups.ts`): SMG in the Print room and Storage, Shredder in the IT Helpdesk and Break room, Laser Pointer in the Executive office and Conference room. Ammo boxes refill **owned** guns only.
+- `shared/rules/loadout.ts`: `LOADOUTS[0]` "Pistol only" (default: start with weapon 0, map gun spots active), `LOADOUTS[1]` "Full arsenal" (the four standard guns, SMG in hand). `MatchRules.loadout` picks one; it is a `choice` option on the setup screen (so future modes/mods just add a loadout). The server keeps `Player.guns` as a bitmask (`server/sim/arsenal.ts`: `owns`, `giveGun`, `giveAmmo`, `ammoFull`); unowned guns have zero ammo, cannot be selected (`weapons.ts` ignores the switch) and are shown as hollow slots in the HUD. The client `Input` skips unowned guns when cycling (`setOwned` from each snapshot).
+- **Gun pickups** (`PickupSpot.kind 'weapon'` with `weapon`): walking over one you lack gives the gun (full magazine, `GUN_PICKUP_RESERVE_FRACTION` of its reserve); one you own gives that gun's ammo (`PICKUP_DEFS.weapon.amount`) or is left alone when full. Placement (`shared/world/map/pickups.ts`): SMG in the Print room and Storage, Shredder in the IT Helpdesk and Break room, Laser Pointer in the Executive office and Conference room, the **RPG** once in the Server room's control cage. A gun spot is active unless the room's loadout already spawns everyone with that gun (`spotEnabled` in `server/sim/pickups.ts`), so under Full arsenal the four standard spots are off (and sent as off in `joined.pickups`, so they are not drawn) while the RPG's stays on. A spot may set its own `respawnTicks` (the RPG: 120 s). Ammo boxes refill **owned** guns only, and skip guns with `boxAmmo: false` (the RPG).
+- **RPG** (`WEAPONS[4]`, `server/sim/rockets.ts`): a real projectile, not hitscan. `WeaponDef.rocket` (speed, blast radius, damage, flight time) makes `fire` launch a `Rocket`; `tickRockets` moves it each tick with `castRay` over the step (no tunnelling through players or closed doors) and explodes it on the first wall, door or body, via the shared `blast()` in `grenades.ts` (line of sight, falloff, half damage to the shooter, kill credited to weapon 4). `moveMul` slows walking and sprinting while it is in hand: `stepMovement` reads `InputCmd.weapon`, so the server and client prediction agree. `pickupReserveFraction: 1` makes a found RPG come with all three rockets; a looted one comes with only what was left in the bag. Bots never walk to it (`botsSeek: false`, `botSpot()`), use one they loot only beyond its blast radius, and score it with a splash bonus. The viewmodel's reload (`animateRpg`) is a staged 4.5 s sequence (dip, fetch the rocket, swing it to the muzzle, slide it in, clunk, cock the lever) with a back-blast flash on firing; the client draws rockets in flight with `RocketVisuals` (`render/items.ts`).
 - **Death drop:** the gun held at death goes into the loot bag (`Loot.w`) unless it is a starter gun; a bag with only a gun still drops. Looting grants the gun first, then ammo for guns the looter owns (ammo for unowned guns stays in the bag).
 
 ### Pickups and loot
@@ -191,7 +194,7 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - **Add or retune a room's light:** edit its zone in `zones.ts` and its accents in `accents.ts`, then look at it in a rendered scene (Vite dev page importing `buildWorld`) and run `npm run test:zones`. Keep total lamps under the budget in the test.
 
 ### Controls and settings
-- All actions are rebindable in Settings > Controls (`client/platform/settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-4, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
+- All actions are rebindable in Settings > Controls (`client/platform/settings.ts` `ACTIONS`): movement, jump, sprint, shoot, aim, reload, both grenades, use/open doors (`E`), weapons 1-5, next/previous weapon (mouse wheel by default), scoreboard. Click an action, press a key, mouse button or wheel; Esc cancels (Esc is reserved); a conflict **swaps** the two bindings; the wheel only works for weapon actions.
 - **Menu sounds** (`platform/ui-sound.ts`, started in `main.tsx`): a blip on hovering a control, a click on pressing one (a deeper thump on `.btn`), and a slider tick that rises with the value, all synthesised and delegated from the document so new buttons get them for free. Level = master volume x the `uiVolume` setting (Settings > Audio > Menu sounds, 0 = off). The first hover in a fresh tab is silent because browsers only start audio after a click.
 - Other settings: mouse sensitivity, invert Y, FOV, master volume, menu sounds volume, FPS counter, graphics (below). Saved in `localStorage` (always try/catch).
 - Keyboard and mouse input only act **while the pointer is locked** (so menus and pause never move the player). Pointer lock needs a click: after joining, the room panel shows "Enter the office"; Esc pauses and shows Enter/Resume, **Settings**, Leave room.
@@ -250,6 +253,8 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 6. Polish and public demo deploy (Fly.io / Render): in progress / not started (deploy).
 
 ## Known gaps
+
+- RPG: the rules are covered headlessly (spawn kit, pickup in both loadouts, three rockets, long respawn, ammo boxes ignoring it, rocket flight, wall and body blasts, shooter self-damage, kill credit, reload, movement slowdown on the server and in shared movement, loot, bots leaving it alone), and typecheck/lint/build pass. **Not played**: the viewmodel and its reload animation (whether the hand, rocket and lever motions read well), the back-blast flash, the rocket in flight with its trail, the explosion and its sound, how heavy the 0.6x walk feels, and whether the control cage is hard enough (or too hard) to reach.
 
 - Loadouts / gun pickups: rules are covered headlessly (spawn kit, ignored switch, gun grants ammo when owned, ammo boxes owned-only, death drop, bag grants gun, range armory, bots hunting guns) and the HUD/pickup models were checked by typecheck and build only; **not played**: the hollow HUD slots, the gun on the stand and on a bag, the feed lines, and how long a pistol-only bot takes to find a gun on the real map.
 

@@ -1,6 +1,7 @@
 /**
  * Fixed pickup placements. Positions are floor points; `verify:map` checks each is outside solids and reachable.
  */
+import { TICK_RATE } from '@shared/core/constants';
 import type { PickupKind, WeaponId } from '@shared/rules/weapons';
 
 /** One pickup spot on the floor. */
@@ -12,6 +13,8 @@ export interface PickupSpot {
   weapon?: WeaponId;
   /** Height the item floats at (a table top, say); the pickup test is horizontal, so this is visual only. Default floor. */
   y?: number;
+  /** Ticks until it comes back after being taken; defaults to the kind's `PICKUP_DEFS` value. */
+  respawnTicks?: number;
 }
 
 /** Every pickup in the map, in a fixed order (indices are used in the protocol). */
@@ -53,4 +56,7 @@ export const PICKUP_SPOTS: readonly PickupSpot[] = [
   { kind: 'weapon', weapon: 2, x: -42, z: 24 },   // Break room
   { kind: 'weapon', weapon: 3, x: -44, z: -27 },  // Executive office
   { kind: 'weapon', weapon: 3, x: 22, z: 31 },    // Conference room, head of the table
+  // The RPG: one copy, deep in the Server room's control cage (dark, one narrow way in, cornered while you take it),
+  // and a long wait before it comes back. Active under every loadout, because nobody spawns with it.
+  { kind: 'weapon', weapon: 4, x: 7.6, z: -32.9, respawnTicks: 120 * TICK_RATE },
 ];

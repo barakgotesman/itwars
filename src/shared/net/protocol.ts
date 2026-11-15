@@ -6,7 +6,7 @@ import { CHARACTERS, PLAYER_COLORS } from '@shared/core/characters';
 import { CODE_ALPHABET, CODE_LEN, KEY_MASK, MAX_NAME_LEN, MAX_PITCH } from '@shared/core/constants';
 import { sanitizeRules, type MatchRules } from '@shared/rules/modes';
 import { SPRAY_COUNT } from '@shared/rules/sprays';
-import type { PickupKind } from '@shared/rules/weapons';
+import { WEAPONS, type PickupKind } from '@shared/rules/weapons';
 
 /** Client asks to create a room and join it. */
 export interface HostMsg { t: 'host'; name: string; model: number; color: number; spray: number; rules: MatchRules }
@@ -19,7 +19,7 @@ export interface InputMsg {
   keys: number;
   yaw: number;
   pitch: number;
-  /** Selected weapon index 0-3. */
+  /** Selected weapon index (see `WEAPONS`). */
   weapon: number;
 }
 /** The player clicked "Enter the office": spawn them into the match. Until then they only sit in the room lobby. */
@@ -62,11 +62,20 @@ export interface SnapPlayer {
   prot: boolean;
 }
 
+/** The `boom` event's `s` value for a rocket blast (grenade slots are 0 and 1). */
+export const ROCKET_BOOM = 2;
+
 /** In-flight grenade in a snapshot. */
 export interface SnapGrenade {
   id: number;
   /** Grenade slot (0 frag, 1 flash). */
   s: number;
+  x: number; y: number; z: number;
+}
+
+/** In-flight rocket in a snapshot. */
+export interface SnapRocket {
+  id: number;
   x: number; y: number; z: number;
 }
 
@@ -114,6 +123,7 @@ export type GameEvent =
   | { k: 'pickup'; id: number; i: number; kind: PickupKind; w?: number; got?: 'gun' | 'ammo' }
   | { k: 'pk'; i: number; on: boolean }
   | { k: 'throw'; id: number; s: number }
+  /** A blast: `s` is the grenade slot, or `ROCKET_BOOM` for a rocket. */
   | { k: 'boom'; s: number; x: number; y: number; z: number }
   | { k: 'reload'; id: number }
   | { k: 'matchEnd'; winner: number; restartIn: number; reason: 'kills' | 'time' }
@@ -164,6 +174,7 @@ export interface SnapMsg {
   tick: number;
   players: SnapPlayer[];
   grenades: SnapGrenade[];
+  rockets: SnapRocket[];
   me: MeState;
   ev: GameEvent[];
   /** Door states, present only while a door is moving or just stopped. */
@@ -254,7 +265,7 @@ export function parseC2S(raw: unknown): C2S | null {
         keys: m.keys & KEY_MASK,
         yaw: Math.max(-1e4, Math.min(1e4, m.yaw)),
         pitch: Math.max(-MAX_PITCH, Math.min(MAX_PITCH, m.pitch)),
-        weapon: Math.max(0, Math.min(3, Math.trunc(m.weapon))),
+        weapon: Math.max(0, Math.min(WEAPONS.length - 1, Math.trunc(m.weapon))),
       };
     }
     default:

@@ -4,7 +4,19 @@
 import { TICK_RATE } from '@shared/core/constants';
 
 /** Index into `WEAPONS` (key 1-4 maps to 0-3). */
-export type WeaponId = 0 | 1 | 2 | 3;
+export type WeaponId = 0 | 1 | 2 | 3 | 4;
+
+/** A guided-by-nothing rocket: how a weapon with a `rocket` entry fires instead of a hitscan ray. */
+export interface RocketDef {
+  /** Flight speed in m/s. */
+  speed: number;
+  /** Blast radius in metres. */
+  radius: number;
+  /** Damage at the centre of the blast (a direct hit is at the centre). */
+  damage: number;
+  /** Ticks in the air before it fizzles out and explodes where it is. */
+  lifeTicks: number;
+}
 
 /** Static description of one gun. Times are in server ticks, angles in radians. */
 export interface WeaponDef {
@@ -34,9 +46,19 @@ export interface WeaponDef {
   recoil: number;
   /** Client only: FOV divisor while aiming. */
   zoom: number;
+  /** Present for launchers: the shot is a rocket (`server/sim/rockets.ts`) and `damage`/`pellets`/falloff are unused. */
+  rocket?: RocketDef;
+  /** Walking and sprinting speed multiplier while this gun is in hand (default 1). Shared with client prediction. */
+  moveMul?: number;
+  /** Fraction of `maxReserve` that comes with a found copy of this gun (default `GUN_PICKUP_RESERVE_FRACTION`). */
+  pickupReserveFraction?: number;
+  /** False: ammo boxes never refill this gun, so more rounds only come from its own pickup or a loot bag. */
+  boxAmmo?: false;
+  /** False: bots do not go looking for this gun on the map (they still use one they loot). */
+  botsSeek?: false;
 }
 
-/** The four guns, in key order. */
+/** The five guns, in key order. */
 export const WEAPONS: readonly WeaponDef[] = [
   {
     name: 'Stapler .45', auto: false, damage: 24, pellets: 1, headMul: 2, interval: 10,
@@ -57,6 +79,14 @@ export const WEAPONS: readonly WeaponDef[] = [
     name: 'Laser Pointer', auto: false, damage: 80, pellets: 1, headMul: 2, interval: 75,
     magSize: 5, maxReserve: 20, reloadTicks: 140, spread: 0.06, aimSpread: 0,
     falloffStart: 200, falloffEnd: 201, minMul: 1, recoil: 0.04, zoom: 4,
+  },
+  // RPG: one rocket per magazine, three in all, a very long reload and a heavy walk. Only found, never spawned with.
+  {
+    name: 'RPG', auto: false, damage: 0, pellets: 1, headMul: 1, interval: 90,
+    magSize: 1, maxReserve: 2, reloadTicks: 270, spread: 0, aimSpread: 0,
+    falloffStart: 200, falloffEnd: 201, minMul: 1, recoil: 0.12, zoom: 1.1,
+    rocket: { speed: 28, radius: 6, damage: 140, lifeTicks: 240 },
+    moveMul: 0.6, pickupReserveFraction: 1, boxAmmo: false, botsSeek: false,
   },
 ];
 
@@ -119,6 +149,7 @@ export interface PickupDef {
   respawnTicks: number;
   /** Horizontal pickup radius. */
   radius: number;
+  // (A weapon spot can override `respawnTicks` with its own, see `PickupSpot.respawnTicks`.)
   /** HP restored (hp), fraction of max reserve refilled (ammo), grenades per slot (grenade), or the reserve fraction a gun you already own gets (weapon). */
   amount: number;
 }

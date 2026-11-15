@@ -8,7 +8,7 @@ import { rayVsAabb, type Aabb } from '@shared/core/physics';
 import type { BotTuning } from '@shared/rules/bots';
 import { DOOR_HEIGHT } from '@shared/world/map/door-layout';
 import { findPath, lineWalkable, type Pt } from '@shared/world/nav';
-import { spotEnabled } from '../pickups';
+import { botSpot } from '../pickups';
 import type { Player } from '../player';
 import type { Sim } from '../state';
 import { wrapAngle, yawTo } from './angles';
@@ -68,8 +68,8 @@ export function setGoal(st: BotState, goal: Pt, kind: GoalKind = 'roam'): void {
 
 /** Picks the next roaming goal: a spawn or (active) pickup spot, 10-45 m away, not one of the last few. */
 export function pickRoamGoal(sim: Sim, p: Player, st: BotState): void {
-  // Gun spots switched off by the loadout are not places anyone goes, so they are not places to wander to either.
-  const pts: Pt[] = [...sim.spawns.map(([x, z]) => ({ x, z })), ...sim.spots.filter((s) => spotEnabled(sim, s)).map((s) => ({ x: s.x, z: s.z }))];
+  // Gun spots switched off by the loadout (or left for humans, like the RPG) are not places to wander to.
+  const pts: Pt[] = [...sim.spawns.map(([x, z]) => ({ x, z })), ...sim.spots.filter((s) => botSpot(sim, s)).map((s) => ({ x: s.x, z: s.z }))];
   if (pts.length === 0) return;
   const fresh = pts.map((_, i) => i).filter((i) => !st.recent.includes(i));
   const near = fresh.filter((i) => {

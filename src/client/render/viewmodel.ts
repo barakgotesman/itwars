@@ -32,6 +32,10 @@ interface Parts {
   bolt?: THREE.Group;
   reel?: THREE.Group;
   pump?: THREE.Group;
+  /** RPG: the rocket (rest pose = loaded), the cocking lever and the group the support hand rides on. */
+  rocket?: THREE.Group;
+  hammer?: THREE.Group;
+  carry?: THREE.Group;
 }
 
 /** What a gun spits out when it cycles. */
@@ -56,7 +60,16 @@ interface GunRig {
   ejectAt: number;
   /** Where the support hand grips; defaults to the gun itself, the shotgun uses its pump so the hand moves with it. */
   handLParent?: THREE.Object3D;
+  /** How the whole gun is posed while reloading, for guns that need more than the default dip (the RPG). */
+  reloadPose?: { dip: number; pitch: number; roll: number };
+  /** Where the back-blast leaves the gun, for launchers. */
+  rear?: THREE.Vector3;
+  /** Resting position when not aiming, for guns that sit differently from the default (a long launcher sits further out). */
+  hip?: THREE.Vector3;
 }
+
+/** Where (gun space, z) the RPG's rocket sits when loaded: its centre, so it can be moved and tilted about itself. */
+const ROCKET_REST_Z = -0.75;
 
 const matCache = new Map<number, THREE.MeshLambertMaterial>();
 /** Shared flat-shaded material per colour. */
@@ -269,7 +282,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
         casing: { color: 0xc0392b, size: [0.024, 0.024, 0.055] }, ejectAt: 0.2, handLParent: pump,
       };
     }
-    default: {
+    case 3: {
       // Laser Pointer: black anodised sniper with red accents, a big glass scope, a muzzle brake, a folded bipod, a
       // magazine that drops out on reload and a bolt handle you can see being worked after every shot.
       const bolt = new THREE.Group();
@@ -317,6 +330,63 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
         group: g, muzzle: new THREE.Vector3(0, 0.01, -0.95), handR: new THREE.Vector3(0, -0.1, -0.01), handL: new THREE.Vector3(0, -0.07, -0.3),
         ads: new THREE.Vector3(0, -0.12, -0.3), parts: { bolt, mag }, port: new THREE.Vector3(0.036, 0.03, -0.07),
         casing: { color: 0xd4af37, size: [0.016, 0.016, 0.06] }, ejectAt: 0.55,
+      };
+    }
+    default: {
+      // RPG: an olive launch tube with a wooden heat shield, a flared rear venturi, a pistol grip and a fore-grip, a
+      // cocking lever and a rocket you can see in the muzzle. On reload the rocket is fetched, brought round to the
+      // muzzle and pushed home by the support hand, then the lever is cocked.
+      const rocket = new THREE.Group();
+      const hammer = new THREE.Group();
+      const carry = new THREE.Group();
+      g.add(rocket, hammer, carry);
+      rocket.position.set(0, 0, ROCKET_REST_Z);
+      const rz = (z: number) => z - ROCKET_REST_Z;
+      // Tube, its light top strip and dark underside, and the wooden heat shield wrapped round the middle.
+      box(g, 0x5c6b3a, 0.11, 0.11, 0.95, 0, 0, -0.4);
+      box(g, 0x7d8c52, 0.06, 0.006, 0.9, 0, 0.057, -0.4);
+      box(g, 0x3f4a26, 0.07, 0.006, 0.9, 0, -0.057, -0.4);
+      box(g, 0x7a4f2c, 0.12, 0.12, 0.24, 0, 0, -0.2);
+      for (const z of [-0.12, -0.2, -0.28]) box(g, 0x4a2f19, 0.124, 0.124, 0.012, 0, 0, z);
+      // Rear venturi: three flaring rings round a dark nozzle.
+      box(g, 0x3a4224, 0.12, 0.12, 0.05, 0, 0, 0.1);
+      box(g, 0x23281a, 0.135, 0.135, 0.04, 0, 0, 0.145);
+      box(g, 0x14161a, 0.1, 0.1, 0.01, 0, 0, 0.168);
+      // Muzzle ring and the warning stripes painted round the tube.
+      box(g, 0x3a4224, 0.125, 0.125, 0.04, 0, 0, -0.865);
+      box(g, 0xf2c230, 0.114, 0.114, 0.025, 0, 0, -0.62);
+      box(g, 0x14161a, 0.114, 0.114, 0.025, 0, 0, -0.65);
+      // Open sights: two rear posts with a gap between them (the crosshair shows through) and a front post.
+      for (const x of [-0.013, 0.013]) box(g, 0x14161a, 0.008, 0.032, 0.012, x, 0.075, -0.06);
+      box(g, 0x14161a, 0.008, 0.026, 0.012, 0, 0.072, -0.8);
+      glow(g, 0xffffff, 0.004, 0.004, 0.004, 0, 0.09, -0.8);
+      // Pistol grip with a trigger, and a fore-grip under the shield.
+      box(g, 0x23262c, 0.044, 0.1, 0.056, 0, -0.105, -0.02, 0.2);
+      box(g, 0x14161a, 0.048, 0.012, 0.06, 0, -0.058, -0.02);
+      box(g, 0x8d949c, 0.008, 0.024, 0.008, 0, -0.07, -0.07);
+      box(g, 0x23262c, 0.042, 0.1, 0.05, 0, -0.105, -0.45);
+      // Cocking lever on top at the back; it swings from fired (forward) to cocked (back).
+      hammer.position.set(0, 0.058, 0.04);
+      box(hammer, 0x8d949c, 0.018, 0.05, 0.016, 0, 0.025, 0);
+      box(hammer, 0xc0392b, 0.02, 0.012, 0.02, 0, 0.052, 0);
+      // The rocket: a long dark body with four tail fins (all hidden in the tube when loaded) and a red warhead whose
+      // yellow nose sticks out of the muzzle.
+      box(rocket, 0x2a2d33, 0.07, 0.07, 0.36, 0, 0, rz(-0.7));
+      box(rocket, 0x8d949c, 0.1, 0.008, 0.08, 0, 0, rz(-0.55));
+      box(rocket, 0x8d949c, 0.008, 0.1, 0.08, 0, 0, rz(-0.55));
+      box(rocket, 0x3a4224, 0.09, 0.09, 0.05, 0, 0, rz(-0.515));
+      box(rocket, 0x23262c, 0.085, 0.085, 0.06, 0, 0, rz(-0.88));
+      box(rocket, 0xd62828, 0.115, 0.115, 0.09, 0, 0, rz(-0.935));
+      box(rocket, 0xc0392b, 0.085, 0.085, 0.06, 0, 0, rz(-1.005));
+      box(rocket, 0xf2c230, 0.045, 0.045, 0.05, 0, 0, rz(-1.06));
+      box(rocket, 0xf4f4f1, 0.118, 0.118, 0.012, 0, 0, rz(-0.9));
+      // The support hand rides on `carry`: on the fore-grip at rest, following the rocket while it is carried.
+      return {
+        group: g, muzzle: new THREE.Vector3(0, 0, -1.1), handR: new THREE.Vector3(0, -0.125, -0.02), handL: new THREE.Vector3(0, -0.15, -0.45),
+        hip: new THREE.Vector3(0.2, -0.19, -0.66),
+        ads: new THREE.Vector3(0, -0.125, -0.62), parts: { rocket, hammer, carry }, port: new THREE.Vector3(0, 0, 0),
+        casing: { color: 0x14161a, size: [0.01, 0.01, 0.01] }, ejectAt: Infinity,
+        handLParent: carry, reloadPose: { dip: 0.03, pitch: 0.3, roll: 0.1 }, rear: new THREE.Vector3(0, 0, 0.2),
       };
     }
   }
@@ -387,6 +457,10 @@ export class ViewModel {
   private ejected = true;
   private reelVel = 0;
   private reelAngle = 0;
+  /** The RPG's reload progress on the previous frame, to catch the moments it clunks home. */
+  private rpgPrev = 0;
+  /** Back-blast flash behind a launcher (shares the muzzle flash's material and fade). */
+  private readonly rearFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), this.flashMat);
   private readonly casings: Casing[] = [];
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x9aa0aa, 2.4);
   private readonly sun = new THREE.DirectionalLight(0xfff2dd, 1.6);
@@ -436,7 +510,8 @@ export class ViewModel {
     const streak = new THREE.Mesh(new THREE.PlaneGeometry(0.05, 0.4), this.flashMat);
     this.flash.add(a, b, streak);
     this.flash.visible = false;
-    this.root.add(this.flash, this.flashLight);
+    this.rearFlash.visible = false;
+    this.root.add(this.flash, this.flashLight, this.rearFlash);
   }
 
   /** Matches the overlay camera to the window shape. */
@@ -535,7 +610,7 @@ export class ViewModel {
         p.pump?.position.set(0, 0, s.magEmpty && r === 0 ? 0.075 : stroke);
         break;
       }
-      default: {
+      case 3: {
         // Bolt: handle lifts, bolt slides back, forward, handle drops; open when empty.
         const c = t - 0.35;
         let lift = 0;
@@ -547,13 +622,54 @@ export class ViewModel {
         if (s.magEmpty && r < 0.85 && c >= 0.6) back = 1;
         p.bolt?.position.set(0, 0.03, -0.05 + 0.1 * back);
         if (p.bolt) p.bolt.rotation.z = lift * 1.0;
+        break;
       }
+      default:
+        this.animateRpg(p, s);
     }
     // Casings: pistol and SMG throw theirs at once; the pump and bolt guns on the next stroke.
     if (!this.ejected && t >= rig.ejectAt) {
       this.ejected = true;
       this.eject(rig);
     }
+  }
+
+  /**
+   * Poses the RPG's rocket, support hand and cocking lever. The 4.5 s reload runs in beats: the tube dips, the hand
+   * fetches a rocket (it appears as it is pulled out), the rocket is swung round to the muzzle, slid home, the
+   * hand lets go and the lever is cocked. The bumps at the end are felt as small kicks.
+   * @param p - The RPG rig's parts.
+   * @param s - Current player state (reload progress, empty magazine).
+   */
+  private animateRpg(p: Parts, s: ViewState): void {
+    const r = s.reloadFrac;
+    let dx = 0, dy = 0, dz = 0, tiltX = 0, tiltZ = 0, grab = 0, size = 1;
+    if (r > 0) {
+      size = Math.max(0.001, ease((r - 0.12) / 0.1));
+      const swing = 1 - ease((r - 0.22) / 0.33);
+      const along = ease((r - 0.55) / 0.25);
+      // From held out to the upper right, to lined up in front of the muzzle, then pushed back into the tube.
+      dx = 0.2 * swing;
+      dy = 0.28 * swing;
+      dz = -0.5 * (1 - along) - 0.2 * swing;
+      tiltX = 0.6 * swing;
+      tiltZ = -0.5 * swing;
+      grab = ease((r - 0.1) / 0.1) * (1 - ease((r - 0.82) / 0.08));
+      if (this.rpgPrev < 0.8 && r >= 0.8) this.kick += 0.55;
+      if (this.rpgPrev < 0.88 && r >= 0.88) this.kick += 0.25;
+    }
+    this.rpgPrev = r;
+    if (p.rocket) {
+      // Nothing in the tube from the shot until the reload starts.
+      p.rocket.visible = !(s.magEmpty && r === 0);
+      p.rocket.position.set(dx, dy, ROCKET_REST_Z + dz);
+      p.rocket.rotation.set(tiltX, 0, tiltZ);
+      p.rocket.scale.setScalar(size);
+    }
+    p.carry?.position.set(dx * grab, (dy + 0.08) * grab, (dz - 0.3) * grab);
+    // Lever: forward when fired, cocked back once the reload reaches its last beat (or when loaded).
+    const cocked = s.magEmpty ? (r > 0 ? ease((r - 0.86) / 0.06) : 0) : 1;
+    if (p.hammer) p.hammer.rotation.x = 0.55 - 1.1 * cocked;
   }
 
   /**
@@ -621,21 +737,24 @@ export class ViewModel {
     this.bob += dt * (6 + s.speed * 0.6);
     const bobAmt = moving * (1 - this.aimT * 0.85);
 
-    const hip = new THREE.Vector3(0.18, -0.17, -0.4);
+    const hip = rig.hip ? rig.hip.clone() : new THREE.Vector3(0.18, -0.17, -0.4);
     const pos = hip.lerp(new THREE.Vector3(rig.ads.x, rig.ads.y, rig.ads.z), this.aimT);
     pos.x += this.swayX + Math.sin(this.bob) * 0.008 * bobAmt;
     pos.y += this.swayY + Math.abs(Math.cos(this.bob)) * 0.01 * bobAmt - Math.sin(this.time * 1.6) * 0.0015;
     pos.z += this.kick * 0.05;
 
-    const reloadDip = s.reloadFrac > 0 ? Math.sin(s.reloadFrac * Math.PI) : 0;
+    const rp = rig.reloadPose;
+    const r = s.reloadFrac;
+    // Most guns dip and come back in one smooth arc; a long reload holds its pose between a quick dip and a quick recovery.
+    const reloadDip = r > 0 ? (rp ? ease(r / 0.12) * (1 - ease((r - 0.9) / 0.1)) : Math.sin(r * Math.PI)) : 0;
     const throwDip = this.throwT > 0 ? Math.sin((1 - this.throwT) * Math.PI) : 0;
-    pos.y -= reloadDip * 0.16 + this.switchT * 0.25 + throwDip * 0.3;
+    pos.y -= reloadDip * (rp?.dip ?? 0.16) + this.switchT * 0.25 + throwDip * 0.3;
     pos.z -= throwDip * 0.08;
     this.root.position.copy(pos);
     this.root.rotation.set(
-      this.kick * 0.1 - reloadDip * 0.55 - this.switchT * 0.5 - throwDip * 0.6,
+      this.kick * 0.1 + reloadDip * (rp?.pitch ?? -0.55) - this.switchT * 0.5 - throwDip * 0.6,
       -this.swayX * 1.5,
-      reloadDip * 0.35 + this.swayX * 2,
+      reloadDip * (rp?.roll ?? 0.35) + this.swayX * 2,
     );
 
     // The scoped sniper is drawn through a DOM scope overlay instead.
@@ -646,6 +765,10 @@ export class ViewModel {
     this.flash.visible = this.flashT > 0;
     this.flashMat.opacity = glow;
     this.flashLight.intensity = this.flashPeak * glow;
+    // A launcher also blasts out of its back, where the player stands.
+    this.rearFlash.visible = this.flashT > 0 && rig.rear !== undefined;
+    if (rig.rear) this.rearFlash.position.copy(rig.rear);
+    this.rearFlash.scale.setScalar(1 + (1 - glow) * 1.5);
     this.flash.position.copy(rig.muzzle).add(new THREE.Vector3(0, 0, -0.03));
     this.flashLight.position.copy(rig.muzzle).add(new THREE.Vector3(0, 0.03, 0.05));
   }

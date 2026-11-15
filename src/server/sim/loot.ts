@@ -80,6 +80,9 @@ export function tickLoot(sim: Sim): void {
 function takeLoot(p: Player, bag: Loot): boolean {
   let took = false;
   if (bag.w >= 0 && giveGun(p, bag.w)) {
+    // A scarce gun (the RPG) comes with what was actually left in the bag, not a fresh supply: just the loaded
+    // round here, and the dead player's spare rockets move over below with the other ammo.
+    if (WEAPONS[bag.w]?.boxAmmo === false) p.reserve[bag.w] = 0;
     bag.w = -1;
     took = true;
   }

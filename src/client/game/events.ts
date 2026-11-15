@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { EYE_HEIGHT, TICK_RATE } from '@shared/core/constants';
 import type { GameEvent } from '@shared/net/protocol';
+import { ROCKET_BOOM } from '@shared/net/protocol';
 import { GRENADES, WEAPONS } from '@shared/rules/weapons';
 import type { Input } from '@client/platform/input';
 import { WEAPON_FX } from '@client/render/weapon-fx';
@@ -79,7 +80,8 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
           sfx.shot(e.w, posOf(e.id));
         }
         if (muzzle) {
-          tracers.add(muzzle, to, fx);
+          // A rocket is its own visible thing in flight, so a launcher draws no tracer.
+          if (!WEAPONS[e.w]!.rocket) tracers.add(muzzle, to, fx);
           if (fx.smoke > 0) {
             // Your own smoke starts a little down the barrel line, or it would balloon over the camera.
             const at = e.id === myId ? muzzle.clone().add(to.clone().sub(muzzle).normalize().multiplyScalar(1.2)) : muzzle;
@@ -139,7 +141,8 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         break;
       }
       case 'reload':
-        sfx.reload(e.id === myId ? undefined : posOf(e.id));
+        // Only your own reload is told apart per gun (the long RPG reload has its own staged sound).
+        sfx.reload(e.id === myId ? undefined : posOf(e.id), e.id === myId ? input.weapon : 0);
         break;
       case 'pickup':
         if (e.id !== myId) break;
@@ -191,6 +194,20 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         sfx.throwGrenade(e.id === myId ? undefined : posOf(e.id));
         break;
       case 'boom': {
+        if (e.s === ROCKET_BOOM) {
+          // A rocket: a big cube fireball, a ring of embers and debris, black smoke and a hard camera shake.
+          if (particles.enabled) {
+            blasts.add(e.x, e.y, e.z, 7, 0xff8a2a, 0.7);
+            blasts.add(e.x, e.y, e.z, 4.5, 0xffe07a, 0.45);
+          }
+          particles.emit(e.x, e.y, e.z, 110, 0xffa040, 12, 1.0, 10, undefined, 0.2);
+          particles.emit(e.x, e.y, e.z, 60, 0x9a7a55, 8, 1.4, 14, undefined, 0.26);
+          particles.emit(e.x, e.y + 0.5, e.z, 30, 0x4a4a52, 4, 1.8, -1.5, undefined, 0.34);
+          sfx.boom(e.s, { x: e.x, z: e.z });
+          const far = Math.hypot(e.x - me.x, e.y - (me.y + EYE_HEIGHT), e.z - me.z);
+          if (far < SHAKE_RANGE * 1.6) camFx.shake = Math.max(camFx.shake, (1 - far / (SHAKE_RANGE * 1.6)) * 0.14);
+          break;
+        }
         const def = GRENADES[e.s]!;
         const frag = def.kind === 'frag';
         if (particles.enabled) blasts.add(e.x, e.y, e.z, def.radius, frag ? 0xff8a2a : 0xffffff, frag ? 0.45 : 0.3);

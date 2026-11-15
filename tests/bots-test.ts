@@ -17,6 +17,7 @@ import { Room } from '@server/rooms/room';
 import { RoomManager } from '@server/rooms/manager';
 import { TickMonitor } from '@server/loop';
 import { SERVER_BUDGET_MS, UNLIMITED, describeCapacity, measureCapacity, type LoadModel } from '@server/capacity';
+import { chooseWeapon } from '@server/sim/bots/gun';
 import { setGoal } from '@server/sim/bots/navigate';
 import { wrapAngle } from '@server/sim/bots/angles';
 import { FLOOR, FULL_RULES, FakeConn, SPAWNS as FLAT_SPAWNS, idle, mut } from './helpers';
@@ -653,6 +654,42 @@ function joinHuman(rooms: RoomManager, room: Room, name: string): number | null 
     }
   }
   check('bots only hold and want guns they own', bad === 0, `${bad} ticks`);
+}
+
+// ---------------------------------------------------------------- the RPG: bots leave it for humans, and use one they loot sensibly
+{
+  const room = new Room('RPG', {
+    seed: 5, solids: [FLOOR], spawns: FLAT_SPAWNS, doors: [],
+    pickups: [{ kind: 'weapon', weapon: 4, x: 14, z: 14 }],
+    rules: { ...DEFAULT_RULES, bots: 1, botSkill: 2 }, botsPlayImmediately: true,
+  });
+  const id = [...room.players.keys()][0]!;
+  const p = mut(room, id);
+  const st = room.bots.get(id)!;
+  let wished = false;
+  for (let t = 0; t < 900; t++) {
+    room.step();
+    if (t % 2 === 1) room.events = [];
+    if (st.goalKind === 'weapon') wished = true;
+  }
+  check('a bot never goes looking for the RPG', !wished && (p.guns & 16) === 0);
+
+  // One that has an RPG keeps it for a target far enough that the blast cannot catch it.
+  p.guns |= 16;
+  p.mag[4] = 1;
+  p.reserve[4] = 2;
+  const sim = room as unknown as Parameters<typeof chooseWeapon>[0];
+  const pl = p as unknown as Parameters<typeof chooseWeapon>[1];
+  st.wantWeapon = 0;
+  st.switchedAt = -1000;
+  check('a bot does not pick the RPG for a target next to it', chooseWeapon(sim, pl, st, 3) !== 4);
+  st.wantWeapon = 0;
+  st.switchedAt = -1000;
+  check('a bot picks the RPG for a distant target', chooseWeapon(sim, pl, st, 30) === 4);
+  p.mag[4] = 0;
+  p.reserve[4] = 0;
+  st.switchedAt = -1000;
+  check('and drops it once it has no rockets', chooseWeapon(sim, pl, st, 30) !== 4);
 }
 
 console.log(`bots tests: ${passed} passed, ${failed} failed`);

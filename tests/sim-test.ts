@@ -2,15 +2,17 @@
  * Headless server simulation tests: drives `Room` directly with fake connections (no sockets, no browser).
  * Run with `npm run test:sim`; exits non-zero on any failure.
  */
-import { INTERMISSION_TICKS, Key, KILLS_TO_WIN, MAX_HP, MAX_PLAYERS, RESPAWN_TICKS, SPRAY_COOLDOWN_TICKS, TICK_DT } from '@shared/core/constants';
+import { INTERMISSION_TICKS, Key, KILLS_TO_WIN, MAX_HP, MAX_PLAYERS, RESPAWN_TICKS, SPRAY_COOLDOWN_TICKS, SPRINT_SPEED, TICK_DT } from '@shared/core/constants';
+import { LOADOUTS } from '@shared/rules/loadout';
 import { SPRAYS, SPRAY_GRID, SPRAY_PALETTE } from '@shared/rules/sprays';
 import { PLAYER_COLORS } from '@shared/core/characters';
-import type { Aabb } from '@shared/core/physics';
+import { newPlayerState, stepMovement, type Aabb } from '@shared/core/physics';
 import { parseC2S, type GameEvent } from '@shared/net/protocol';
 import { GRENADES, LOOT_FRACTION, LOOT_LIFETIME_TICKS, PICKUP_DEFS, WEAPONS } from '@shared/rules/weapons';
 import { Doors } from '@shared/world/doors';
 import { DEFAULT_RULES, MODES, RANGE_RULES, describeRules, sanitizeRules, type MatchRules } from '@shared/rules/modes';
 import type { DoorDef } from '@shared/world/map/door-layout';
+import type { PickupSpot } from '@shared/world/map/pickups';
 import { Room } from '@server/rooms/room';
 import { FLOOR, FULL_RULES, FakeConn, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
 
@@ -62,7 +64,7 @@ function check(name: string, ok: boolean, detail = ''): void {
   check('parse: NaN rejected', parseC2S({ t: 'input', seq: 1, keys: 3, yaw: NaN, pitch: 0, weapon: 0 }) === null);
   check('parse: string seq rejected', parseC2S({ t: 'input', seq: '1', keys: 3, yaw: 0, pitch: 0, weapon: 0 }) === null);
   const m = parseC2S({ t: 'input', seq: 1, keys: 0xffffff, yaw: 0, pitch: 99, weapon: 9 });
-  check('parse: keys masked, pitch/weapon clamped', m?.t === 'input' && m.keys < 8192 && m.pitch < 1.6 && m.weapon === 3);
+  check('parse: keys masked, pitch/weapon clamped', m?.t === 'input' && m.keys < 8192 && m.pitch < 1.6 && m.weapon === WEAPONS.length - 1);
   check('parse: bad code rejected', parseC2S({ t: 'join', code: 'AB0I', name: 'x' }) === null);
   const j = parseC2S({ t: 'join', code: ' abcd ', name: '  <b>Eve</b>\n' });
   check('parse: code normalised, name sanitised', j?.t === 'join' && j.code === 'ABCD' && j.name === 'bEveb');
@@ -385,9 +387,9 @@ function check(name: string, ok: boolean, detail = ''): void {
   check('respawned box works again', mut(room, a.id).hp === 85);
 
   place(room, a.id, 10, 0);
-  mut(room, a.id).reserve = [0, 0, 0, 0];
+  mut(room, a.id).reserve = [0, 0, 0, 0, 0];
   run(room, a, 2);
-  check('ammo box refills half of max reserve', mut(room, a.id).reserve.every((r, i) => r === Math.ceil(WEAPONS[i]!.maxReserve / 2)));
+  check('ammo box refills half of max reserve', mut(room, a.id).reserve.every((r, i) => r === (WEAPONS[i]!.boxAmmo === false ? 0 : Math.ceil(WEAPONS[i]!.maxReserve / 2))));
 
   place(room, a.id, 20, 0);
   mut(room, a.id).gren = [0, 2];
@@ -828,7 +830,7 @@ const lootEvents = (c: FakeConn): LootEv[] => c.events().filter((e): e is LootEv
 
   // Walking over the bag takes it automatically; it carries the victim's whole stock.
   const m = mut(room, a.id);
-  m.reserve = [0, 0, 0, 0];
+  m.reserve = [0, 0, 0, 0, 0];
   m.gren = [0, 0];
   place(room, a.id, 0, -10);
   run(room, a, 3);
@@ -857,7 +859,7 @@ const lootEvents = (c: FakeConn): LootEv[] => c.events().filter((e): e is LootEv
   run(room, a, 4);
   check('with room for only 5 stapler rounds, exactly 5 are taken', m.reserve[0] === WEAPONS[0]!.maxReserve && lootEvents(a.conn).filter((e) => e.k === 'lootTake').length === 1);
   check('the rest of the bag stays', !lootEvents(a.conn).some((e) => e.k === 'lootGone'));
-  m.reserve = [0, 0, 0, 0];
+  m.reserve = [0, 0, 0, 0, 0];
   m.gren = [0, 0];
   run(room, a, 4);
   check('later the remainder can be taken and the bag then vanishes', lootEvents(a.conn).some((e) => e.k === 'lootGone'));
@@ -884,8 +886,8 @@ const lootEvents = (c: FakeConn): LootEv[] => c.events().filter((e): e is LootEv
   const a = add('Killer');
   const b = add('Empty');
   warm(room);
-  mut(room, b.id).mag = [0, 0, 0, 0];
-  mut(room, b.id).reserve = [0, 0, 0, 0];
+  mut(room, b.id).mag = [0, 0, 0, 0, 0];
+  mut(room, b.id).reserve = [0, 0, 0, 0, 0];
   mut(room, b.id).gren = [0, 0];
   killB(room, a, b);
   check('a victim with no ammo drops nothing', !lootEvents(a.conn).some((e) => e.k === 'lootDrop'));
@@ -893,8 +895,8 @@ const lootEvents = (c: FakeConn): LootEv[] => c.events().filter((e): e is LootEv
   // One spare round is less than one after halving, so there is nothing worth dropping.
   const d = add('Almost');
   warm(room);
-  mut(room, d.id).mag = [1, 0, 0, 0];
-  mut(room, d.id).reserve = [0, 0, 0, 0];
+  mut(room, d.id).mag = [1, 0, 0, 0, 0];
+  mut(room, d.id).reserve = [0, 0, 0, 0, 0];
   mut(room, d.id).gren = [0, 0];
   place(room, a.id, 0, 0, 0, aimPitch(10, 1.0));
   place(room, d.id, 0, -10);
@@ -1050,12 +1052,12 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   check('a gun spot is left alone when that gun is full', pickupEvents(a.conn).length === before);
 
   place(room, a.id, 20, 0);
-  m.reserve = [0, 0, 0, 0];
+  m.reserve = [0, 0, 0, 0, 0];
   run(room, a, 2);
   check('an ammo box refills only the guns you own', m.reserve[0] === Math.ceil(WEAPONS[0]!.maxReserve / 2) && m.reserve[1] === Math.ceil(smg.maxReserve / 2) && m.reserve[2] === 0 && m.reserve[3] === 0, `reserve=${m.reserve}`);
   place(room, a.id, 0, 0);
   idle(room, PICKUP_DEFS.ammo.respawnTicks + 2);
-  m.reserve = [WEAPONS[0]!.maxReserve, smg.maxReserve, 0, 0];
+  m.reserve = [WEAPONS[0]!.maxReserve, smg.maxReserve, 0, 0, 0];
   const before2 = pickupEvents(a.conn).length;
   place(room, a.id, 20, 0);
   run(room, a, 2);
@@ -1097,8 +1099,8 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const mb = mut(room, b.id);
   mb.guns = 0b11;
   run(room, b, 4, { weapon: 1 });
-  mb.mag = [0, 0, 0, 0];
-  mb.reserve = [0, 0, 0, 0];
+  mb.mag = [0, 0, 0, 0, 0];
+  mb.reserve = [0, 0, 0, 0, 0];
   mb.gren = [0, 0];
   const n = lootEvents(a.conn).filter((e) => e.k === 'lootDrop').length;
   killB(room, a, b);
@@ -1113,8 +1115,8 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
     const c = add('C');
     warm(room);
     const mc = mut(room, c.id);
-    mc.reserve = [0, 0, 0, 0];
-    room.loot.push({ id: 900, from: 1, x: 30, y: 0, z: 30, ammo: [0, 40, 0, 0], gren: [0, 0], w: -1, expiresAt: room.tick + 3000 });
+    mc.reserve = [0, 0, 0, 0, 0];
+    room.loot.push({ id: 900, from: 1, x: 30, y: 0, z: 30, ammo: [0, 40, 0, 0, 0], gren: [0, 0], w: -1, expiresAt: room.tick + 3000 });
     place(room, c.id, 30, 30);
     run(room, c, 3);
     return mc.reserve[1] === 0 && room.loot.some((l) => l.id === 900 && l.ammo[1] === 40);
@@ -1126,7 +1128,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const a = add('A');
   warm(room);
   const m = mut(room, a.id);
-  check('full arsenal spawns with every gun, SMG in hand', m.guns === 0b1111 && m.weapon === 1 && WEAPONS.every((w, i) => m.mag[i] === w.magSize));
+  check('full arsenal spawns with every gun, SMG in hand', m.guns === 0b1111 && m.weapon === 1 && WEAPONS.every((w, i) => m.mag[i] === (i === 4 ? 0 : w.magSize)));
   place(room, a.id, 10, 0);
   m.reserve[2] = 0;
   run(room, a, 2);
@@ -1151,6 +1153,171 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   check('sanitizeRules keeps a valid loadout', sanitizeRules({ ...DEFAULT_RULES, loadout: 1 }).loadout === 1);
   check('sanitizeRules fixes a bad loadout', sanitizeRules({ ...DEFAULT_RULES, loadout: 7 }).loadout === 0 && sanitizeRules({}).loadout === 0);
   check('the setup screen offers the loadout', MODES[0]!.options.some((o) => o.key === 'loadout' && o.kind === 'choice' && o.labels?.length === 2));
+}
+
+// ---------------------------------------------------------------- the RPG: pickup only, three rockets, heavy, explosive
+
+{
+  const rpg = WEAPONS[4]!;
+  check('the RPG holds one rocket and three in all', rpg.magSize === 1 && rpg.magSize + rpg.maxReserve === 3 && rpg.rocket !== undefined);
+  check('nobody spawns with the RPG', LOADOUTS.every((l) => !l.startWeapons.includes(4)));
+  check('the RPG reload is the longest', WEAPONS.every((w) => w.reloadTicks <= rpg.reloadTicks));
+
+  // The spot is live under both loadouts; the SMG spot goes inert under the full arsenal. A taken RPG waits long to return.
+  const spots: PickupSpot[] = [{ kind: 'weapon', weapon: 1, x: 10, z: 0 }, { kind: 'weapon', weapon: 4, x: 20, z: 0, respawnTicks: 7200 }];
+  for (const [label, rules, smgOn] of [['pistol only', DEFAULT_RULES, '1'], ['full arsenal', FULL_RULES, '0']] as const) {
+    const { room, add } = makeRoom([FLOOR], spots, [], rules);
+    const a = add(`A-${label}`);
+    const late = new FakeConn();
+    room.join(late, 'Late');
+    const wire = (late.msgs[0] as { pickups: string }).pickups;
+    check(`${label}: the RPG spot is shown and the SMG spot ${smgOn === '1' ? 'too' : 'is hidden'}`, wire === `${smgOn}1`, `pickups=${wire}`);
+    warm(room);
+    const m = mut(room, a.id);
+    place(room, a.id, 20, 0);
+    run(room, a, 2);
+    check(`${label}: walking over the RPG gives it with all three rockets`, (m.guns & 16) !== 0 && m.mag[4] === 1 && m.reserve[4] === 2, `guns=${m.guns} mag=${m.mag[4]} res=${m.reserve[4]}`);
+    check(`${label}: a taken RPG stays gone for the long respawn`, room.pickupReady[1]! - room.tick > 7000 && room.pickupReady[1]! - room.tick <= 7200);
+  }
+
+  // Ammo boxes never feed it.
+  {
+    const { room, add } = makeRoom([FLOOR], [{ kind: 'ammo', x: 10, z: 0 }], [], FULL_RULES);
+    const a = add('A');
+    warm(room);
+    const m = mut(room, a.id);
+    m.guns |= 16;
+    m.mag[4] = 0;
+    m.reserve = [0, 0, 0, 0, 0];
+    place(room, a.id, 10, 0);
+    run(room, a, 2);
+    check('ammo boxes refill the other guns but never the RPG', m.reserve[4] === 0 && (m.reserve[0] ?? 0) > 0);
+    m.reserve = WEAPONS.map((w) => (w.boxAmmo === false ? 0 : w.maxReserve));
+    const seen = pickupEvents(a.conn).length;
+    place(room, a.id, 0, 0);
+    idle(room, PICKUP_DEFS.ammo.respawnTicks + 2);
+    place(room, a.id, 10, 0);
+    run(room, a, 2);
+    check('an ammo box is left alone when only the RPG could use it', pickupEvents(a.conn).length === seen);
+  }
+
+  // Firing: a real rocket that flies, blows up on a wall and hurts whoever is near.
+  const WALL: Aabb = { minX: -8, maxX: 8, minY: 0, maxY: 6, minZ: -21, maxZ: -20 };
+  {
+    const { room, add } = makeRoom([FLOOR, WALL], [], [], FULL_RULES);
+    const a = add('Shooter');
+    const b = add('Bystander');
+    warm(room);
+    const m = mut(room, a.id);
+    m.guns |= 16;
+    m.weapon = 4;
+    m.mag[4] = 1;
+    m.reserve[4] = 2;
+    place(room, a.id, 0, 0, 0, 0);
+    place(room, b.id, 3, -17);
+    run(room, a, 1, { keys: Key.Fire });
+    check('firing spends the round and launches a rocket', m.mag[4] === 0 && room.rockets.length === 1);
+    check('the snapshot carries the rocket', (a.conn.snap?.rockets.length ?? 0) === 1);
+    const z0 = room.rockets[0]!.z;
+    idle(room, 6);
+    const dz = Math.abs(room.rockets[0]!.z - z0);
+    check('the rocket flies on at its set speed', Math.abs(dz - rpg.rocket!.speed * 6 * TICK_DT) < 0.2, `dz=${dz}`);
+    idle(room, 60);
+    const boom = a.conn.events().find((e) => e.k === 'boom' && e.s === 2);
+    check('it explodes on the wall', boom !== undefined && room.rockets.length === 0 && boom.k === 'boom' && boom.z > -21 && boom.z < -19);
+    const hurt = mut(room, b.id).hp;
+    check('the blast hurts someone standing near the wall', hurt < MAX_HP && hurt > 0, `hp=${hurt}`);
+    check('the shooter, 20 m away, is untouched', m.hp === MAX_HP);
+  }
+  {
+    // A direct hit is a one-shot kill, credited to the RPG in the feed.
+    const { room, add } = makeRoom([FLOOR, WALL], [], [], FULL_RULES);
+    const a = add('Shooter');
+    const b = add('Target');
+    warm(room);
+    const m = mut(room, a.id);
+    m.guns |= 16;
+    m.weapon = 4;
+    m.mag[4] = 1;
+    place(room, a.id, 0, 0, 0, 0);
+    place(room, b.id, 0, -12);
+    run(room, a, 1, { keys: Key.Fire });
+    idle(room, 40);
+    const kill = a.conn.events().find((e) => e.k === 'kill');
+    check('a direct hit kills from full health, credited to the RPG', kill?.k === 'kill' && kill.by === a.id && kill.to === b.id && kill.w === 4, JSON.stringify(kill));
+  }
+  {
+    // A rocket into a close wall hurts the one who fired it, but only half as much as a bystander would be.
+    const near: Aabb = { minX: -8, maxX: 8, minY: 0, maxY: 6, minZ: -5, maxZ: -4 };
+    const { room, add } = makeRoom([FLOOR, near], [], [], FULL_RULES);
+    const a = add('Shooter');
+    add('Other');
+    warm(room);
+    const m = mut(room, a.id);
+    m.guns |= 16;
+    m.weapon = 4;
+    m.mag[4] = 1;
+    place(room, a.id, 0, 0, 0, 0);
+    run(room, a, 1, { keys: Key.Fire });
+    idle(room, 30);
+    check('firing at a wall 4 m away hurts the shooter but does not kill', m.hp < MAX_HP && m.hp > 50, `hp=${m.hp}`);
+  }
+  {
+    // Reload: a long one, then one rocket back in the tube and one left in reserve.
+    const { room, add } = makeRoom([FLOOR], [], [], FULL_RULES);
+    const a = add('A');
+    warm(room);
+    const m = mut(room, a.id);
+    m.guns |= 16;
+    m.weapon = 4;
+    m.mag[4] = 0;
+    m.reserve[4] = 2;
+    run(room, a, 1, { keys: Key.Reload });
+    check('the reload event fires', a.conn.events().some((e) => e.k === 'reload'));
+    idle(room, rpg.reloadTicks - 20);
+    check('still reloading just before the end', m.mag[4] === 0);
+    idle(room, 40);
+    check('the reload puts one rocket in the tube and keeps the spare', m.mag[4] === 1 && m.reserve[4] === 1, `mag=${m.mag[4]} res=${m.reserve[4]}`);
+  }
+  {
+    // Weight: held, the RPG slows both walking and sprinting; the shared movement code agrees with the server.
+    const { room, add } = makeRoom([FLOOR], [], [], FULL_RULES);
+    const a = add('Heavy');
+    const b = add('Light');
+    warm(room);
+    const ma = mut(room, a.id);
+    ma.guns |= 16;
+    ma.weapon = 4;
+    place(room, a.id, -10, 0);
+    place(room, b.id, 10, 0);
+    run(room, a, 90, { keys: Key.Forward });
+    run(room, b, 90, { keys: Key.Forward, weapon: 0 });
+    const heavy = Math.abs(ma.state.vz);
+    const light = Math.abs(mut(room, b.id).state.vz);
+    check('walking with the RPG is at its set share of normal speed', Math.abs(heavy - light * rpg.moveMul!) < 0.1 && heavy < light, `heavy=${heavy} light=${light}`);
+    const s = newPlayerState(0, 0, 0);
+    for (let i = 0; i < 120; i++) stepMovement(s, { keys: Key.Forward | Key.Sprint, yaw: 0, pitch: 0, weapon: 4 }, TICK_DT, [FLOOR]);
+    check('sprinting with it is slowed too (shared movement code)', Math.abs(Math.abs(s.vz) - SPRINT_SPEED * rpg.moveMul!) < 0.1, `vz=${s.vz}`);
+  }
+  {
+    // Loot: a dead RPG carrier's bag holds the gun; the looter gets what was left, not a fresh supply.
+    const { room, add } = makeRoom([FLOOR], [], [], FULL_RULES);
+    const a = add('Killer');
+    const b = add('Victim');
+    warm(room);
+    const mb = mut(room, b.id);
+    mb.guns |= 16;
+    mb.weapon = 4;
+    mb.mag[4] = 0;
+    mb.reserve[4] = 0;
+    killB(room, a, b);
+    const drop = lootEvents(a.conn).find((e) => e.k === 'lootDrop');
+    check('dying with the RPG drops it in the bag', drop?.k === 'lootDrop' && drop.w === 4, JSON.stringify(drop));
+    const ma = mut(room, a.id);
+    place(room, a.id, 0, -10);
+    run(room, a, 3);
+    check('the looter gets the RPG with just one loaded rocket (the carrier had used them all)', (ma.guns & 16) !== 0 && ma.mag[4] === 1 && ma.reserve[4] === 0, `mag=${ma.mag[4]} res=${ma.reserve[4]}`);
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

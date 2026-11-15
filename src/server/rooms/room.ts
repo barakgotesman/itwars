@@ -26,6 +26,8 @@ import { endByTime, restartMatch, spawn, startClockIfReady } from '@server/sim/m
 import { applyInputs, queueInput } from '@server/sim/movement';
 import { newPlayer, type Conn, type Player } from '@server/sim/player';
 import { spotEnabled, tickPickups } from '@server/sim/pickups';
+import type { Rocket } from '@server/sim/rockets';
+import { tickRockets } from '@server/sim/rockets';
 import { addRangeDummies, stepRangeDummies } from '@server/sim/range-dummy';
 import { flushRoster, roster, sendSnapshots } from '@server/sim/snapshot';
 import type { Sim } from '@server/sim/state';
@@ -81,6 +83,8 @@ export class Room implements Sim {
   readonly pickupReady: number[];
   grenades: Grenade[] = [];
   nextGrenadeId = 1;
+  rockets: Rocket[] = [];
+  nextRocketId = 1;
   loot: Loot[] = [];
   nextLootId = 1;
   events: GameEvent[] = [];
@@ -288,6 +292,7 @@ export class Room implements Sim {
     tickPickups(this);
     tickLoot(this);
     tickGrenades(this);
+    tickRockets(this);
 
     flushRoster(this);
     if (this.tick % SNAPSHOT_EVERY === 0) sendSnapshots(this);

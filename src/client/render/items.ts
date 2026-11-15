@@ -4,8 +4,9 @@
  */
 import * as THREE from 'three';
 import type { PickupSpot } from '@shared/world/map';
-import type { SnapGrenade } from '@shared/net/protocol';
+import type { SnapGrenade, SnapRocket } from '@shared/net/protocol';
 import { WEAPONS, type PickupKind } from '@shared/rules/weapons';
+import type { Particles } from './particles';
 import { buildGunProp } from './players';
 import { WEAPON_FX } from './weapon-fx';
 
@@ -194,6 +195,68 @@ export class GrenadeVisuals {
       e.mesh.position.lerp(e.target, k);
       e.mesh.rotation.x += dt * 9;
       e.mesh.rotation.z += dt * 5;
+    }
+  }
+}
+
+/** A rocket flying along -Z: dark body, red warhead with a yellow nose, tail fins and a glowing exhaust. */
+function buildRocket(): THREE.Group {
+  const g = new THREE.Group();
+  box(g, 0x2a2d33, 0.14, 0.14, 0.7, 0, 0, 0.1);
+  box(g, 0xd62828, 0.19, 0.19, 0.16, 0, 0, -0.33);
+  box(g, 0xc0392b, 0.13, 0.13, 0.1, 0, 0, -0.46);
+  box(g, 0xf2c230, 0.07, 0.07, 0.08, 0, 0, -0.55);
+  box(g, 0x8d949c, 0.34, 0.015, 0.16, 0, 0, 0.38);
+  box(g, 0x8d949c, 0.015, 0.34, 0.16, 0, 0, 0.38);
+  const flame = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.34), new THREE.MeshBasicMaterial({ color: 0xffa030 }));
+  flame.position.set(0, 0, 0.62);
+  g.add(flame);
+  return g;
+}
+
+/** Rockets in flight: smoothed between snapshots, pointed along their travel, leaving a trail of sparks and smoke. */
+export class RocketVisuals {
+  private readonly live = new Map<number, { mesh: THREE.Group; target: THREE.Vector3; last: THREE.Vector3; aim: THREE.Vector3 }>();
+  private readonly tail = new THREE.Vector3();
+
+  constructor(private readonly scene: THREE.Scene, private readonly particles: Particles) {}
+
+  /** Creates, retargets or removes meshes to match the snapshot. */
+  sync(rockets: readonly SnapRocket[]): void {
+    const seen = new Set<number>();
+    for (const r of rockets) {
+      seen.add(r.id);
+      let e = this.live.get(r.id);
+      if (!e) {
+        const mesh = buildRocket();
+        mesh.position.set(r.x, r.y, r.z);
+        this.scene.add(mesh);
+        e = { mesh, target: new THREE.Vector3(), last: new THREE.Vector3(r.x, r.y, r.z), aim: new THREE.Vector3(0, 0, -1) };
+        this.live.set(r.id, e);
+      }
+      // The direction of travel is the step since the previous snapshot.
+      const step = this.tail.set(r.x, r.y, r.z).sub(e.last);
+      if (step.lengthSq() > 1e-4) e.aim.copy(step).normalize();
+      e.last.set(r.x, r.y, r.z);
+      e.target.set(r.x, r.y, r.z);
+    }
+    for (const [id, e] of this.live) {
+      if (seen.has(id)) continue;
+      this.scene.remove(e.mesh);
+      this.live.delete(id);
+    }
+  }
+
+  /** Eases meshes toward their targets, points them along their flight and drops trail particles. @param dt - Seconds since last frame. */
+  update(dt: number): void {
+    const k = 1 - Math.exp(-dt * 25);
+    for (const e of this.live.values()) {
+      e.mesh.position.lerp(e.target, k);
+      e.mesh.lookAt(e.mesh.position.x + e.aim.x, e.mesh.position.y + e.aim.y, e.mesh.position.z + e.aim.z);
+      // Exhaust: hot sparks right behind the rocket and a longer-lived grey cloud.
+      this.tail.copy(e.aim).multiplyScalar(-0.7).add(e.mesh.position);
+      this.particles.emit(this.tail.x, this.tail.y, this.tail.z, 2, 0xffa030, 1.6, 0.25, 0, undefined, 0.1);
+      this.particles.emit(this.tail.x, this.tail.y, this.tail.z, 1, 0x8a8f99, 0.7, 0.9, -0.4, undefined, 0.2);
     }
   }
 }

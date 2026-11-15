@@ -52,29 +52,43 @@ export function tickGrenades(sim: Sim): void {
   sim.grenades = alive;
 }
 
+/**
+ * Damages everyone near a blast who can be seen from its centre: full `amount` at the centre, fading to
+ * `FRAG_MIN_MUL` of it at the edge, halved for the one who set it off. Shared by frag grenades and rockets.
+ * @param tag - What the kill feed credits: `'frag'` or a weapon index.
+ */
+export function blast(sim: Sim, x: number, y: number, z: number, radius: number, amount: number, ownerId: number, tag: number | 'frag'): void {
+  const owner = sim.players.get(ownerId);
+  for (const p of sim.players.values()) {
+    if (!p.alive) continue;
+    const dist = Math.hypot(p.state.x - x, p.state.y + CHEST_Y - y, p.state.z - z);
+    if (dist >= radius || !explosionSeesPlayer(sim.solids, x, y, z, { id: p.id, ...p.state })) continue;
+    const mul = Math.max(FRAG_MIN_MUL, 1 - dist / radius) * (p.id === ownerId ? SELF_DAMAGE_MUL : 1);
+    damage(sim, p, amount * mul, owner ?? p, tag, false);
+  }
+}
+
 /** Resolves a detonation: frag damage or flash blindness for everyone in range with line of sight. */
 function explode(sim: Sim, g: Grenade): void {
   const def = GRENADES[g.slot]!;
   sim.events.push({ k: 'boom', s: g.slot, x: round2(g.x), y: round2(g.y), z: round2(g.z) });
-  const owner = sim.players.get(g.owner);
+  if (def.kind === 'frag') {
+    blast(sim, g.x, g.y, g.z, def.radius, def.damage, g.owner, 'frag');
+    return;
+  }
   for (const p of sim.players.values()) {
     if (!p.alive) continue;
     const cx = p.state.x, cy = p.state.y + CHEST_Y, cz = p.state.z;
     const dist = Math.hypot(cx - g.x, cy - g.y, cz - g.z);
     if (dist >= def.radius || !explosionSeesPlayer(sim.solids, g.x, g.y, g.z, { id: p.id, ...p.state })) continue;
     const falloff = 1 - dist / def.radius;
-    if (def.kind === 'frag') {
-      const mul = Math.max(FRAG_MIN_MUL, falloff) * (p.id === g.owner ? SELF_DAMAGE_MUL : 1);
-      damage(sim, p, def.damage * mul, owner ?? p, 'frag', false);
-    } else {
-      // Looking at the blast hurts most; a flash behind you still dazzles a bit.
-      const [lx, ly, lz] = lookDir(p.state.yaw, p.state.pitch);
-      const facing = dist > 1e-6 ? (lx * (g.x - cx) + ly * (g.y - cy) + lz * (g.z - cz)) / dist : 1;
-      const ticks = Math.round(def.blindTicks * falloff * (0.3 + 0.7 * Math.max(0, facing)));
-      if (ticks > 0 && sim.tick + ticks > p.blindEnd) {
-        p.blindEnd = sim.tick + ticks;
-        p.blindMax = ticks;
-      }
+    // Looking at the blast hurts most; a flash behind you still dazzles a bit.
+    const [lx, ly, lz] = lookDir(p.state.yaw, p.state.pitch);
+    const facing = dist > 1e-6 ? (lx * (g.x - cx) + ly * (g.y - cy) + lz * (g.z - cz)) / dist : 1;
+    const ticks = Math.round(def.blindTicks * falloff * (0.3 + 0.7 * Math.max(0, facing)));
+    if (ticks > 0 && sim.tick + ticks > p.blindEnd) {
+      p.blindEnd = sim.tick + ticks;
+      p.blindMax = ticks;
     }
   }
 }

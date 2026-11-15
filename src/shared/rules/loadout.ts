@@ -14,15 +14,13 @@ export interface LoadoutDef {
   hint: string;
   /** Guns owned at spawn; the first is the one in hand. */
   startWeapons: readonly WeaponId[];
-  /** Whether the weapon pickups placed in the map are active (pointless when everyone owns every gun). */
-  mapGuns: boolean;
 }
 
 /** Every loadout, in setup-screen order. The first is the default. */
 export const LOADOUTS: readonly LoadoutDef[] = [
-  { name: 'Pistol only', hint: 'Everyone spawns with the Stapler .45; the other guns are pickups hidden around the office.', startWeapons: [0], mapGuns: true },
-  // The SMG in hand, as the game always spawned players before loadouts existed.
-  { name: 'Full arsenal', hint: 'Everyone spawns with all four guns.', startWeapons: [1, 0, 2, 3], mapGuns: false },
+  { name: 'Pistol only', hint: 'Everyone spawns with the Stapler .45; the other guns are pickups hidden around the office.', startWeapons: [0] },
+  // The SMG in hand, as the game always spawned players before loadouts existed. The RPG is never in a spawn kit.
+  { name: 'Full arsenal', hint: 'Everyone spawns with the four standard guns; the RPG is still hidden in the office.', startWeapons: [1, 0, 2, 3] },
 ];
 
 /** Loadout ids offered on the setup screen. */

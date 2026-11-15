@@ -3,7 +3,7 @@
  * A box is left alone unless it would actually help the player.
  */
 import { MAX_HP } from '@shared/core/constants';
-import { loadoutOf } from '@shared/rules/loadout';
+import { isStarter } from '@shared/rules/loadout';
 import { GRENADES, PICKUP_DEFS, WEAPONS, type PickupKind } from '@shared/rules/weapons';
 import type { PickupSpot } from '@shared/world/map/pickups';
 import { ammoFull, giveAmmo, giveGun, owns } from './arsenal';
@@ -30,7 +30,7 @@ export function tickPickups(sim: Sim): void {
       sim.events.push({ k: 'pickup', id: p.id, i, kind: s.kind, ...taken });
       // The range's armory table is never emptied; everywhere else the box goes away for a while.
       if (!(s.kind === 'weapon' && sim.rules.mode === 'range')) {
-        sim.pickupReady[i] = sim.tick + def.respawnTicks;
+        sim.pickupReady[i] = sim.tick + (s.respawnTicks ?? def.respawnTicks);
         sim.events.push({ k: 'pk', i, on: false });
       }
       break;
@@ -38,9 +38,14 @@ export function tickPickups(sim: Sim): void {
   });
 }
 
-/** Whether a spot exists for the room's loadout: gun pickups are off when everyone spawns with every gun. */
+/** Whether a spot exists for the room's loadout: a gun pickup is off when everyone already spawns with that gun. */
 export function spotEnabled(sim: Sim, s: PickupSpot): boolean {
-  return s.kind !== 'weapon' || loadoutOf(sim.rules.loadout).mapGuns;
+  return s.kind !== 'weapon' || !isStarter(sim.rules.loadout, s.weapon ?? 0);
+}
+
+/** Whether a bot may walk to a spot on purpose (to roam or to fetch): it must exist, and guns that are left for humans to hunt (the RPG) do not count. */
+export function botSpot(sim: Sim, s: PickupSpot): boolean {
+  return spotEnabled(sim, s) && !(s.kind === 'weapon' && WEAPONS[s.weapon ?? 0]?.botsSeek === false);
 }
 
 /** Gives a pickup's contents to a player. @returns False if they could not use it (so it stays). */
@@ -60,7 +65,7 @@ function applyPickup(p: Player, s: PickupSpot): Taken {
   }
   if (kind === 'ammo') {
     if (ammoFull(p)) return false;
-    WEAPONS.forEach((_, i) => giveAmmo(p, i, def.amount));
+    WEAPONS.forEach((w, i) => { if (w.boxAmmo !== false) giveAmmo(p, i, def.amount); });
     return {};
   }
   if (GRENADES.every((g, i) => p.gren[i]! >= g.maxCarry)) return false;

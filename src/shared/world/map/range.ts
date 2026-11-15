@@ -90,8 +90,8 @@ box('cardboard', 4.6, TABLE_H, TABLE_Z, 0.5, 0.35, 0.5);
 for (const s of [-1, 1] as const) box('metal', s * 5.6, 1.6, Z_NEAR - 0.3, 0.06, 0.8, 0.06, false);
 plaque('ARMORY', 0, 2.3, Z_NEAR - 0.05, 'x', -1, 2.4, 0.5, 'accentRed');
 lamp(0, CEILING_H - 0.4, Z_NEAR - 1, 0xffdcb0, 0.9, 8);
-/** The guns on the table, in slot order: SMG, Shredder, Laser Pointer. Pickup radius reaches them from in front of the table. */
-const ARMORY: PickupSpot[] = ([1, 2, 3] as const).map((weapon, k) => ({ kind: 'weapon', weapon, x: (k - 1) * 3, z: TABLE_Z, y: TABLE_H }));
+/** The guns on the table, in slot order: SMG, Shredder, Laser Pointer, RPG. Pickup radius reaches them from in front of the table. */
+const ARMORY: PickupSpot[] = ([1, 2, 3, 4] as const).map((weapon, k) => ({ kind: 'weapon', weapon, x: (k - 1.5) * 2.4, z: TABLE_Z, y: TABLE_H }));
 
 /** Each target's distance down the range and its marker text; the dummy itself is a real bot (see `server/sim/range-dummy.ts`). */
 export const TARGETS: readonly { z: number; label: string }[] = [

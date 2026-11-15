@@ -25,7 +25,7 @@ function ControlsHint() {
     [['W', 'A', 'S', 'D'], 'Move'],
     [['Shift', 'Space'], 'Sprint, jump'],
     [['LMB', 'RMB'], 'Shoot, aim'],
-    [['1', '2', '3', '4'], 'Weapons'],
+    [['1', '2', '3', '4', '5'], 'Weapons'],
     [['G', 'H', 'E'], 'Grenades, doors'],
   ];
   return (

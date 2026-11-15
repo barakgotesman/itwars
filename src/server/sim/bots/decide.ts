@@ -9,7 +9,7 @@ import { MAX_HP } from '@shared/core/constants';
 import type { BotTuning } from '@shared/rules/bots';
 import { owns } from '../arsenal';
 import type { Loot } from '../loot';
-import { spotEnabled } from '../pickups';
+import { botSpot } from '../pickups';
 import type { Player } from '../player';
 import type { Sim } from '../state';
 import { setGoal } from './navigate';
@@ -80,7 +80,7 @@ function nearestGun(sim: Sim, p: Player): Wish | null {
   const need = Math.pow(WEAPON_NEED_DECAY, extraGuns(sim, p));
   let best: Wish | null = null;
   sim.spots.forEach((spot, i) => {
-    if (spot.kind !== 'weapon' || !spotEnabled(sim, spot) || sim.pickupReady[i]! > sim.tick || owns(p, spot.weapon ?? 0)) return;
+    if (spot.kind !== 'weapon' || !botSpot(sim, spot) || sim.pickupReady[i]! > sim.tick || owns(p, spot.weapon ?? 0)) return;
     const d = Math.hypot(spot.x - p.state.x, spot.z - p.state.z);
     if (d > PICKUP_RANGE) return;
     const score = WEAPON_SCORE * need * Math.max(0.2, 1 - d / PICKUP_RANGE);

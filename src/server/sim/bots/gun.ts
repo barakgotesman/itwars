@@ -25,6 +25,10 @@ export const ADS_DISTANCE = 12;
 const IDEAL_RANGE_SHARE = 0.8;
 const IDEAL_RANGE_MIN = 4;
 const IDEAL_RANGE_MAX = 20;
+/** A bot will not choose a launcher for a target closer than this share of the blast radius. */
+const ROCKET_SAFE_SHARE = 0.9;
+/** A rocket's blast also catches near misses and neighbours, so it counts for this many times its direct damage. */
+const ROCKET_SPLASH_BONUS = 2.2;
 /** Reload when the magazine is below this fraction and no enemy is in sight. */
 const IDLE_RELOAD_BELOW = 0.4;
 
@@ -43,9 +47,11 @@ function usefulness(p: Player, i: number, d: number, aiming: boolean): number {
   const mag = p.mag[i] ?? 0;
   const reserve = p.reserve[i] ?? 0;
   if (mag + reserve <= 0) return 0;
+  // A launcher is useless (and suicidal) up close: the blast would catch the shooter.
+  if (w.rocket && d < w.rocket.radius * ROCKET_SAFE_SHARE) return 0;
   const spread = aiming ? w.aimSpread : w.spread;
   const hitShare = Math.min(1, TARGET_HALF_WIDTH / Math.max(0.05, d * Math.max(spread, 0.002)));
-  const dps = (w.damage * w.pellets * 60 / w.interval) * falloff(w, d) * hitShare;
+  const dps = ((w.rocket ? w.rocket.damage * ROCKET_SPLASH_BONUS : w.damage * w.pellets) * 60 / w.interval) * falloff(w, d) * hitShare;
   return mag <= 0 ? dps * EMPTY_MAG_FACTOR : dps;
 }
 

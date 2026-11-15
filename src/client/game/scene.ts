@@ -11,7 +11,7 @@ import { Sfx } from '@client/platform/audio';
 import { effectiveGraphics, initQuality } from '@client/platform/quality';
 import { onSettingsChange, settings } from '@client/platform/settings';
 import { DoorVisuals } from '@client/render/door-visuals';
-import { GrenadeVisuals, LootVisuals, PickupVisuals } from '@client/render/items';
+import { GrenadeVisuals, LootVisuals, PickupVisuals, RocketVisuals } from '@client/render/items';
 import { BulletHoles } from '@client/render/bullet-holes';
 import { Sprays } from '@client/render/sprays';
 import { Blasts, Particles } from '@client/render/particles';
@@ -68,6 +68,7 @@ export interface SceneHandle {
   blasts: Blasts;
   pickups: PickupVisuals;
   grenadeVisuals: GrenadeVisuals;
+  rocketVisuals: RocketVisuals;
   lootBags: LootVisuals;
   bulletHoles: BulletHoles;
   sprays: Sprays;
@@ -135,6 +136,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   const blasts = new Blasts(scene);
   const pickups = new PickupVisuals(scene, PICKUP_SPOTS, joined.pickups);
   const grenadeVisuals = new GrenadeVisuals(scene);
+  const rocketVisuals = new RocketVisuals(scene, particles);
   const lootBags = new LootVisuals(scene);
   const bulletHoles = new BulletHoles(scene);
   const sprays = new Sprays(scene);
@@ -216,7 +218,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   applySettings();
 
   return {
-    camera, world, dust, viewmodel, fx, remotes, particles, blasts, pickups, grenadeVisuals, lootBags,
+    camera, world, dust, viewmodel, fx, remotes, particles, blasts, pickups, grenadeVisuals, rocketVisuals, lootBags,
     atmosphere, bulletHoles, sprays, tracers, doorVisuals, doors, solids, sfx, view, needsCalibration, podium,
   };
 }

@@ -3,6 +3,7 @@
  * and wheel direction goes through the rebindable bindings in `settings.ts`.
  */
 import { Key, KEY_MASK } from '@shared/core/constants';
+import { WEAPONS } from '@shared/rules/weapons';
 import { ACTIONS, onSettingsChange, settings, type Action } from './settings';
 
 /** Actions that are held down and sent to the server as bits in the key mask. */
@@ -12,7 +13,7 @@ const HOLD_BITS: Partial<Record<Action, number>> = {
 };
 
 /** Weapon-select actions and the weapon index they choose. */
-const WEAPON_SLOT: Partial<Record<Action, number>> = { weapon1: 0, weapon2: 1, weapon3: 2, weapon4: 3 };
+const WEAPON_SLOT: Partial<Record<Action, number>> = { weapon1: 0, weapon2: 1, weapon3: 2, weapon4: 3, weapon5: 4 };
 
 /** Radians of turn per mouse count at sensitivity 1. */
 const BASE_SENSITIVITY = 0.0022;
@@ -116,8 +117,8 @@ export class Input {
 
   /** The next owned weapon in `dir` from the current one, skipping guns not yet found (wraps around). */
   private nextOwned(dir: 1 | -1): number {
-    for (let k = 1; k <= 4; k++) {
-      const w = (this.weapon + dir * k + 8) % 4;
+    for (let k = 1; k <= WEAPONS.length; k++) {
+      const w = (this.weapon + dir * k + 2 * WEAPONS.length) % WEAPONS.length;
       if (this.owns(w)) return w;
     }
     return this.weapon;

@@ -74,6 +74,7 @@ export function startGame(ctx: GameContext): GameHandle {
       msg.ev.forEach(onEvent);
       scene.remotes.onSnapshot(msg.players, performance.now());
       scene.grenadeVisuals.sync(msg.grenades);
+      scene.rocketVisuals.sync(msg.rockets);
       local.reconcile(msg);
       input.setOwned(msg.me.guns, msg.me.w);
       hud.update(msg.me);
