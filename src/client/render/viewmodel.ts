@@ -36,6 +36,8 @@ interface Parts {
   rocket?: THREE.Group;
   hammer?: THREE.Group;
   carry?: THREE.Group;
+  /** RPG: the green "loaded" light, on only when a rocket is in the tube and the lever is cocked. */
+  led?: THREE.Group;
 }
 
 /** What a gun spits out when it cycles. */
@@ -66,7 +68,14 @@ interface GunRig {
   rear?: THREE.Vector3;
   /** Resting position when not aiming, for guns that sit differently from the default (a long launcher sits further out). */
   hip?: THREE.Vector3;
+  /** Turn (radians, about the up axis) toward the centre while not aiming, so a shouldered tube points at the crosshair. */
+  hipTurn?: number;
+  /** How hard and how long a shot kicks the gun back: a multiplier on the usual kick, and how fast it settles (per second). */
+  recoil?: { scale: number; decay: number };
 }
+
+/** Where (gun space, x) the RPG's sights stand: on the left of the tube, so aiming lines the eye up with them and the tube sits to the right. */
+const SIGHT_X = -0.07;
 
 /** Where (gun space, z) the RPG's rocket sits when loaded: its centre, so it can be moved and tilted about itself. */
 const ROCKET_REST_Z = -0.75;
@@ -119,6 +128,20 @@ function glintTexture(): THREE.CanvasTexture {
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   return tex;
+}
+
+/** Painted once: a soft round glow that fades to nothing at its edge, so a flash quad never shows a hard border. */
+function softGlowTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d')!;
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.5, 'rgba(255,255,255,0.45)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
 }
 
 /**
@@ -342,69 +365,102 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       g.add(rocket, hammer, carry);
       rocket.position.set(0, 0, ROCKET_REST_Z);
       const rz = (z: number) => z - ROCKET_REST_Z;
-      // Tube, its light top strip and dark underside, and the wooden heat shield wrapped round the middle.
+      // Tube: olive steel with a light top strip, a dark underside, welded side seams and a row of rivets along each
+      // shoulder; cooling ribs round the rear and a red band and a yellow-and-black warning stripe further up.
       box(g, 0x5c6b3a, 0.11, 0.11, 0.95, 0, 0, -0.4);
       box(g, 0x7d8c52, 0.06, 0.006, 0.9, 0, 0.057, -0.4);
       box(g, 0x3f4a26, 0.07, 0.006, 0.9, 0, -0.057, -0.4);
-      box(g, 0x7a4f2c, 0.12, 0.12, 0.24, 0, 0, -0.2);
-      for (const z of [-0.12, -0.2, -0.28]) box(g, 0x4a2f19, 0.124, 0.124, 0.012, 0, 0, z);
-      // Rear venturi: three flaring rings round a dark nozzle.
-      box(g, 0x3a4224, 0.12, 0.12, 0.05, 0, 0, 0.1);
-      box(g, 0x23281a, 0.135, 0.135, 0.04, 0, 0, 0.145);
-      box(g, 0x14161a, 0.1, 0.1, 0.01, 0, 0, 0.168);
-      // Muzzle ring and the warning stripes painted round the tube.
-      box(g, 0x3a4224, 0.125, 0.125, 0.04, 0, 0, -0.865);
+      for (const x of [-0.0555, 0.0555]) box(g, 0x3a4224, 0.004, 0.07, 0.9, x, 0, -0.4);
+      for (let z = -0.82; z < -0.3; z += 0.065) for (const x of [-0.04, 0.04]) box(g, 0x8d949c, 0.008, 0.008, 0.008, x, 0.0555, z);
+      for (const z of [0.055, 0.03, 0.005]) box(g, 0x4a5730, 0.118, 0.118, 0.01, 0, 0, z);
+      box(g, 0xc0392b, 0.114, 0.114, 0.012, 0, 0, -0.58);
       box(g, 0xf2c230, 0.114, 0.114, 0.025, 0, 0, -0.62);
       box(g, 0x14161a, 0.114, 0.114, 0.025, 0, 0, -0.65);
-      // Sights, built so aiming lines up on them: a rear aperture (a thin frame, so the target shows through the
-      // middle of it) and a front blade with a bright bead. Both stand tall enough that the aim point sits above the
-      // bulk of the tube, which then fills the bottom of the screen and not the middle.
-      box(g, 0x23262c, 0.04, 0.012, 0.03, 0, 0.061, -0.05);
-      for (const x of [-0.016, 0.016]) box(g, 0x14161a, 0.006, 0.11, 0.01, x, 0.11, -0.05);
-      box(g, 0x14161a, 0.038, 0.006, 0.01, 0, 0.165, -0.05);
-      box(g, 0x14161a, 0.038, 0.006, 0.01, 0, 0.115, -0.05);
-      box(g, 0x23262c, 0.02, 0.012, 0.03, 0, 0.061, -0.8);
-      box(g, 0x14161a, 0.008, 0.07, 0.01, 0, 0.09, -0.8);
-      glow(g, 0xffe27a, 0.007, 0.007, 0.006, 0, 0.128, -0.8);
-      // Optical sight bolted to the left of the tube (the kind real launchers carry): body, bell, mount and lenses.
-      box(g, 0x2a2d33, 0.045, 0.02, 0.07, -0.072, 0.02, -0.14);
-      box(g, 0x14161a, 0.05, 0.05, 0.2, -0.095, 0.045, -0.14);
-      box(g, 0x23262c, 0.062, 0.062, 0.045, -0.095, 0.045, -0.255);
-      box(g, 0x23262c, 0.058, 0.058, 0.03, -0.095, 0.045, -0.03);
-      box(g, 0x555a63, 0.054, 0.012, 0.03, -0.095, 0.075, -0.2);
-      box(g, 0x555a63, 0.054, 0.012, 0.03, -0.095, 0.075, -0.08);
-      glow(g, 0x4aa8ff, 0.04, 0.04, 0.004, -0.095, 0.045, -0.2795);
-      lens(g, glints, 0x4aa8ff, 0.5, 0.04, 0.04, -0.095, 0.045, -0.0135);
-      // Steel bands and a wider flared muzzle, so the tube reads as a heavy machined part and not a plain pipe.
-      for (const z of [-0.34, -0.5, -0.74]) box(g, 0x8d949c, 0.118, 0.118, 0.012, 0, 0, z);
+      // Wooden heat shield: two-tone wood with grooves, a lit top edge, and steel clamp bands with bolts at both ends.
+      box(g, 0x7a4f2c, 0.12, 0.12, 0.24, 0, 0, -0.2);
+      box(g, 0x9a6a3c, 0.07, 0.006, 0.22, 0, 0.061, -0.2);
+      box(g, 0x5e3b1f, 0.124, 0.03, 0.22, 0, -0.03, -0.2);
+      for (const z of [-0.12, -0.2, -0.28]) box(g, 0x4a2f19, 0.124, 0.124, 0.012, 0, 0, z);
+      for (const z of [-0.075, -0.325]) {
+        box(g, 0x8d949c, 0.128, 0.128, 0.014, 0, 0, z);
+        for (const x of [-0.065, 0.065]) box(g, 0xd9dde2, 0.008, 0.012, 0.012, x, 0.02, z);
+      }
+      // Rear venturi: steel retaining ring, three flaring rings, bolts at the corners and a dark nozzle.
+      box(g, 0x8d949c, 0.14, 0.14, 0.012, 0, 0, 0.09);
+      box(g, 0x3a4224, 0.12, 0.12, 0.05, 0, 0, 0.1);
+      box(g, 0x23281a, 0.135, 0.135, 0.04, 0, 0, 0.145);
+      for (const x of [-0.055, 0.055]) for (const y of [-0.055, 0.055]) box(g, 0x8d949c, 0.01, 0.01, 0.01, x, y, 0.166);
+      box(g, 0x14161a, 0.1, 0.1, 0.01, 0, 0, 0.168);
+      box(g, 0x23262c, 0.07, 0.07, 0.006, 0, 0, 0.173);
+      // Muzzle: a thick ring, a wider flare and a dark outer lip round the warhead.
+      box(g, 0x3a4224, 0.125, 0.125, 0.04, 0, 0, -0.865);
       box(g, 0x23281a, 0.14, 0.14, 0.03, 0, 0, -0.895);
-      box(g, 0x8d949c, 0.056, 0.012, 0.03, 0.058, 0.02, -0.02);
-      box(g, 0xc0392b, 0.012, 0.012, 0.012, 0.062, 0.02, -0.02);
-      // Pistol grip with a trigger, and a fore-grip under the shield.
+      box(g, 0x14161a, 0.15, 0.15, 0.01, 0, 0, -0.915);
+      box(g, 0x8d949c, 0.128, 0.128, 0.012, 0, 0, -0.78);
+      // Left side (the one you see): a yellow stencil plate with dark lettering, a steel data plate, the safety lever and
+      // a small green light that comes on when a rocket is loaded and the lever is cocked.
+      box(g, 0xf2c230, 0.004, 0.045, 0.14, -0.0575, 0.005, -0.5);
+      for (const z of [-0.54, -0.5, -0.46]) box(g, 0x14161a, 0.005, 0.03, 0.012, -0.058, 0.005, z);
+      box(g, 0x8d949c, 0.004, 0.03, 0.07, -0.0575, -0.015, -0.7);
+      box(g, 0x2a2d33, 0.016, 0.04, 0.05, -0.064, -0.04, -0.02);
+      box(g, 0x8d949c, 0.014, 0.012, 0.038, -0.07, -0.048, -0.02);
+      box(g, 0xc0392b, 0.012, 0.012, 0.012, -0.07, -0.048, -0.045);
+      const led = new THREE.Group();
+      g.add(led);
+      box(g, 0x14161a, 0.012, 0.016, 0.016, -0.0575, 0.035, 0.02);
+      glow(led, 0x4dff7a, 0.006, 0.01, 0.01, -0.0615, 0.035, 0.02);
+      // Sights, built so aiming lines up on them: a rear aperture (a thin frame, so the target shows through the
+      // middle of it) and a front blade with a bright bead, both on the left of the tube. Both stand tall enough that
+      // the aim point sits above the bulk of the tube, which then fills the bottom of the screen and not the middle.
+      box(g, 0x23262c, 0.05, 0.012, 0.03, SIGHT_X, 0.061, -0.05);
+      box(g, 0x2a2d33, 0.03, 0.012, 0.03, SIGHT_X + 0.025, 0.056, -0.05);
+      for (const x of [-0.016, 0.016]) box(g, 0x14161a, 0.006, 0.1, 0.01, SIGHT_X + x, 0.115, -0.05);
+      box(g, 0x14161a, 0.038, 0.006, 0.01, SIGHT_X, 0.165, -0.05);
+      box(g, 0x14161a, 0.038, 0.006, 0.01, SIGHT_X, 0.115, -0.05);
+      box(g, 0x23262c, 0.03, 0.012, 0.03, SIGHT_X, 0.061, -0.8);
+      box(g, 0x2a2d33, 0.03, 0.012, 0.03, SIGHT_X + 0.025, 0.056, -0.8);
+      box(g, 0x14161a, 0.008, 0.07, 0.01, SIGHT_X, 0.09, -0.8);
+      glow(g, 0xffe27a, 0.007, 0.007, 0.006, SIGHT_X, 0.128, -0.8);
+      // Pistol grip: ribbed, with a trigger, a trigger guard and a steel linkage rod running up along the tube.
       box(g, 0x23262c, 0.044, 0.1, 0.056, 0, -0.105, -0.02, 0.2);
+      for (const y of [-0.085, -0.105, -0.125]) box(g, 0x15171a, 0.048, 0.008, 0.058, 0, y, -0.015, 0.2);
       box(g, 0x14161a, 0.048, 0.012, 0.06, 0, -0.058, -0.02);
       box(g, 0x8d949c, 0.008, 0.024, 0.008, 0, -0.07, -0.07);
+      box(g, 0x23262c, 0.044, 0.006, 0.075, 0, -0.088, -0.065);
+      box(g, 0x23262c, 0.044, 0.03, 0.006, 0, -0.073, -0.1);
+      box(g, 0x8d949c, 0.01, 0.01, 0.3, -0.03, -0.0575, -0.2);
+      // Fore-grip under the shield: a steel bracket, a dark body with a wooden side panel and a ribbed base.
+      box(g, 0x8d949c, 0.03, 0.02, 0.07, 0, -0.06, -0.45);
       box(g, 0x23262c, 0.042, 0.1, 0.05, 0, -0.105, -0.45);
+      box(g, 0x7a4f2c, 0.046, 0.06, 0.036, 0, -0.1, -0.45);
+      for (const y of [-0.135, -0.145]) box(g, 0x15171a, 0.046, 0.006, 0.054, 0, y, -0.45);
       // Cocking lever on top at the back; it swings from fired (forward) to cocked (back).
       hammer.position.set(0, 0.058, 0.04);
       box(hammer, 0x8d949c, 0.018, 0.05, 0.016, 0, 0.025, 0);
       box(hammer, 0xc0392b, 0.02, 0.012, 0.02, 0, 0.052, 0);
-      // The rocket: a long dark body with four tail fins (all hidden in the tube when loaded) and a red warhead whose
-      // yellow nose sticks out of the muzzle.
+      // The rocket: a long dark body with four tail fins and a nozzle (all hidden in the tube when loaded) and a red
+      // warhead with a yellow-and-black band, a steel fuse ring and a yellow nose that sticks out of the muzzle.
       box(rocket, 0x2a2d33, 0.07, 0.07, 0.36, 0, 0, rz(-0.7));
       box(rocket, 0x8d949c, 0.1, 0.008, 0.08, 0, 0, rz(-0.55));
       box(rocket, 0x8d949c, 0.008, 0.1, 0.08, 0, 0, rz(-0.55));
       box(rocket, 0x3a4224, 0.09, 0.09, 0.05, 0, 0, rz(-0.515));
+      box(rocket, 0x14161a, 0.06, 0.06, 0.03, 0, 0, rz(-0.5));
       box(rocket, 0x23262c, 0.085, 0.085, 0.06, 0, 0, rz(-0.88));
       box(rocket, 0xd62828, 0.115, 0.115, 0.09, 0, 0, rz(-0.935));
+      box(rocket, 0xf2c230, 0.12, 0.12, 0.012, 0, 0, rz(-0.955));
+      box(rocket, 0x14161a, 0.12, 0.12, 0.012, 0, 0, rz(-0.968));
       box(rocket, 0xc0392b, 0.085, 0.085, 0.06, 0, 0, rz(-1.005));
+      box(rocket, 0x8d949c, 0.092, 0.092, 0.01, 0, 0, rz(-1.036));
       box(rocket, 0xf2c230, 0.045, 0.045, 0.05, 0, 0, rz(-1.06));
       box(rocket, 0xf4f4f1, 0.118, 0.118, 0.012, 0, 0, rz(-0.9));
       // The support hand rides on `carry`: on the fore-grip at rest, following the rocket while it is carried.
       return {
         group: g, muzzle: new THREE.Vector3(0, 0, -1.1), handR: new THREE.Vector3(0, -0.125, -0.02), handL: new THREE.Vector3(0, -0.15, -0.45),
-        hip: new THREE.Vector3(0.2, -0.19, -0.66),
-        ads: new THREE.Vector3(0, -0.14, -0.72), parts: { rocket, hammer, carry }, port: new THREE.Vector3(0, 0, 0),
+        // Shouldered: the tube rests out on the right shoulder (not in the middle of the view), the rear end by the
+        // camera and the tube barely angled in. Recoil is heavy, and aiming (below) cuts it.
+        hip: new THREE.Vector3(0.27, -0.15, -0.46), hipTurn: 0.03, recoil: { scale: 1.8, decay: 6 },
+        // Aiming brings the sights on the left of the tube to the middle of the view; the tube stays to the right.
+        ads: new THREE.Vector3(-SIGHT_X, -0.14, -0.62), parts: { rocket, hammer, carry, led }, port: new THREE.Vector3(0, 0, 0),
         casing: { color: 0x14161a, size: [0.01, 0.01, 0.01] }, ejectAt: Infinity,
         handLParent: carry, reloadPose: { dip: 0.03, pitch: 0.3, roll: 0.1 }, rear: new THREE.Vector3(0, 0, 0.2),
       };
@@ -479,8 +535,9 @@ export class ViewModel {
   private reelAngle = 0;
   /** The RPG's reload progress on the previous frame, to catch the moments it clunks home. */
   private rpgPrev = 0;
-  /** Back-blast flash behind a launcher (shares the muzzle flash's material and fade). */
-  private readonly rearFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), this.flashMat);
+  /** Back-blast flash behind a launcher: a softer, fainter glow than the muzzle flash, so it does not white out the screen. */
+  private readonly rearMat = new THREE.MeshBasicMaterial({ color: 0xff8a2a, map: softGlowTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  private readonly rearFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), this.rearMat);
   private readonly casings: Casing[] = [];
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x9aa0aa, 2.4);
   private readonly sun = new THREE.DirectionalLight(0xfff2dd, 1.6);
@@ -543,7 +600,9 @@ export class ViewModel {
   /** Kicks the gun back and shows the muzzle flash. @param weapon - Weapon index that fired. */
   fire(weapon: number): void {
     const fx = WEAPON_FX[weapon]!;
-    this.kick = Math.min(1.4, this.kick + fx.kick);
+    // Some guns (the RPG) buck far less when braced against the sights than when fired from the hip.
+    const braced = 1 - this.aimT * (1 - (WEAPONS[weapon]!.aimRecoilMul ?? 1));
+    this.kick = Math.min(1.4, this.kick + fx.kick * braced);
     this.flashT = this.flashLife = fx.flashLife;
     this.flashMat.color.setHex(fx.flashColor);
     this.flashLight.color.setHex(fx.flashColor);
@@ -690,6 +749,7 @@ export class ViewModel {
     // Lever: forward when fired, cocked back once the reload reaches its last beat (or when loaded).
     const cocked = s.magEmpty ? (r > 0 ? ease((r - 0.86) / 0.06) : 0) : 1;
     if (p.hammer) p.hammer.rotation.x = 0.55 - 1.1 * cocked;
+    if (p.led) p.led.visible = cocked > 0.5;
   }
 
   /**
@@ -739,7 +799,7 @@ export class ViewModel {
     this.updateCasings(dt);
 
     this.aimT += ((s.aiming && s.alive ? 1 : 0) - this.aimT) * Math.min(1, dt * 14);
-    this.kick *= Math.exp(-dt * 14);
+    this.kick *= Math.exp(-dt * (rig.recoil?.decay ?? 14));
     this.switchT = Math.max(0, this.switchT - dt * 4);
     this.throwT = Math.max(0, this.throwT - dt * 2.8);
     this.flashT = Math.max(0, this.flashT - dt);
@@ -761,7 +821,7 @@ export class ViewModel {
     const pos = hip.lerp(new THREE.Vector3(rig.ads.x, rig.ads.y, rig.ads.z), this.aimT);
     pos.x += this.swayX + Math.sin(this.bob) * 0.008 * bobAmt;
     pos.y += this.swayY + Math.abs(Math.cos(this.bob)) * 0.01 * bobAmt - Math.sin(this.time * 1.6) * 0.0015;
-    pos.z += this.kick * 0.05;
+    pos.z += this.kick * 0.05 * (rig.recoil?.scale ?? 1);
 
     const rp = rig.reloadPose;
     const r = s.reloadFrac;
@@ -772,8 +832,8 @@ export class ViewModel {
     pos.z -= throwDip * 0.08;
     this.root.position.copy(pos);
     this.root.rotation.set(
-      this.kick * 0.1 + reloadDip * (rp?.pitch ?? -0.55) - this.switchT * 0.5 - throwDip * 0.6,
-      -this.swayX * 1.5,
+      this.kick * 0.1 * (rig.recoil?.scale ?? 1) + reloadDip * (rp?.pitch ?? -0.55) - this.switchT * 0.5 - throwDip * 0.6,
+      -this.swayX * 1.5 + (rig.hipTurn ?? 0) * (1 - this.aimT),
       reloadDip * (rp?.roll ?? 0.35) + this.swayX * 2,
     );
 
@@ -788,7 +848,8 @@ export class ViewModel {
     // A launcher also blasts out of its back, where the player stands.
     this.rearFlash.visible = this.flashT > 0 && rig.rear !== undefined;
     if (rig.rear) this.rearFlash.position.copy(rig.rear);
-    this.rearFlash.scale.setScalar(1 + (1 - glow) * 1.5);
+    this.rearMat.opacity = glow * 0.8;
+    this.rearFlash.scale.setScalar(1 + (1 - glow) * 0.8);
     this.flash.position.copy(rig.muzzle).add(new THREE.Vector3(0, 0, -0.03));
     this.flashLight.position.copy(rig.muzzle).add(new THREE.Vector3(0, 0.03, 0.05));
   }

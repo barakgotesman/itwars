@@ -47,6 +47,8 @@ export interface Hud {
   matchEnd(info: MatchEndInfo | null): void;
   /** Shows or hides the sniper scope overlay. */
   scope(visible: boolean): void;
+  /** Shows or hides the crosshair (some guns show none until you aim). */
+  crosshair(visible: boolean): void;
   /** Shows an FPS readout, or hides it with null. */
   fps(text: string | null): void;
 }

@@ -33,7 +33,7 @@ export interface WeaponDef {
   /** Maximum spare ammo outside the magazine. */
   maxReserve: number;
   reloadTicks: number;
-  /** Cone half-angle when firing from the hip. */
+  /** Cone half-angle when firing from the hip (for a launcher: how far a rocket can stray from the crosshair). */
   spread: number;
   /** Cone half-angle while aiming (RMB). */
   aimSpread: number;
@@ -46,6 +46,10 @@ export interface WeaponDef {
   recoil: number;
   /** Client only: FOV divisor while aiming. */
   zoom: number;
+  /** False: no crosshair unless aiming down the sights (the RPG: from the hip you cannot tell where it will go, so you must aim). */
+  hipCrosshair?: false;
+  /** Client only: share of the recoil (camera kick, shake, gun kick) that is left when aiming down the sights (default all of it). */
+  aimRecoilMul?: number;
   /** Present for launchers: the shot is a rocket (`server/sim/rockets.ts`) and `damage`/`pellets`/falloff are unused. */
   rocket?: RocketDef;
   /** Walking and sprinting speed multiplier while this gun is in hand (default 1). Shared with client prediction. */
@@ -83,8 +87,8 @@ export const WEAPONS: readonly WeaponDef[] = [
   // RPG: one rocket per magazine, three in all, a very long reload and a heavy walk. Only found, never spawned with.
   {
     name: 'RPG', auto: false, damage: 0, pellets: 1, headMul: 1, interval: 90,
-    magSize: 1, maxReserve: 2, reloadTicks: 270, spread: 0, aimSpread: 0,
-    falloffStart: 200, falloffEnd: 201, minMul: 1, recoil: 0.12, zoom: 1.3,
+    magSize: 1, maxReserve: 2, reloadTicks: 270, spread: 0.06, aimSpread: 0.004,
+    falloffStart: 200, falloffEnd: 201, minMul: 1, recoil: 0.45, zoom: 1.25, aimRecoilMul: 0.3, hipCrosshair: false,
     rocket: { speed: 28, radius: 6, damage: 140, lifeTicks: 240 },
     moveMul: 0.6, pickupReserveFraction: 1, boxAmmo: false, botsSeek: false,
   },

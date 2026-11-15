@@ -47,6 +47,7 @@ export function startFrameLoop(d: LoopDeps): void {
   let stepAcc = 0;
   let curFov = view.baseFov;
   let scoped = false;
+  let crosshairShown = true;
   /** Light of the room the camera is in, reused every frame. */
   const localTint: Tint = { r: 1, g: 1, b: 1 };
   let fpsFrames = 0;
@@ -104,6 +105,12 @@ export function startFrameLoop(d: LoopDeps): void {
     if (nowScoped !== scoped) {
       scoped = nowScoped;
       hud.scope(scoped);
+    }
+    // A launcher shows no crosshair from the hip: you have to raise the sights to know where it will go.
+    const nowCross = WEAPONS[input.weapon]!.hipCrosshair !== false || viewmodel.aim > 0.85;
+    if (nowCross !== crosshairShown) {
+      crosshairShown = nowCross;
+      hud.crosshair(nowCross);
     }
 
     // Camera: the podium cuts away to its own fixed, deliberately dim view (and holds the fog there itself);

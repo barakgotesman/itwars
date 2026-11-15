@@ -1161,6 +1161,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const rpg = WEAPONS[4]!;
   check('the RPG holds one rocket and three in all', rpg.magSize === 1 && rpg.magSize + rpg.maxReserve === 3 && rpg.rocket !== undefined);
   check('nobody spawns with the RPG', LOADOUTS.every((l) => !l.startWeapons.includes(4)));
+  check('only the RPG hides its crosshair from the hip', WEAPONS.every((w, i) => (w.hipCrosshair === false) === (i === 4)));
   check('the RPG reload is the longest', WEAPONS.every((w) => w.reloadTicks <= rpg.reloadTicks));
 
   // The spot is live under both loadouts; the SMG spot goes inert under the full arsenal. A taken RPG waits long to return.
@@ -1215,7 +1216,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
     m.reserve[4] = 2;
     place(room, a.id, 0, 0, 0, 0);
     place(room, b.id, 3, -17);
-    run(room, a, 1, { keys: Key.Fire });
+    run(room, a, 1, { keys: Key.Fire | Key.Aim });
     check('firing spends the round and launches a rocket', m.mag[4] === 0 && room.rockets.length === 1);
     check('the snapshot carries the rocket', (a.conn.snap?.rockets.length ?? 0) === 1);
     const z0 = room.rockets[0]!.z;
@@ -1241,7 +1242,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
     m.mag[4] = 1;
     place(room, a.id, 0, 0, 0, 0);
     place(room, b.id, 0, -12);
-    run(room, a, 1, { keys: Key.Fire });
+    run(room, a, 1, { keys: Key.Fire | Key.Aim });
     idle(room, 40);
     const kill = a.conn.events().find((e) => e.k === 'kill');
     check('a direct hit kills from full health, credited to the RPG', kill?.k === 'kill' && kill.by === a.id && kill.to === b.id && kill.w === 4, JSON.stringify(kill));
@@ -1258,9 +1259,34 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
     m.weapon = 4;
     m.mag[4] = 1;
     place(room, a.id, 0, 0, 0, 0);
-    run(room, a, 1, { keys: Key.Fire });
+    run(room, a, 1, { keys: Key.Fire | Key.Aim });
     idle(room, 30);
     check('firing at a wall 4 m away hurts the shooter but does not kill', m.hp < MAX_HP && m.hp > 50, `hp=${m.hp}`);
+  }
+  {
+    // Accuracy: aimed rockets fly where the crosshair points; hip-fired ones scatter inside a cone.
+    const angles = (aim: boolean): number[] => {
+      const out: number[] = [];
+      for (let n = 0; n < 24; n++) {
+        const { room, add } = makeRoom([FLOOR], [], [], FULL_RULES);
+        const a = add('A');
+        warm(room);
+        const m = mut(room, a.id);
+        m.guns |= 16;
+        m.weapon = 4;
+        m.mag[4] = 1;
+        for (let k = 0; k < n; k++) room.rng();
+        place(room, a.id, 0, 0, 0, 0);
+        run(room, a, 1, { keys: aim ? Key.Fire | Key.Aim : Key.Fire });
+        const r = room.rockets[0]!;
+        out.push(Math.hypot(r.vx, r.vy) / Math.hypot(r.vx, r.vy, r.vz));
+      }
+      return out;
+    };
+    const aimed = Math.max(...angles(true));
+    const hip = angles(false);
+    check('an aimed rocket flies almost exactly along the view', aimed <= Math.tan(rpg.aimSpread) * 1.01 + 1e-6, `max=${aimed}`);
+    check('hip-fired rockets scatter, but stay inside the cone', Math.max(...hip) > Math.tan(rpg.aimSpread) * 4 && Math.max(...hip) <= Math.tan(rpg.spread) * 1.01, `max=${Math.max(...hip)}`);
   }
   {
     // Reload: a long one, then one rocket back in the tube and one left in reserve.

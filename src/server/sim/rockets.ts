@@ -3,7 +3,6 @@
  * player body it reaches (or when its flight time runs out) and damages everyone near the blast through `blast`.
  */
 import { EYE_HEIGHT, TICK_DT } from '@shared/core/constants';
-import { lookDir } from '@shared/core/physics';
 import { ROCKET_BOOM } from '@shared/net/protocol';
 import { WEAPONS, type WeaponDef } from '@shared/rules/weapons';
 import { castRay, type Target } from './combat';
@@ -30,13 +29,14 @@ export interface Rocket {
 }
 
 /**
- * Launches a rocket along the player's view.
+ * Launches a rocket.
  * @param w - The launcher; must have a `rocket` entry.
+ * @param dir - Unit direction to fly: the view direction, already scattered by the weapon's spread.
  */
-export function fireRocket(sim: Sim, p: Player, w: WeaponDef): void {
+export function fireRocket(sim: Sim, p: Player, w: WeaponDef, dir: readonly [number, number, number]): void {
   const def = w.rocket;
   if (!def) return;
-  const [dx, dy, dz] = lookDir(p.state.yaw, p.state.pitch);
+  const [dx, dy, dz] = dir;
   const ox = p.state.x, oy = p.state.y + EYE_HEIGHT, oz = p.state.z;
   // Start a little ahead, unless a wall is closer: then it goes off right there (point-blank into a wall hurts).
   const clear = castRay(sim.solids, [], ox, oy, oz, dx, dy, dz, MUZZLE_OFFSET).t;

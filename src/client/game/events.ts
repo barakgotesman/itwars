@@ -71,7 +71,11 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         if (e.id === myId) {
           muzzle = viewmodel.muzzleWorld(camera);
           viewmodel.fire(e.w);
-          camFx.kick += WEAPONS[e.w]!.recoil * 0.6;
+          // Braced against the sights a gun kicks less (the RPG a lot less), so aiming is the way to keep it under control.
+          const braced = 1 - viewmodel.aim * (1 - (WEAPONS[e.w]!.aimRecoilMul ?? 1));
+          camFx.kick += WEAPONS[e.w]!.recoil * 0.6 * braced;
+          // A launcher also rattles the whole view, not just kicks it up.
+          if (WEAPONS[e.w]!.rocket) camFx.shake = Math.max(camFx.shake, 0.06 * braced);
           sfx.shot(e.w);
         } else {
           muzzle = remotes.muzzleOf(e.id) ?? remotes.eyeOf(e.id);

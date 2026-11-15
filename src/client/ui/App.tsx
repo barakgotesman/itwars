@@ -14,7 +14,8 @@ import { Settings } from './screens/Settings';
 /** Four square ticks with a dark backing so it reads on white walls and dark carpet alike. */
 function Crosshair() {
   const scoped = useHud((s) => s.scope);
-  if (scoped) return null; // the scope has its own reticle
+  const shown = useHud((s) => s.crosshair);
+  if (scoped || !shown) return null; // the scope has its own reticle; an RPG shows none until you aim
   const tick = 'absolute bg-white outline outline-1 outline-black/80';
   return (
     <div className="pointer-events-none fixed left-1/2 top-1/2 h-0 w-0" aria-hidden="true">

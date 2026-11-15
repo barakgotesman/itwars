@@ -107,23 +107,35 @@ export function buildGunInto(g: THREE.Object3D, w: number): void {
       part(g, 0xf2c230, t * 1.15, 0.03, t * 1.4, 0, -0.18, 0);
       break;
     case 4:
-      // Launch tube: wooden heat shield with bands, a flared rear venturi, the warhead in the muzzle, a side optic,
-      // open sights, and the pistol grip and fore-grip the hands hold.
+      // Launch tube: wooden heat shield with clamp bands, welded seams and rivets, ribbed and flared rear venturi, a
+      // banded warhead in the muzzle, open sights, a stencil plate, a safety lever and the two grips the hands hold.
+      part(g, 0x3f4a26, t * 0.1, 0.9, t * 1.3, t * 0.51, -0.4, 0);
+      part(g, 0x3f4a26, t * 0.1, 0.9, t * 1.3, -t * 0.51, -0.4, 0);
+      for (const y of [0.04, 0.0, -0.04]) part(g, 0x4a5730, t * 1.1, 0.012, t * 1.5, 0, y, 0);
       part(g, 0x7a4f2c, t * 1.12, 0.3, t * 1.5, 0, -0.34, 0);
-      part(g, 0x4a2f19, t * 1.16, 0.02, t * 1.55, 0, -0.22, 0);
-      part(g, 0x4a2f19, t * 1.16, 0.02, t * 1.55, 0, -0.46, 0);
+      part(g, 0x9a6a3c, t * 0.7, 0.28, t * 0.1, 0, -0.34, -t * 0.78);
+      for (const y of [-0.19, -0.49]) part(g, 0x8d949c, t * 1.2, 0.022, t * 1.6, 0, y, 0);
+      part(g, 0x4a2f19, t * 1.16, 0.014, t * 1.55, 0, -0.34, 0);
+      part(g, 0xc0392b, t * 1.1, 0.025, t * 1.6, 0, -0.6, 0);
+      part(g, 0xf2c230, t * 1.1, 0.03, t * 1.6, 0, -0.66, 0);
+      part(g, 0x14161a, t * 1.1, 0.03, t * 1.6, 0, -0.7, 0);
+      part(g, 0x8d949c, t * 1.3, 0.016, t * 1.75, 0, 0.1, 0);
       part(g, 0x3a4224, t * 1.25, 0.1, t * 1.7, 0, 0.13, 0);
       part(g, 0x23281a, t * 1.5, 0.07, t * 2.0, 0, 0.2, 0);
       part(g, 0x14161a, t * 0.9, 0.012, t * 1.3, 0, 0.238, 0);
       part(g, 0x3a4224, t * 1.2, 0.05, t * 1.7, 0, -len + 0.04, 0);
+      part(g, 0x23281a, t * 1.35, 0.03, t * 1.85, 0, -len + 0.01, 0);
       part(g, 0xd62828, t * 0.92, 0.14, t * 1.2, 0, -len - 0.04, 0);
+      part(g, 0xf2c230, t * 0.96, 0.02, t * 1.26, 0, -len - 0.05, 0);
       part(g, 0xf2c230, t * 0.5, 0.07, t * 0.7, 0, -len - 0.15, 0);
-      part(g, 0x14161a, t * 0.42, 0.2, t * 0.6, -t * 0.8, -0.55, -t * 0.55);
-      part(g, 0x4aa8ff, t * 0.3, 0.012, t * 0.42, -t * 0.8, -0.447, -t * 0.55);
+      part(g, 0xf2c230, t * 0.1, 0.12, t * 0.5, -t * 0.55, -0.52, 0);
       part(g, 0x14161a, t * 0.22, 0.03, t * 0.5, 0, -0.12, -t * 1.0);
       part(g, 0x14161a, t * 0.14, 0.03, t * 0.4, 0, -0.8, -t * 0.95);
+      part(g, 0x2a2d33, t * 0.14, 0.05, t * 0.3, -t * 0.55, -0.05, t * 0.35);
       part(g, 0x23262c, 0.05, 0.06, 0.16, 0, RPG_GRIP_R.y, 0.14);
+      part(g, 0x15171a, 0.054, 0.012, 0.1, 0, RPG_GRIP_R.y + 0.02, 0.15);
       part(g, 0x23262c, 0.05, 0.05, 0.14, 0, RPG_GRIP_L.y, 0.13);
+      part(g, 0x7a4f2c, 0.054, 0.04, 0.09, 0, RPG_GRIP_L.y, 0.13);
       break;
     default:
       part(g, 0x2a2d33, t * 1.2, 0.2, t * 1.2, 0, -0.28, -t * 1.5);

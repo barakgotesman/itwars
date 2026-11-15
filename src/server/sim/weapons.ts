@@ -79,7 +79,8 @@ function fire(sim: Sim, p: Player, w: WeaponDef, aiming: boolean): void {
   p.fireLatch = false;
   // A launcher sends a rocket instead of casting rays.
   if (w.rocket) {
-    fireRocket(sim, p, w);
+    // From the hip a rocket strays inside a wide cone; through the sights it goes where the crosshair points.
+    fireRocket(sim, p, w, perturb(sim.rng, lookDir(p.state.yaw, p.state.pitch), aiming ? w.aimSpread : w.spread));
     return;
   }
 

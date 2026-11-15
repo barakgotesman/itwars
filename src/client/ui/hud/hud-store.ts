@@ -44,6 +44,8 @@ export interface HudState {
   killedBy: { name: string; icon?: IconKind } | null;
   banner: { title: string; sub: string } | null;
   scope: boolean;
+  /** The centre crosshair is shown (false for a gun you must aim before it is useful, until you do). */
+  crosshair: boolean;
   fps: string | null;
   /** The post-match podium, or null while a match is on. */
   matchEnd: MatchEndInfo | null;
@@ -52,7 +54,7 @@ export interface HudState {
 /** The state of a HUD with nothing happening. */
 const BLANK: HudState = {
   visible: false, code: '', rules: null, me: null, hurt: false, marker: null, arrows: [], board: null,
-  youKills: 0, leadName: '', leadKills: null, killedBy: null, banner: null, scope: false, fps: null, matchEnd: null,
+  youKills: 0, leadName: '', leadKills: null, killedBy: null, banner: null, scope: false, crosshair: true, fps: null, matchEnd: null,
 };
 
 /** The single HUD store (there is one HUD per page). */
@@ -125,6 +127,7 @@ export function createHud(code: string, rules: MatchRules): Hud {
     banner: (title, sub = '') => hudStore.set({ banner: title === null ? null : { title, sub } }),
     matchEnd: (info) => hudStore.set({ matchEnd: info }),
     scope: (scope) => hudStore.set({ scope }),
+    crosshair: (crosshair) => hudStore.set({ crosshair }),
     fps: (fps) => hudStore.set({ fps }),
   };
 }
