@@ -37,6 +37,8 @@ export class Input {
   weapon = 0;
   /** Bitmask of guns the player owns (from the server's `me.guns`); selection skips the rest. */
   owned = 1;
+  /** False until the first snapshot, so the starting kit is not mistaken for a pickup. */
+  private ownedKnown = false;
   /** Binding code (`KeyW`, `Mouse0`, `WheelUp`...) to the actions it triggers. */
   private lookup = new Map<string, Action[]>();
 
@@ -129,8 +131,12 @@ export class Input {
    * server's own choice so the viewmodel and the next input agree with it.
    */
   setOwned(mask: number, serverWeapon: number): void {
+    const gained = this.ownedKnown ? mask & ~this.owned : 0;
     this.owned = mask;
+    this.ownedKnown = true;
     if (!this.owns(this.weapon)) this.weapon = serverWeapon;
+    // A gun picked up just now goes straight into the hand, as if its key had been pressed.
+    if (gained !== 0) this.weapon = 31 - Math.clz32(gained);
   }
 
   /** Ends a held action. */

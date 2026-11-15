@@ -34,11 +34,6 @@ function slotClass(size: string, selected: boolean, empty: boolean): string {
   return `relative flex ${size} items-center justify-center gap-1 pt-3 ${selected ? 'bg-accent text-ground' : 'bg-ground/75 text-ink'} ${empty ? 'opacity-35' : ''}`;
 }
 
-/** A gun slot for a weapon not found yet: a hollow outline with a ghost of the icon, no key hint. */
-function missingSlotClass(size: string): string {
-  return `relative flex ${size} items-center justify-center border-2 border-dashed border-ink/30 bg-ground/40 text-ink opacity-50`;
-}
-
 /** Full-screen white that holds for a second and fades (flashbang). */
 function Whiteout() {
   const blind = useHud((s) => s.me?.blind ?? 0);
@@ -137,6 +132,8 @@ function MatchInfo() {
   const leadName = useHud((s) => s.leadName);
   const leadKills = useHud((s) => s.leadKills);
   const timeLeft = useHud((s) => s.me?.timeLeft ?? -1);
+  // The range has no match, so no score or goal to show.
+  if (rules?.mode === 'range') return null;
   return (
     <div className="absolute left-1/2 top-3 flex -translate-x-1/2 items-stretch bg-ground/75 text-ink">
       <div className="flex w-40 items-baseline justify-end gap-2 px-3 py-1.5">
@@ -249,11 +246,7 @@ function AmmoPanel() {
       </div>
       <div className="flex gap-1.5">
         {WEAPONS.map((wp, i) => ((guns & (1 << i)) === 0
-          ? (
-            <div key={wp.name} title={`${wp.name}: find it in the office`} className={missingSlotClass('h-12 w-[4.5rem]')}>
-              <GunIcon kind={i} className="h-7 w-14 opacity-40" />
-            </div>
-          )
+          ? null
           : (
             <div key={wp.name} title={wp.name} className={slotClass('h-12 w-[4.5rem]', i === w, stocks[i] === '0')}>
               <SlotKey action={WEAPON_KEYS[i]!} />
@@ -270,7 +263,8 @@ function AmmoPanel() {
 function Scoreboard() {
   const board = useHud((s) => s.board);
   const rules = useHud((s) => s.rules);
-  if (!board) return null;
+  // No scores to compare in the solo range.
+  if (!board || rules?.mode === 'range') return null;
   const goal = `First to ${rules?.killLimit ?? 0}`;
   return (
     <div className="absolute inset-0 flex items-center justify-center bg-black/50">
