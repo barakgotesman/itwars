@@ -269,6 +269,10 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 - Public demo deploy not done. No lag compensation.
 - The post-match podium (3D top-3 scene, countdown bar, host "Close the room") is covered by typecheck/lint/check:deps and the headless suites (it does not change simulation logic beyond `INTERMISSION_TICKS` and the host-only `closeMatch` gate), but the 3D scene itself, its camera framing and the close-room flow have only been checked with a rendered screenshot, not played through a real match end with multiple humans.
 
+## To do (features)
+
+- **3D footsteps (owner request):** today footsteps are client-only and flat: `client/game/loop.ts` plays `sfx.step()` for your own walking by distance covered, with no position, and the server sends nothing, so nobody hears anyone else walk. Make them positional like the shooting effects: the **server** sends a footstep event for players who are close to the listener (like `shot` events, only to or about nearby players, so snapshots and bandwidth stay small), and the client plays it panned and attenuated by distance through the same `posOf`/listener path as other positional sounds (`platform/audio.ts` `step()` must take an optional position). Needs a new `GameEvent` in `shared/net/protocol.ts`, a server rule for when a step happens (on the ground, moving above the walking threshold, one per stride length, louder when sprinting, quiet or none when standing or aiming slowly), a distance cutoff, and a headless test in `test:sim`. Keep your own footsteps local so they do not wait for the network.
+
 ## Out of scope for v1
 
 Teams or other modes, accounts and persistence, voice chat, mobile or gamepad, lag compensation, anti-cheat.

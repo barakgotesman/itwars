@@ -75,7 +75,13 @@ function buildGunPickup(w: number): THREE.Group {
   const g = new THREE.Group();
   box(g, 0x2b2f36, 0.5, 0.06, 0.3, 0, -0.2, 0);
   box(g, 0x55606d, 0.06, 0.16, 0.06, 0, -0.1, 0);
-  g.add(buildGunProp(w));
+  const gun = buildGunProp(w);
+  // Guns are modelled around their grip, not their middle; recentre the model over the stand so it spins
+  // about the same point the pickup area is centred on.
+  const mid = new THREE.Box3().setFromObject(gun).getCenter(new THREE.Vector3());
+  gun.position.x -= mid.x;
+  gun.position.z -= mid.z;
+  g.add(gun);
   return g;
 }
 

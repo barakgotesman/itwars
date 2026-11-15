@@ -107,6 +107,13 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         if (e.by === myId && e.to !== myId) {
           hud.hitMarker(e.head ? 'head' : 'hit');
           sfx.hitMarker(e.head ? 'head' : 'hit');
+          if (isRange) {
+            // Target hit: a floating number at head or chest, and the practice totals (the matching kill event
+            // follows in the same batch, so a downed target is counted there).
+            const at = remotes.eyeOf(e.to);
+            if (at) scene.damageNumbers.add(at.x, at.y + (e.head ? 0.25 : -0.45), at.z, e.dmg, e.head);
+            hud.rangeHit(e.dmg, e.head, false);
+          }
         }
         if (e.to === myId) {
           hud.hurt();
@@ -128,6 +135,7 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         if (e.by === myId && e.to !== myId) {
           hud.hitMarker('kill');
           sfx.hitMarker('kill');
+          if (isRange) hud.rangeHit(0, false, true);
         }
         if (e.to === myId) {
           sfx.death();

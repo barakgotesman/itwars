@@ -49,6 +49,8 @@ export interface Hud {
   scope(visible: boolean): void;
   /** Shows or hides the crosshair (some guns show none until you aim). */
   crosshair(visible: boolean): void;
+  /** Shooting range only: counts one of your hits on a target (damage dealt, headshot, and whether it downed it). */
+  rangeHit(dmg: number, head: boolean, down: boolean): void;
   /** Shows an FPS readout, or hides it with null. */
   fps(text: string | null): void;
 }

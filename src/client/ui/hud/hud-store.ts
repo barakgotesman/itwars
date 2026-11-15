@@ -26,6 +26,18 @@ export interface DamageArrow {
   angle: number;
 }
 
+/** Shooting-range session totals. */
+export interface RangeStats {
+  /** Targets downed. */
+  down: number;
+  /** Total damage dealt to targets. */
+  damage: number;
+  /** Hits that landed. */
+  hits: number;
+  /** Headshot hits. */
+  heads: number;
+}
+
 /** Everything the HUD shows. */
 export interface HudState {
   visible: boolean;
@@ -47,6 +59,8 @@ export interface HudState {
   /** The centre crosshair is shown (false for a gun you must aim before it is useful, until you do). */
   crosshair: boolean;
   fps: string | null;
+  /** Range practice totals (only read in the shooting range). */
+  range: RangeStats;
   /** The post-match podium, or null while a match is on. */
   matchEnd: MatchEndInfo | null;
 }
@@ -54,7 +68,8 @@ export interface HudState {
 /** The state of a HUD with nothing happening. */
 const BLANK: HudState = {
   visible: false, code: '', rules: null, me: null, hurt: false, marker: null, arrows: [], board: null,
-  youKills: 0, leadName: '', leadKills: null, killedBy: null, banner: null, scope: false, crosshair: true, fps: null, matchEnd: null,
+  youKills: 0, leadName: '', leadKills: null, killedBy: null, banner: null, scope: false, crosshair: true, fps: null,
+  range: { down: 0, damage: 0, hits: 0, heads: 0 }, matchEnd: null,
 };
 
 /** The single HUD store (there is one HUD per page). */
@@ -128,6 +143,10 @@ export function createHud(code: string, rules: MatchRules): Hud {
     matchEnd: (info) => hudStore.set({ matchEnd: info }),
     scope: (scope) => hudStore.set({ scope }),
     crosshair: (crosshair) => hudStore.set({ crosshair }),
+    rangeHit: (dmg, head, down) => {
+      const r = hudStore.get().range;
+      hudStore.set({ range: { down: r.down + (down ? 1 : 0), damage: r.damage + dmg, hits: r.hits + (dmg > 0 ? 1 : 0), heads: r.heads + (head ? 1 : 0) } });
+    },
     fps: (fps) => hudStore.set({ fps }),
   };
 }

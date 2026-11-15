@@ -15,6 +15,7 @@ import { GrenadeVisuals, LootVisuals, PickupVisuals, RocketVisuals } from '@clie
 import { BulletHoles } from '@client/render/bullet-holes';
 import { Sprays } from '@client/render/sprays';
 import { Blasts, Particles } from '@client/render/particles';
+import { DamageNumbers } from '@client/render/damage-numbers';
 import { createDust, createPostFx } from '@client/render/renderer';
 import { RemotePlayers, SKIN_TONES } from '@client/render/players';
 import { ViewModel } from '@client/render/viewmodel';
@@ -65,6 +66,8 @@ export interface SceneHandle {
   fx: ReturnType<typeof createPostFx>;
   remotes: RemotePlayers;
   particles: Particles;
+  /** Floating hit numbers (shown in the shooting range only). */
+  damageNumbers: DamageNumbers;
   blasts: Blasts;
   pickups: PickupVisuals;
   grenadeVisuals: GrenadeVisuals;
@@ -133,6 +136,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   remotes.setRoster(joined.players);
   remotes.lightField = world.lightField;
   const particles = new Particles(scene);
+  const damageNumbers = new DamageNumbers(scene, camera);
   const blasts = new Blasts(scene);
   const pickups = new PickupVisuals(scene, PICKUP_SPOTS, joined.pickups);
   const grenadeVisuals = new GrenadeVisuals(scene);
@@ -218,7 +222,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   applySettings();
 
   return {
-    camera, world, dust, viewmodel, fx, remotes, particles, blasts, pickups, grenadeVisuals, rocketVisuals, lootBags,
+    camera, world, dust, viewmodel, fx, remotes, particles, damageNumbers, blasts, pickups, grenadeVisuals, rocketVisuals, lootBags,
     atmosphere, bulletHoles, sprays, tracers, doorVisuals, doors, solids, sfx, view, needsCalibration, podium,
   };
 }

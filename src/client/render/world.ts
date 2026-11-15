@@ -34,6 +34,8 @@ const TILE_M: Record<TexKind, number> = {
 const MATERIALS: Record<MaterialId, MatDef> = {
   carpet: { color: 0x6f819a, texture: 'carpet' },
   tile: { color: 0xd6dadc, texture: 'tile' },
+  rangeTile: { color: 0xc9964f, texture: 'tile' },
+  rangeGreen: { color: 0x7d9a5a, texture: 'plaster' },
   wood: { color: 0xb98a58, texture: 'wood' },
   concrete: { color: 0x9a9da0, texture: 'concrete' },
   floorDark: { color: 0x3a4048, texture: 'floorDark' },

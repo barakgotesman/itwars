@@ -5,7 +5,7 @@ import type { Aabb } from '@shared/core/physics';
 
 /** Material key; the client merges all boxes of one material into a single mesh. */
 export type MaterialId =
-  | 'carpet' | 'tile' | 'wood' | 'concrete' | 'floorDark' | 'rug'
+  | 'carpet' | 'tile' | 'rangeTile' | 'rangeGreen' | 'wood' | 'concrete' | 'floorDark' | 'rug'
   | 'wall' | 'trim' | 'frame' | 'ceiling' | 'light' | 'lightFlicker' | 'glass' | 'sky' | 'brick' | 'cork' | 'duct' | 'hazard'
   | 'wainSlate' | 'wainNavy' | 'wainGreen' | 'wainTeal' | 'wainOrange' | 'wainWine' | 'wainBrown' | 'wainGray'
   | 'accentBlue' | 'accentGreen' | 'accentOrange' | 'accentRed'
