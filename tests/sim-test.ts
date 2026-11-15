@@ -235,8 +235,9 @@ function check(name: string, ok: boolean, detail = ''): void {
   }
   check('range mode keeps the magazine full after firing', mut(room, a.id).mag[0] === w.magSize, `mag=${mut(room, a.id).mag[0]}`);
   check('range mode never touches reserve', mut(room, a.id).reserve[0] === reserve0);
+  check('range mode starts with no grenades', mut(room, a.id).gren.every((n) => n === 0), `gren=${mut(room, a.id).gren}`);
   run(room, a, 1, { keys: Key.Grenade1, weapon: 0 });
-  check('range mode replenishes a grenade after a throw', mut(room, a.id).gren[0] === GRENADES[0]!.maxCarry, `gren=${mut(room, a.id).gren[0]}`);
+  check('range mode no longer refills grenades by itself', mut(room, a.id).gren[0] === 0);
 
   // A grenade at the player's own feet must not hurt or kill them in practice.
   const g = { id: 99, slot: 0, owner: a.id, x: 0, y: 0.12, z: 0, vx: 0, vy: 0, vz: 0, explodeAt: 0 };
@@ -1148,6 +1149,21 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   m.reserve[2] = 0;
   run(room, a, 2);
   check('walking over it again gives ammo at once (no respawn wait)', m.reserve[2] > 0);
+}
+{
+  // Range grenade crates: you start with none, a crate gives them, and it is never emptied.
+  const { room, add } = makeRoom([FLOOR], [{ kind: 'grenade', x: 5, z: 0, y: 0.9 }], [], RANGE_RULES);
+  const a = add('A');
+  warm(room);
+  const m = mut(room, a.id);
+  check('the range starts with no grenades', m.gren.every((n) => n === 0));
+  place(room, a.id, 5, 0);
+  run(room, a, 2);
+  check('a range grenade crate gives grenades', m.gren.every((n) => n > 0), `gren=${m.gren}`);
+  check('the range grenade crate is never emptied', !a.conn.events().some((e) => e.k === 'pk' && !e.on));
+  m.gren[0] = 0;
+  run(room, a, 2);
+  check('walking over the crate again refills at once', m.gren[0]! > 0);
 }
 {
   check('sanitizeRules keeps a valid loadout', sanitizeRules({ ...DEFAULT_RULES, loadout: 1 }).loadout === 1);

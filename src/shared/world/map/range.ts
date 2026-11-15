@@ -5,9 +5,9 @@
  * shooting bench (the firing line, with three numbered booths), then a long dark rubber-floored range with a
  * spotlit target dummy at each gun's falloff distance, hanging distance signs, ceiling rails and baffles, and an
  * IT-department joke at the far end. Used only by `rules.mode === 'range'` rooms (see `server/rooms/room.ts`);
- * that mode also turns off all damage (`server/sim/damage.ts`) and keeps every magazine and grenade full
+ * that mode also turns off all damage (`server/sim/damage.ts`) and keeps every magazine full
  * (`server/sim/weapons.ts`, `grenades.ts`). The player arrives with the pistol only, like in a match; the
- * other three guns wait on the armory table behind the spawn, and that table is never emptied
+ * other guns and a grenade crate wait on the armory table behind the spawn, and that table is never emptied
  * (`server/sim/pickups.ts`), so any gun can be tried at any time.
  */
 import type { Aabb } from '@shared/core/physics';
@@ -41,8 +41,8 @@ function lamp(x: number, y: number, z: number, color: number, intensity: number,
 }
 
 /** A wall-mounted plaque. */
-function plaque(text: string, x: number, y: number, z: number, axis: 'x' | 'z', facing: 1 | -1, w: number, h: number, accent: MaterialId): void {
-  labels.push({ text, x, y, z, axis, facing, w, h, accent });
+function plaque(text: string, x: number, y: number, z: number, axis: 'x' | 'z', facing: 1 | -1, w: number, h: number, accent: MaterialId, glow = false): void {
+  labels.push({ text, x, y, z, axis, facing, w, h, accent, glow });
 }
 
 // One hall, 12 m wide (x -6..6), from the spawn wall (z 6, near) to the backstop (z -42, far). No
@@ -88,7 +88,10 @@ box('dark', 0, 0, FIRING_LINE_Z, X1 - X0, FIRING_LINE_H - 0.08, 0.2);
 box('wood', 0, FIRING_LINE_H - 0.08, FIRING_LINE_Z, X1 - X0, 0.08, 0.6);
 box('signRed', 0, 0.45, FIRING_LINE_Z + 0.11, X1 - X0 - 0.2, 0.05, 0.03, false);
 stripe('hazard', X0, X1, FIRING_LINE_Z + 0.3, FIRING_LINE_Z + 0.6);
-plaque('FIRING LINE', X0 - 0.05, 2.1, FIRING_LINE_Z, 'z', 1, 1.6, 0.4, 'accentRed');
+plaque('FIRING LINE', X0 - 0.05, 2.1, FIRING_LINE_Z, 'z', 1, 1.6, 0.4, 'accentRed', true);
+// A red glow on the floor along the bench from its neon strip.
+lamp(-3, 0.5, FIRING_LINE_Z + 0.6, 0xff3a2a, 0.5, 3);
+lamp(3, 0.5, FIRING_LINE_Z + 0.6, 0xff3a2a, 0.5, 3);
 // Booth dividers at x = -2 and 2: a solid bench-height panel (nothing to shoot through at eye height) with a
 // frame and a pane of glass above it, like the stalls of a real range. Three lanes, numbered overhead.
 for (const dx of [-2, 2]) {
@@ -102,14 +105,16 @@ for (const dx of [-2, 2]) {
   box('dark', lx, 3.1, FIRING_LINE_Z + 0.5, 0.9, 0.6, 0.3, false);
   box('signOrange', lx, 3.05, FIRING_LINE_Z + 0.5, 0.7, 0.05, 0.24, false);
   for (const rx of [-0.35, 0.35]) box('frame', lx + rx, 3.7, FIRING_LINE_Z + 0.5, 0.04, CEILING_H - 3.7, 0.04, false);
-  plaque(String(k + 1), lx, 3.4, FIRING_LINE_Z + 0.5 + 0.17, 'x', 1, 0.55, 0.55, 'accentOrange');
+  plaque(String(k + 1), lx, 3.4, FIRING_LINE_Z + 0.5 + 0.17, 'x', 1, 0.55, 0.55, 'accentOrange', true);
+  // A warm pool of light on the bench under each lane sign.
+  lamp(lx, CEILING_H - 0.5, FIRING_LINE_Z + 1.2, 0xffd9a0, 1.1, 4.2);
 });
 // Ceiling lights over the standing area, and a green "ready" strip over the lanes.
 for (const lx of [-3, 3]) box('light', lx, CEILING_H - 0.05, 2.5, 1.6, 0.1, 0.9, false);
 box('light', 0, CEILING_H - 0.05, 0.5, 1.6, 0.1, 0.9, false);
 box('signGreen', 0, CEILING_H - 0.08, FIRING_LINE_Z - 0.4, X1 - X0 - 1, 0.06, 0.1, false);
-lamp(-3, CEILING_H - 0.4, 2.5, 0xfff0d8, 0.5, 6);
-lamp(3, CEILING_H - 0.4, 2.5, 0xfff0d8, 0.5, 6);
+lamp(-3, CEILING_H - 0.4, 2.5, 0xffe2b8, 0.55, 5.5);
+lamp(3, CEILING_H - 0.4, 2.5, 0xffe2b8, 0.55, 5.5);
 
 // Standing area: the armory, a long counter along the back wall with the three guns to pick up on it
 // (the player spawns with the pistol only) and ammo-crate decor at the ends, plus a pegboard with the
@@ -119,8 +124,6 @@ const TABLE_Z = Z_NEAR - 1.4;
 const TABLE_H = 0.9;
 box('dark', 0, 0, TABLE_Z, 10, TABLE_H - 0.06, 0.6);
 box('wood', 0, TABLE_H - 0.06, TABLE_Z, 10.2, 0.06, 0.6);
-box('crate', -4.6, TABLE_H, TABLE_Z, 0.5, 0.4, 0.5);
-box('cardboard', 4.6, TABLE_H, TABLE_Z, 0.5, 0.35, 0.5);
 box('rack', 0, 1.0, Z_NEAR - 0.03, 10, 1.1, 0.06, false);
 for (let k = 0; k < 4; k++) {
   const gx = (k - 1.5) * 2.4;
@@ -132,15 +135,19 @@ for (const ex of [-5.1, -4.8, 4.8, 5.1]) {
   box('dark', ex, 1.94, Z_NEAR - 0.1, 0.2, 0.04, 0.04, false);
 }
 plaque('ARMORY', 0, 2.35, Z_NEAR - 0.05, 'x', -1, 2.4, 0.5, 'accentRed');
-lamp(0, CEILING_H - 0.4, Z_NEAR - 1, 0xffdcb0, 0.9, 8);
+lamp(0, CEILING_H - 0.4, Z_NEAR - 1, 0xffdcb0, 1.1, 7);
 // Side furniture: a bench by the west wall, lockers on the east wall, and a poster on each wall.
 box('wood', X0 + 0.35, 0.42, 0.9, 0.5, 0.06, 2.2);
 for (const bz of [-0.1, 1.9]) box('frame', X0 + 0.35, 0, bz + 0.1, 0.4, 0.42, 0.06);
 for (let k = 0; k < 3; k++) box('wainSlate', X1 - 0.3, 0, 0.9 + k * 0.62, 0.5, 1.9, 0.58);
 plaque('EARS ON  EYES ON', X0 - 0.05, 2.0, 1.8, 'z', 1, 1.8, 0.45, 'accentOrange');
 plaque('HAVE YOU TRIED TURNING THEM OFF?', X1 + 0.05, 2.1, 1.5, 'z', -1, 3.0, 0.6, 'accentBlue');
-/** The guns on the table, in slot order: SMG, Shredder, Laser Pointer, RPG. Pickup radius reaches them from in front of the table. */
-const ARMORY: PickupSpot[] = ([1, 2, 3, 4] as const).map((weapon, k) => ({ kind: 'weapon', weapon, x: (k - 1.5) * 2.4, z: TABLE_Z, y: TABLE_H }));
+/** The armory: the guns in slot order (SMG, Shredder, Laser Pointer, RPG), then the grenade crate. Pickup radius reaches them from in front of the table. */
+const ARMORY: PickupSpot[] = [
+  ...([1, 2, 3, 4] as const).map((weapon, k): PickupSpot => ({ kind: 'weapon', weapon, x: (k - 1.5) * 2.4, z: TABLE_Z, y: TABLE_H })),
+  // One grenade crate at the end of the table (you start with none); like the guns it is never emptied.
+  { kind: 'grenade', x: 4.8, z: TABLE_Z, y: TABLE_H },
+];
 
 /** Each target's distance down the range and its marker text; the dummy itself is a real bot (see `server/sim/range-dummy.ts`). */
 export const TARGETS: readonly { z: number; label: string }[] = [
@@ -153,7 +160,9 @@ for (const { z, label } of TARGETS) {
   stripe('hazard', X0, X1, z - 0.2, z + 0.2);
   plaque(label, X0 - 0.05, 1.8, z, 'z', 1, 1.0, 0.4, 'accentRed');
   box('light', 0, CEILING_H - 0.05, z, 1.4, 0.1, 1.4, false);
-  lamp(0, CEILING_H - 0.4, z, 0xffe8c8, 1.3, 7.5);
+  lamp(0, CEILING_H - 0.4, z, 0xffe8c8, 2.0, 6);
+  // Low cool backlight behind each target so its silhouette reads against the dark.
+  lamp(0, 1.6, z - 2.2, 0x6f9bd8, 0.45, 4);
 }
 // Overhead distance signs (a dark housing with an orange glow strip, hung just on the player's side of each
 // target so they never hide it), ceiling rails that carry the targets, and baffles at the sides.
@@ -161,7 +170,7 @@ for (const { z, label } of TARGETS) {
   box('dark', 0, 3.1, z + 1.5, 1.1, 0.6, 0.3, false);
   box('signOrange', 0, 3.05, z + 1.5, 0.9, 0.05, 0.24, false);
   for (const rx of [-0.45, 0.45]) box('frame', rx, 3.7, z + 1.5, 0.04, CEILING_H - 3.7, 0.04, false);
-  plaque(label, 0, 3.4, z + 1.5 + 0.17, 'x', 1, 0.9, 0.5, 'accentOrange');
+  plaque(label, 0, 3.4, z + 1.5 + 0.17, 'x', 1, 0.9, 0.5, 'accentOrange', true);
 }
 for (const rx of [-2, 2]) box('metal', rx, CEILING_H - 0.35, (Z_FAR + FIRING_LINE_Z) / 2, 0.15, 0.15, FIRING_LINE_Z - Z_FAR, false);
 for (const bz of [-11, -22, -32]) {
@@ -174,7 +183,10 @@ box('rack', 0, 0.3, Z_FAR + 0.08, 11.6, 3.3, 0.16, false);
 box('hazard', 0, 3.55, Z_FAR + 0.1, 11.8, 0.12, 0.2, false);
 box('hazard', 0, 0.2, Z_FAR + 0.1, 11.8, 0.12, 0.2, false);
 for (const s of [-1, 1]) box('hazard', s * 5.85, 0.2, Z_FAR + 0.1, 0.12, 3.47, 0.2, false);
-plaque('IT WARS RANGE', 0, 3.0, Z_FAR + 0.2, 'x', 1, 5.0, 0.8, 'accentOrange');
+plaque('IT WARS RANGE', 0, 3.0, Z_FAR + 0.2, 'x', 1, 5.0, 0.8, 'accentOrange', true);
+// Spots on the sign and on the printer heaps either side.
+lamp(0, 3.7, Z_FAR + 1.6, 0xffc070, 1.0, 6);
+for (const s of [-1, 1]) lamp(s * 4.5, 3.2, Z_FAR + 2.4, 0xff9a50, 1.0, 5);
 for (let k = 0; k < 10; k++) box('crate', -5.4 + k * 1.2, 0, Z_FAR + 0.55, 1.0, 0.45, 0.5, false);
 for (const s of [-1, 1]) {
   box('white', s * 4.6, 0, Z_FAR + 1.0, 1.0, 0.5, 0.7, false);
@@ -184,9 +196,9 @@ for (const s of [-1, 1]) {
   box('rack', s * 3.7, 0, Z_FAR + 1.0, 0.3, 0.9, 0.6, false);
   box('screenBsod', s * 5.4, 0.6, Z_FAR + 1.28, 0.34, 0.3, 0.02, false);
 }
-plaque('PRINTER GRAVEYARD', 0, 1.2, Z_FAR + 0.2, 'x', 1, 2.6, 0.4, 'accentRed');
+plaque('PRINTER GRAVEYARD', 0, 1.2, Z_FAR + 0.2, 'x', 1, 2.6, 0.4, 'accentRed', true);
 // Dim cool fill light between the target pools, so the range reads as dark and dramatic, not black.
-for (const z of [-11, -22, -32]) lamp(0, CEILING_H - 0.6, z, 0x8fa6c0, 0.22, 11);
+for (const z of [-11, -22, -32]) lamp(0, CEILING_H - 0.6, z, 0x8fa6c0, 0.12, 11);
 
 /** Ceiling height, matching the office. */
 export { CEILING_H };
@@ -200,7 +212,7 @@ export const LIGHTS: readonly LightSource[] = lights;
 export const LABELS: readonly LabelSpec[] = labels;
 /** No live scoreboards here. */
 export const BOARDS: readonly BoardSpec[] = [];
-/** The armory table's guns; ammo and grenades are replenished server-side instead of being pickups. */
+/** The armory table's guns and grenade crate; magazines are refilled server-side, so ammo has no pickups here. */
 export const PICKUP_SPOTS: readonly PickupSpot[] = ARMORY;
 /** One spawn, behind the firing line, facing down the range (yaw 0 faces -z). */
 export const SPAWNS: readonly [number, number][] = [[0, 3]];
@@ -209,9 +221,9 @@ export const ZONES: readonly Zone[] = [
   {
     id: 'range', name: 'Shooting Range',
     x0: X0 - 2, x1: X1 + 2, z0: Z_FAR - 2, z1: Z_NEAR + 2,
-    ambient: { color: 0x7c8aa0, level: 0.11 },
-    panels: { color: 0xffe8c8, intensity: 1.3, radius: 6.5 },
-    fog: { color: 0x23262e, density: 0.014 }, floor: 0.32,
+    ambient: { color: 0x6a7890, level: 0.045 },
+    panels: { color: 0xffe0b8, intensity: 0.9, radius: 5.5 },
+    fog: { color: 0x101319, density: 0.016 }, floor: 0.32,
   },
 ];
 /** Bounding box of the whole map, for the client's light-field grid. */

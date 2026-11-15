@@ -55,16 +55,40 @@ function buildAmmoBox(): THREE.Group {
   return g;
 }
 
-/** Dark pad holding a coffee mug and an alarm clock. */
+/**
+ * An open grenade crate: an olive wooden box with steel corners, a hazard stripe and a yellow label, packed with
+ * both grenade types (Coffee Bomb mugs and Fire Alarm clocks) so it is clear what it holds. Details stand at least
+ * 1 cm proud of the faces under them so nothing z-fights.
+ */
 function buildGrenadeCrate(): THREE.Group {
   const g = new THREE.Group();
-  box(g, 0x2b2f36, 0.62, 0.08, 0.62, 0, -0.14, 0);
-  box(g, 0xf4f4f1, 0.15, 0.17, 0.15, -0.12, -0.01, 0);
-  box(g, 0x6a3d1f, 0.12, 0.02, 0.12, -0.12, 0.08, 0);
-  box(g, 0xf4f4f1, 0.05, 0.09, 0.03, -0.21, -0.01, 0);
-  box(g, 0xd62828, 0.17, 0.17, 0.09, 0.13, -0.01, 0);
-  box(g, 0xf2c230, 0.05, 0.05, 0.05, 0.08, 0.1, 0);
-  box(g, 0xf2c230, 0.05, 0.05, 0.05, 0.18, 0.1, 0);
+  // Body, planks and open top rim.
+  box(g, 0x4f5a2e, 0.64, 0.3, 0.44, 0, -0.04, 0);
+  box(g, 0x3f4824, 0.66, 0.04, 0.46, 0, 0.08, 0);
+  box(g, 0x3f4824, 0.66, 0.04, 0.46, 0, -0.12, 0);
+  box(g, 0x2a2d33, 0.05, 0.34, 0.5, -0.31, -0.04, 0);
+  box(g, 0x2a2d33, 0.05, 0.34, 0.5, 0.31, -0.04, 0);
+  // Hazard stripe and a yellow label with a red dot on the front, a handle slot on each end.
+  box(g, 0xf2c10f, 0.5, 0.05, 0.47, 0, 0.02, 0);
+  box(g, 0xf4e08a, 0.2, 0.12, 0.47, 0, -0.07, 0);
+  box(g, 0xd62828, 0.07, 0.07, 0.48, 0, -0.07, 0);
+  box(g, 0x1c1e23, 0.02, 0.06, 0.14, -0.345, 0, 0);
+  box(g, 0x1c1e23, 0.02, 0.06, 0.14, 0.345, 0, 0);
+  // Packing straw showing at the top.
+  box(g, 0xd8c37a, 0.56, 0.03, 0.36, 0, 0.115, 0);
+  // Coffee Bomb: a white mug with dark coffee, a handle and a short orange fuse.
+  for (const [mx, mz] of [[-0.17, -0.07], [-0.2, 0.1]] as const) {
+    box(g, 0xf4f4f1, 0.14, 0.17, 0.14, mx, 0.2, mz);
+    box(g, 0x3a2418, 0.1, 0.02, 0.1, mx, 0.295, mz);
+    box(g, 0xf4f4f1, 0.05, 0.09, 0.03, mx - 0.095, 0.2, mz);
+    box(g, 0xf0a030, 0.03, 0.07, 0.03, mx + 0.03, 0.335, mz);
+  }
+  // Fire Alarm: a red clock-bell with a yellow bell on top and a white face.
+  for (const [ax, az] of [[0.17, -0.07], [0.2, 0.1]] as const) {
+    box(g, 0xd62828, 0.15, 0.17, 0.15, ax, 0.2, az);
+    box(g, 0xf2c230, 0.07, 0.05, 0.07, ax, 0.31, az);
+    box(g, 0xfafafa, 0.08, 0.08, 0.16, ax, 0.2, az);
+  }
   return g;
 }
 

@@ -33,7 +33,8 @@ export function spawn(sim: Sim, p: Player): void {
   // Unowned guns carry nothing: finding one on the map (or in a bag) is what fills these in.
   p.mag = WEAPONS.map((w, i) => (ownsBit(p.guns, i) ? w.magSize : 0));
   p.reserve = WEAPONS.map((w, i) => (ownsBit(p.guns, i) ? Math.floor(w.maxReserve * START_RESERVE_FRACTION) : 0));
-  p.gren = GRENADES.map((g) => g.startCarry);
+  // The range starts empty-handed: its grenade crates on the armory table are where you get them.
+  p.gren = GRENADES.map((g) => (sim.rules.mode === 'range' ? 0 : g.startCarry));
   p.reloadEnd = 0;
   p.nextFire = sim.tick + SWITCH_TICKS;
   p.fireLatch = false;

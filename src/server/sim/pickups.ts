@@ -28,8 +28,8 @@ export function tickPickups(sim: Sim): void {
       const taken = applyPickup(p, s);
       if (!taken) continue;
       sim.events.push({ k: 'pickup', id: p.id, i, kind: s.kind, ...taken });
-      // The range's armory table is never emptied; everywhere else the box goes away for a while.
-      if (!(s.kind === 'weapon' && sim.rules.mode === 'range')) {
+      // The range's armory table (guns and grenade crates) is never emptied; everywhere else the box goes away for a while.
+      if (!((s.kind === 'weapon' || s.kind === 'grenade') && sim.rules.mode === 'range')) {
         sim.pickupReady[i] = sim.tick + (s.respawnTicks ?? def.respawnTicks);
         sim.events.push({ k: 'pk', i, on: false });
       }

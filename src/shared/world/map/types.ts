@@ -50,6 +50,8 @@ export interface LabelSpec {
   w: number; h: number;
   /** Accent material whose colour tints the plate. */
   accent: MaterialId;
+  /** Self-lit sign: bright accent-coloured lettering on a dark plate that blooms in a dark room (range lane signs). */
+  glow?: boolean;
 }
 
 /**

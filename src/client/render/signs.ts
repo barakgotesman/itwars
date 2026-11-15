@@ -20,11 +20,23 @@ const CELL_H = 90;
  * @param rules - The room's rules; `{KILLS}` and `{MINUTES}` in a sign's text become the real numbers.
  */
 export function buildSigns(scene: THREE.Scene, colorOf: (m: MaterialId) => number, rules: { killLimit: number; timeLimitMin: number }): void {
+  buildSignSet(scene, LABELS.filter((l) => !l.glow), false, colorOf, rules);
+  buildSignSet(scene, LABELS.filter((l) => l.glow), true, colorOf, rules);
+}
+
+/**
+ * Draws one set of signs into its own atlas and mesh. Glowing signs show bright accent-coloured lettering on a
+ * near-black plate and render brighter than white, so the bloom pass makes them shine in a dark room.
+ */
+function buildSignSet(
+  scene: THREE.Scene, labels: readonly (typeof LABELS)[number][], glow: boolean,
+  colorOf: (m: MaterialId) => number, rules: { killLimit: number; timeLimitMin: number },
+): void {
   const textOf = (l: (typeof LABELS)[number]) => fillRuleTokens(l.text, rules);
   // One atlas row per distinct text, accent and sign shape (the shape decides how the text is scaled).
   const keyOf = (l: (typeof LABELS)[number]) => `${l.accent}|${(l.w / l.h).toFixed(2)}|${textOf(l)}`;
   const rows = new Map<string, number>();
-  for (const l of LABELS) {
+  for (const l of labels) {
     const key = keyOf(l);
     if (!rows.has(key)) rows.set(key, rows.size);
   }
@@ -35,18 +47,18 @@ export function buildSigns(scene: THREE.Scene, colorOf: (m: MaterialId) => numbe
   canvas.height = CELL_H * rows.size;
   const g = canvas.getContext('2d')!;
   const seen = new Set<string>();
-  for (const l of LABELS) {
+  for (const l of labels) {
     const key = keyOf(l);
     if (seen.has(key)) continue;
     seen.add(key);
     const y = rows.get(key)! * CELL_H;
-    const bg = new THREE.Color(colorOf(l.accent)).multiplyScalar(0.55);
-    g.fillStyle = `#${bg.getHexString()}`;
+    const accent = new THREE.Color(colorOf(l.accent));
+    g.fillStyle = glow ? '#0b0906' : `#${accent.clone().multiplyScalar(0.55).getHexString()}`;
     g.fillRect(0, y, CELL_W, CELL_H);
     // A bright accent bar down the left edge and a light inner frame, like an office wayfinding plate.
-    g.fillStyle = `#${new THREE.Color(colorOf(l.accent)).getHexString()}`;
+    g.fillStyle = `#${accent.getHexString()}`;
     g.fillRect(0, y, 18, CELL_H);
-    g.fillStyle = 'rgba(255,255,255,0.25)';
+    g.fillStyle = glow ? `#${accent.getHexString()}` : 'rgba(255,255,255,0.25)';
     g.fillRect(18, y + 4, CELL_W - 22, 3);
     g.fillRect(18, y + CELL_H - 7, CELL_W - 22, 3);
     // Shrink the text until it fits, so long names such as "PHONE BOOTHS" stay inside the plate.
@@ -63,7 +75,7 @@ export function buildSigns(scene: THREE.Scene, colorOf: (m: MaterialId) => numbe
     g.save();
     g.translate((CELL_W + 18) / 2, y + CELL_H / 2 + 2);
     g.scale(sx, 1);
-    g.fillStyle = '#ffffff';
+    g.fillStyle = glow ? `#${accent.clone().lerp(new THREE.Color(0xffffff), 0.35).getHexString()}` : '#ffffff';
     g.fillText(text, 0, 0);
     g.restore();
   }
@@ -71,7 +83,7 @@ export function buildSigns(scene: THREE.Scene, colorOf: (m: MaterialId) => numbe
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
 
-  const geos: THREE.BufferGeometry[] = LABELS.map((l) => {
+  const geos: THREE.BufferGeometry[] = labels.map((l) => {
     const geo = new THREE.PlaneGeometry(l.w, l.h);
     // Point the plane's UVs at this sign's row of the atlas (canvas row 0 is the top, v = 1).
     const row = rows.get(keyOf(l))!;
@@ -83,7 +95,7 @@ export function buildSigns(scene: THREE.Scene, colorOf: (m: MaterialId) => numbe
     geo.translate(l.x, l.y, l.z);
     return geo;
   });
-  const mesh = new THREE.Mesh(mergeGeometries(geos)!, new THREE.MeshBasicMaterial({ map: tex, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  const mesh = new THREE.Mesh(mergeGeometries(geos)!, new THREE.MeshBasicMaterial({ map: tex, color: glow ? new THREE.Color(2.2, 2.2, 2.2) : 0xffffff, toneMapped: !glow, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
   mesh.frustumCulled = false;
   scene.add(mesh);
 }

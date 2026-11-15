@@ -144,7 +144,8 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   const lootBags = new LootVisuals(scene);
   const bulletHoles = new BulletHoles(scene);
   const sprays = new Sprays(scene);
-  const doors = new Doors();
+  // The range has no doors; the server's range room has none either, so the client must not invent the office's.
+  const doors = new Doors(joined.rules.mode === 'range' ? [] : undefined);
   doors.applyWire(joined.doors);
   const doorVisuals = new DoorVisuals(scene, doors);
   const solids = concatSolids(doors);

@@ -160,28 +160,28 @@ function MatchInfo() {
 /** One big number with a small caption, for the range stats panel. */
 function Stat({ label, value, tone = '' }: { label: string; value: string | number; tone?: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-6">
-      <span className="text-[11px] font-extrabold uppercase tracking-widest text-dim">{label}</span>
-      <span className={`text-3xl font-black tabular-nums leading-none ${tone}`}>{value}</span>
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-[10px] font-extrabold uppercase tracking-wider text-dim">{label}</span>
+      <span className={`text-base font-black tabular-nums leading-none ${tone}`}>{value}</span>
     </div>
   );
 }
 
-/** Shooting range only: running totals of targets downed, damage dealt and headshots, on the left edge. */
+/** Shooting range only: running totals of targets downed, damage dealt and headshots, in the top left corner under the room tag. */
 function RangeStatsPanel() {
   const isRange = useHud((s) => s.rules?.mode === 'range');
   const range = useHud((s) => s.range);
   if (!isRange) return null;
   const headPct = range.hits > 0 ? Math.round((range.heads / range.hits) * 100) : 0;
   return (
-    <div className="plate absolute left-4 top-1/2 w-56 -translate-y-1/2 bg-ground/75 p-3">
-      <div className="mb-2 border-b-2 border-accent pb-1 text-xs font-black uppercase tracking-widest text-accent">Range stats</div>
-      <div className="flex flex-col gap-2">
+    <div className="plate absolute left-4 top-14 w-40 bg-ground/75 p-2">
+      <div className="mb-1.5 border-b-2 border-accent pb-0.5 text-[10px] font-black uppercase tracking-widest text-accent">Range stats</div>
+      <div className="flex flex-col gap-1">
         <Stat label="Targets down" value={range.down} />
         <Stat label="Total damage" value={range.damage} />
         <Stat label="Headshots" value={range.heads} tone="text-danger" />
       </div>
-      <div className="mt-2 text-right text-[11px] font-bold text-dim">{range.hits} hits · {headPct}% headshots</div>
+      <div className="mt-1 text-right text-[10px] font-bold text-dim">{range.hits} hits | {headPct}% headshots</div>
     </div>
   );
 }
