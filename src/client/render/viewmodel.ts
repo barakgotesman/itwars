@@ -356,10 +356,30 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       box(g, 0x3a4224, 0.125, 0.125, 0.04, 0, 0, -0.865);
       box(g, 0xf2c230, 0.114, 0.114, 0.025, 0, 0, -0.62);
       box(g, 0x14161a, 0.114, 0.114, 0.025, 0, 0, -0.65);
-      // Open sights: two rear posts with a gap between them (the crosshair shows through) and a front post.
-      for (const x of [-0.013, 0.013]) box(g, 0x14161a, 0.008, 0.032, 0.012, x, 0.075, -0.06);
-      box(g, 0x14161a, 0.008, 0.026, 0.012, 0, 0.072, -0.8);
-      glow(g, 0xffffff, 0.004, 0.004, 0.004, 0, 0.09, -0.8);
+      // Sights, built so aiming lines up on them: a rear aperture (a thin frame, so the target shows through the
+      // middle of it) and a front blade with a bright bead. Both stand tall enough that the aim point sits above the
+      // bulk of the tube, which then fills the bottom of the screen and not the middle.
+      box(g, 0x23262c, 0.04, 0.012, 0.03, 0, 0.061, -0.05);
+      for (const x of [-0.016, 0.016]) box(g, 0x14161a, 0.006, 0.11, 0.01, x, 0.11, -0.05);
+      box(g, 0x14161a, 0.038, 0.006, 0.01, 0, 0.165, -0.05);
+      box(g, 0x14161a, 0.038, 0.006, 0.01, 0, 0.115, -0.05);
+      box(g, 0x23262c, 0.02, 0.012, 0.03, 0, 0.061, -0.8);
+      box(g, 0x14161a, 0.008, 0.07, 0.01, 0, 0.09, -0.8);
+      glow(g, 0xffe27a, 0.007, 0.007, 0.006, 0, 0.128, -0.8);
+      // Optical sight bolted to the left of the tube (the kind real launchers carry): body, bell, mount and lenses.
+      box(g, 0x2a2d33, 0.045, 0.02, 0.07, -0.072, 0.02, -0.14);
+      box(g, 0x14161a, 0.05, 0.05, 0.2, -0.095, 0.045, -0.14);
+      box(g, 0x23262c, 0.062, 0.062, 0.045, -0.095, 0.045, -0.255);
+      box(g, 0x23262c, 0.058, 0.058, 0.03, -0.095, 0.045, -0.03);
+      box(g, 0x555a63, 0.054, 0.012, 0.03, -0.095, 0.075, -0.2);
+      box(g, 0x555a63, 0.054, 0.012, 0.03, -0.095, 0.075, -0.08);
+      glow(g, 0x4aa8ff, 0.04, 0.04, 0.004, -0.095, 0.045, -0.2795);
+      lens(g, glints, 0x4aa8ff, 0.5, 0.04, 0.04, -0.095, 0.045, -0.0135);
+      // Steel bands and a wider flared muzzle, so the tube reads as a heavy machined part and not a plain pipe.
+      for (const z of [-0.34, -0.5, -0.74]) box(g, 0x8d949c, 0.118, 0.118, 0.012, 0, 0, z);
+      box(g, 0x23281a, 0.14, 0.14, 0.03, 0, 0, -0.895);
+      box(g, 0x8d949c, 0.056, 0.012, 0.03, 0.058, 0.02, -0.02);
+      box(g, 0xc0392b, 0.012, 0.012, 0.012, 0.062, 0.02, -0.02);
       // Pistol grip with a trigger, and a fore-grip under the shield.
       box(g, 0x23262c, 0.044, 0.1, 0.056, 0, -0.105, -0.02, 0.2);
       box(g, 0x14161a, 0.048, 0.012, 0.06, 0, -0.058, -0.02);
@@ -384,7 +404,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       return {
         group: g, muzzle: new THREE.Vector3(0, 0, -1.1), handR: new THREE.Vector3(0, -0.125, -0.02), handL: new THREE.Vector3(0, -0.15, -0.45),
         hip: new THREE.Vector3(0.2, -0.19, -0.66),
-        ads: new THREE.Vector3(0, -0.125, -0.62), parts: { rocket, hammer, carry }, port: new THREE.Vector3(0, 0, 0),
+        ads: new THREE.Vector3(0, -0.14, -0.72), parts: { rocket, hammer, carry }, port: new THREE.Vector3(0, 0, 0),
         casing: { color: 0x14161a, size: [0.01, 0.01, 0.01] }, ejectAt: Infinity,
         handLParent: carry, reloadPose: { dip: 0.03, pitch: 0.3, roll: 0.1 }, rear: new THREE.Vector3(0, 0, 0.2),
       };

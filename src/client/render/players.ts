@@ -23,7 +23,22 @@ const GUN_LOOK = [
   { len: 0.95, thick: 0.13, color: 0x5c6b3a },
 ] as const;
 
+/** Weapon index of the RPG, which is carried on the shoulder with both hands instead of held out in front. */
+const RPG = 4;
+/** Where the RPG's tube rests, in body space: on top of the right shoulder, beside the head. */
+const RPG_HOLD = new THREE.Vector3(0.31, 1.5, 0.02);
+/** Gun-space (barrel along -Y, down is +Z) spots the two hands grip: the pistol grip and the fore-grip. */
+const RPG_GRIP_R = new THREE.Vector3(0, -0.42, 0.17);
+const RPG_GRIP_L = new THREE.Vector3(0, -0.72, 0.16);
+/** Length of an arm (sleeve plus hand): scaled along its length so a hand can reach a grip nearer or further than that. */
+const ARM_LEN = 0.6;
+/** How far ahead of the shoulder the RPG's muzzle is. */
+const RPG_REACH = 1.12;
+
 const matCache = new Map<number, THREE.MeshLambertMaterial>();
+/** Scratch vectors for the RPG pose. */
+const AIM = new THREE.Vector3();
+const DOWN = new THREE.Vector3(0, -1, 0);
 /** Scratch colour for tint maths. */
 const TINT = new THREE.Color();
 /** Shared flat-shaded material per colour, so 8 players cost a handful of materials. */
@@ -92,12 +107,23 @@ export function buildGunInto(g: THREE.Object3D, w: number): void {
       part(g, 0xf2c230, t * 1.15, 0.03, t * 1.4, 0, -0.18, 0);
       break;
     case 4:
-      // Flared rear cone, the warhead sticking out of the front, a sight on top and a dark grip band.
-      part(g, 0x3a4224, t * 1.5, 0.14, t * 1.7, 0, 0.16, 0);
-      part(g, 0xc0392b, t * 0.9, 0.12, t * 1.0, 0, -len + 0.02, 0);
-      part(g, 0xd62828, t * 0.55, 0.08, t * 0.6, 0, -len - 0.07, 0);
-      part(g, 0x14161a, t * 0.4, 0.06, t * 0.5, 0, -0.3, -t * 1.0);
-      part(g, 0x2a2d33, t * 1.1, 0.1, t * 1.4, 0, -0.4, 0);
+      // Launch tube: wooden heat shield with bands, a flared rear venturi, the warhead in the muzzle, a side optic,
+      // open sights, and the pistol grip and fore-grip the hands hold.
+      part(g, 0x7a4f2c, t * 1.12, 0.3, t * 1.5, 0, -0.34, 0);
+      part(g, 0x4a2f19, t * 1.16, 0.02, t * 1.55, 0, -0.22, 0);
+      part(g, 0x4a2f19, t * 1.16, 0.02, t * 1.55, 0, -0.46, 0);
+      part(g, 0x3a4224, t * 1.25, 0.1, t * 1.7, 0, 0.13, 0);
+      part(g, 0x23281a, t * 1.5, 0.07, t * 2.0, 0, 0.2, 0);
+      part(g, 0x14161a, t * 0.9, 0.012, t * 1.3, 0, 0.238, 0);
+      part(g, 0x3a4224, t * 1.2, 0.05, t * 1.7, 0, -len + 0.04, 0);
+      part(g, 0xd62828, t * 0.92, 0.14, t * 1.2, 0, -len - 0.04, 0);
+      part(g, 0xf2c230, t * 0.5, 0.07, t * 0.7, 0, -len - 0.15, 0);
+      part(g, 0x14161a, t * 0.42, 0.2, t * 0.6, -t * 0.8, -0.55, -t * 0.55);
+      part(g, 0x4aa8ff, t * 0.3, 0.012, t * 0.42, -t * 0.8, -0.447, -t * 0.55);
+      part(g, 0x14161a, t * 0.22, 0.03, t * 0.5, 0, -0.12, -t * 1.0);
+      part(g, 0x14161a, t * 0.14, 0.03, t * 0.4, 0, -0.8, -t * 0.95);
+      part(g, 0x23262c, 0.05, 0.06, 0.16, 0, RPG_GRIP_R.y, 0.14);
+      part(g, 0x23262c, 0.05, 0.05, 0.14, 0, RPG_GRIP_L.y, 0.13);
       break;
     default:
       part(g, 0x2a2d33, t * 1.2, 0.2, t * 1.2, 0, -0.28, -t * 1.5);
@@ -125,6 +151,10 @@ export class PlayerModel {
   private readonly armL = new THREE.Group();
   private readonly armR = new THREE.Group();
   private readonly gun = new THREE.Group();
+  /** Holds the RPG on the shoulder (a child of the body, so it does not swing with an arm). */
+  private readonly rpgHold = new THREE.Group();
+  /** True while the RPG shoulder pose is applied (arms stretched to the grips, gun on the shoulder). */
+  private rpgPose = false;
   private readonly tag: THREE.Sprite;
   private phase = 0;
   private gunIndex = -1;
@@ -160,6 +190,8 @@ export class PlayerModel {
     }
     this.armR.add(this.gun);
     this.gun.position.set(0, -0.58, 0);
+    this.rpgHold.position.copy(RPG_HOLD);
+    this.body.add(this.rpgHold);
     this.tag = nameTag(info.name);
     this.root.add(this.tag);
     this.setWeapon(1);
@@ -425,6 +457,7 @@ export class PlayerModel {
   update(dt: number, speed: number, onGround: boolean, pitch: number, alive: boolean, weapon: number, blink: boolean): void {
     this.setWeapon(weapon);
     if (!alive) {
+      if (this.rpgPose) this.endRpgPose();
       if (!this.shattered) this.shatter();
       this.stepShatter(dt);
       this.tag.visible = false;
@@ -448,10 +481,51 @@ export class PlayerModel {
       this.legR.rotation.x = -0.25;
     }
     this.head.rotation.x = pitch * 0.8;
+    if (weapon === RPG) {
+      this.poseRpg(pitch);
+      return;
+    }
+    if (this.rpgPose) this.endRpgPose();
     // Both hands hold the gun forward; the support arm sits a little lower.
     this.armR.rotation.x = Math.PI / 2 + pitch * 0.9;
     this.armL.rotation.x = Math.PI / 2.3 + pitch * 0.9;
     this.armL.rotation.y = 0.35;
+  }
+
+  /**
+   * Carries the RPG like the real thing: the tube lies on the right shoulder, the right hand on the pistol grip and the
+   * left on the fore-grip. Each arm is pointed at its grip and stretched to reach it, so the hands stay on the gun at
+   * any view pitch.
+   * @param pitch - View pitch; the tube follows it.
+   */
+  private poseRpg(pitch: number): void {
+    if (!this.rpgPose) {
+      this.rpgPose = true;
+      this.rpgHold.add(this.gun);
+      this.gun.position.set(0, 0, 0);
+    }
+    // The holder turns like an arm does (its -Y points along the aim).
+    const turn = Math.PI / 2 + pitch * 0.9;
+    this.rpgHold.rotation.set(turn, 0, 0);
+    const cos = Math.cos(turn), sin = Math.sin(turn);
+    for (const [arm, grip] of [[this.armR, RPG_GRIP_R], [this.armL, RPG_GRIP_L]] as const) {
+      // The grip in body space, then the arm turned from its shoulder to point at it.
+      const target = AIM.set(RPG_HOLD.x + grip.x, RPG_HOLD.y + grip.y * cos - grip.z * sin, RPG_HOLD.z + grip.y * sin + grip.z * cos).sub(arm.position);
+      const dist = target.length();
+      arm.quaternion.setFromUnitVectors(DOWN, target.divideScalar(dist));
+      arm.scale.set(1, dist / ARM_LEN, 1);
+    }
+  }
+
+  /** Back to the ordinary two-handed hold: the gun returns to the right hand and the arms to their normal length. */
+  private endRpgPose(): void {
+    this.rpgPose = false;
+    this.armR.add(this.gun);
+    this.gun.position.set(0, -0.58, 0);
+    for (const arm of [this.armL, this.armR]) {
+      arm.scale.set(1, 1, 1);
+      arm.rotation.set(0, 0, 0);
+    }
   }
 
   /**
@@ -618,6 +692,10 @@ export class RemotePlayers {
     const cp = Math.cos(pitch);
     const dir = new THREE.Vector3(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp);
     const p = r.model.root.position;
+    // The RPG is on the shoulder, so its muzzle is further out and a little higher than a hand-held gun's.
+    if (r.latest.w === RPG) {
+      return new THREE.Vector3(p.x + Math.cos(yaw) * RPG_HOLD.x, p.y + RPG_HOLD.y, p.z - Math.sin(yaw) * RPG_HOLD.x).addScaledVector(dir, RPG_REACH);
+    }
     // Right shoulder: 0.37 m to the right of the body centre, 1.4 m up.
     return new THREE.Vector3(p.x + Math.cos(yaw) * 0.37, p.y + 1.4, p.z - Math.sin(yaw) * 0.37).addScaledVector(dir, reach);
   }

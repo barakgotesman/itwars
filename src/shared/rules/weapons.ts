@@ -84,7 +84,7 @@ export const WEAPONS: readonly WeaponDef[] = [
   {
     name: 'RPG', auto: false, damage: 0, pellets: 1, headMul: 1, interval: 90,
     magSize: 1, maxReserve: 2, reloadTicks: 270, spread: 0, aimSpread: 0,
-    falloffStart: 200, falloffEnd: 201, minMul: 1, recoil: 0.12, zoom: 1.1,
+    falloffStart: 200, falloffEnd: 201, minMul: 1, recoil: 0.12, zoom: 1.3,
     rocket: { speed: 28, radius: 6, damage: 140, lifeTicks: 240 },
     moveMul: 0.6, pickupReserveFraction: 1, boxAmmo: false, botsSeek: false,
   },
