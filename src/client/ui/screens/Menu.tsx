@@ -32,6 +32,9 @@ interface MenuProps {
   onOpenSettings(): void;
 }
 
+/** Scroll distance after which the hero's big logo is out of view and the top bar shows its own. */
+const HERO_LOGO_PX = 200;
+
 /** How often the menu re-checks that the game server answers. */
 const SERVER_CHECK_MS = 4000;
 
@@ -45,6 +48,7 @@ export function Menu({ onOpenSettings }: MenuProps) {
   const [setupOpen, setSetupOpen] = useState(false);
   const [browseOpen, setBrowseOpen] = useState(false);
   const [serverDown, setServerDown] = useState(false);
+  const [pastLogo, setPastLogo] = useState(false);
   const [setupError, setSetupError] = useState('');
   const [capacity, setCapacity] = useState<ServerStatus | null>(null);
   const [lanUrl, setLanUrl] = useState(location.origin);
@@ -156,9 +160,12 @@ export function Menu({ onOpenSettings }: MenuProps) {
   return (
     <>
       <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen opacity-0 transition-opacity duration-1000" aria-hidden="true" />
-      <div className="fixed inset-0 flex scroll-smooth flex-col overflow-y-auto">
+      <div
+        className="fixed inset-0 flex scroll-smooth flex-col overflow-y-auto"
+        onScroll={(e) => setPastLogo(e.currentTarget.scrollTop > HERO_LOGO_PX)}
+      >
         {serverDown && <ServerDownBanner />}
-        <TopBar onOpenSettings={onOpenSettings} />
+        <TopBar onOpenSettings={onOpenSettings} showLogo={pastLogo} />
         <Hero
           previewCanvas={previewCanvas}
           model={look.model}
