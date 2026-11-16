@@ -91,7 +91,7 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
 
   if (isRange) {
     return (
-      <div className="fixed inset-0 flex overflow-y-auto bg-ground/90 px-6 py-6">
+      <div className="fixed inset-x-0 top-0 bottom-(--footer-h) flex overflow-y-auto bg-ground/90 px-6 py-6">
         <div className="m-auto flex w-full max-w-md flex-col gap-6 text-center">
           <div>
             <p className="label">{entered ? 'Paused' : 'Shooting Range'}</p>
@@ -104,7 +104,7 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
   }
 
   return (
-    <div className="fixed inset-0 flex overflow-y-auto bg-ground/90 px-6 py-6">
+    <div className="fixed inset-x-0 top-0 bottom-(--footer-h) flex overflow-y-auto bg-ground/90 px-6 py-6">
       {/* Two columns on wide screens so the lobby fits a laptop's height; one column when narrow. */}
       <div className="m-auto grid w-full max-w-4xl items-center gap-8 md:grid-cols-2 md:gap-12">
         <section className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">

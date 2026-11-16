@@ -169,7 +169,7 @@ export function Settings({ onClose }: { onClose(): void }) {
   }, [capturing, onClose]);
 
   return (
-    <div className="voxel-bg fixed inset-0 z-30 flex overflow-y-auto">
+    <div className="voxel-bg fixed inset-x-0 top-0 bottom-(--footer-h) z-30 flex overflow-y-auto">
       <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4 px-8 py-10">
         <div className="flex items-center justify-between">
           <h2 className="text-4xl font-black uppercase tracking-wider">Settings</h2>

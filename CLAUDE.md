@@ -42,6 +42,8 @@ npm run test:zones     # lighting design: zones tile the map, sane values, lamp 
 npm run make:icons     # regenerate public/ icons and the og-image from the pixel-art sprite (tools/make-icons.ts)
 ```
 
+Footer portraits: `public/characters/<slug>.png` are 2D renders of the 7 characters (each in its own shirt colour, each holding a different gun) shown by `ui/components/Footer.tsx`, which `App.tsx` mounts on every non-gameplay screen (hidden while the pointer is locked and on the podium). Every full-screen panel ends above it (`--footer-h` in `styles.css`). Regenerate after changing a character model: run `npm run dev` (or bare `vite`), open `http://localhost:5173/tools/characters.html`; the page renders the models with `PlayerModel` and a dev-only Vite plugin (`save-characters` in `vite.config.ts`) writes the PNGs. Commit them like the icons.
+
 SEO and sharing: `index.html` carries the title, description, Open Graph/Twitter tags and JSON-LD; `public/` holds the manifest, `robots.txt` and icons. Build with `SITE_URL=https://domain npm run build` to add the canonical link and absolute `og:image` URLs (a small Vite plugin in `vite.config.ts`). Without it those tags are left out on purpose, because they need a real address.
 
 Players open `http://<host-LAN-IP>:3000`. The server binds `0.0.0.0` and prints its LAN addresses (real adapters first, virtual WSL/Hyper-V ones last). Windows may show a firewall prompt on first run.

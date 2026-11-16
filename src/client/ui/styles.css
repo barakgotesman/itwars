@@ -18,6 +18,15 @@
   --color-danger: #ff4a4a;
   --color-warn: #ff9a2e;
   --color-ok: #5be37d;
+  /* Height of the footer strip; every full-screen panel ends above it. */
+  --footer-h: 6.5rem;
+}
+
+/* Short windows get a slimmer footer so the screens keep their room. */
+@media (max-height: 720px) {
+  :root {
+    --footer-h: 4.75rem;
+  }
 }
 
 @layer base {

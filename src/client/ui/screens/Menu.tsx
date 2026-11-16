@@ -141,7 +141,7 @@ export function Menu({ onOpenSettings }: MenuProps) {
   return (
     <>
       <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen scale-105 opacity-0 blur-[3px] transition-opacity duration-1000" aria-hidden="true" />
-      <div className="fixed inset-0 overflow-y-auto bg-ground/70">
+      <div className="fixed inset-x-0 top-0 bottom-(--footer-h) overflow-y-auto bg-ground/70">
         <div className="mx-auto grid min-h-full max-w-6xl items-center gap-x-10 gap-y-6 px-8 py-6 lg:grid-cols-[1fr_26rem] [@media(min-height:800px)]:py-10">
           {/* Stage: the game's name, and who you will be. */}
           <section className="flex flex-col gap-3 [@media(min-height:800px)]:gap-5">

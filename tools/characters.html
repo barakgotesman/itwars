@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Capture character portraits</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #1b2230; color: #eee; font: 14px system-ui, sans-serif; }
+      #strip { display: flex; gap: 8px; margin-top: 12px; }
+      #strip img { background: #0c111a; }
+    </style>
+  </head>
+  <body>
+    <!-- Dev only: served by `npm run dev` at /tools/characters.html. Renders the 7 characters and saves the PNGs. -->
+    <div id="status">Rendering...</div>
+    <div id="strip"></div>
+    <script type="module" src="./characters-page.ts"></script>
+  </body>
+</html>

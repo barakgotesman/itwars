@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, type Plugin } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
@@ -24,8 +25,38 @@ function siteUrlTags(): Plugin {
   };
 }
 
+/**
+ * Dev only: lets `tools/characters.html` save the character portraits it renders into `public/characters/`.
+ * The slug is checked so a request can only ever write a plain `<name>.png` in that folder.
+ */
+function saveCharacters(): Plugin {
+  return {
+    name: 'save-characters',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__save-character', (req, res) => {
+        const slug = (req.url ?? '').replace(/^\//, '');
+        if (req.method !== 'POST' || !/^[a-z-]+$/.test(slug)) {
+          res.statusCode = 400;
+          res.end();
+          return;
+        }
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          const dataUrl = Buffer.concat(chunks).toString('utf8');
+          const dir = fileURLToPath(new URL('./public/characters/', import.meta.url));
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(`${dir}${slug}.png`, Buffer.from(dataUrl.replace(/^data:image\/png;base64,/, ''), 'base64'));
+          res.end('ok');
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), siteUrlTags()],
+  plugins: [react(), tailwindcss(), siteUrlTags(), saveCharacters()],
   resolve: {
     alias: {
       '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),

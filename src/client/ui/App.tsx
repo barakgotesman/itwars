@@ -4,6 +4,7 @@
  * `index.html`; the session attaches to it.
  */
 import { appStore, useApp } from './app-store';
+import { Footer } from './components/Footer';
 import { HudView } from './hud/HudView';
 import { useHud } from './hud/hud-store';
 import { PodiumView } from './hud/PodiumView';
@@ -42,6 +43,7 @@ export function App() {
       {!room && <Menu onOpenSettings={openSettings} />}
       {room && !locked && !podiumActive && <Room onOpenSettings={openSettings} />}
       <PodiumView />
+      {!locked && !podiumActive && <Footer />}
       {settingsOpen && <Settings onClose={() => appStore.set({ settingsOpen: false })} />}
       {disconnected && (
         <div className="voxel-bg fixed inset-0 z-40 flex flex-col items-center justify-center gap-4">
