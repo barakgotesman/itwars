@@ -10,8 +10,8 @@ import { PlayerModel } from '@client/render/players';
 /** Portrait size in pixels (2x the footer's display size so it stays sharp on dense screens); wide enough for a gun. */
 const W = 320;
 const H = 360;
-/** Turn from straight-on (pi faces the camera), so the face and the gun held out in front both read. */
-const YAW = Math.PI + 0.85;
+/** Each character's turn from straight-on (0 faces the camera), so the lineup does not all point the same way: both profiles and 3/4 views. */
+const YAW_OF = [0.9, -0.75, 0.25, 1.25, -0.35, 0.6, -1.15] as const;
 /** The weapon each character holds (indices into `WEAPONS`: pistol, SMG, shotgun, sniper, RPG), so the lineup shows all five. */
 const WEAPON_OF = [0, 1, 2, 3, 4, 2, 0] as const;
 
@@ -41,7 +41,7 @@ for (const [i, def] of CHARACTERS.entries()) {
   model.tagVisible(false);
   // `update` raises the gun and poses the arms for it (the RPG goes on the shoulder).
   model.update(0, 0, true, 0, true, WEAPON_OF[i % WEAPON_OF.length]!, false);
-  model.root.rotation.y = YAW;
+  model.root.rotation.y = Math.PI + YAW_OF[i % YAW_OF.length]!;
   scene.add(model.root);
   renderer.render(scene, camera);
   scene.remove(model.root);
