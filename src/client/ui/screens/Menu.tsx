@@ -1,10 +1,12 @@
 /**
- * The main menu: callsign, character picker with the 3D preview, host (via the Game setup screen) and join by
- * code. It talks to the server only to host or join; once a room is joined it hands over to the room session.
+ * The main menu, built as a landing page: a hero with the play block and the 3D character over the live office,
+ * then short sections about the game and the staff, then the footer. This component owns the state and the
+ * host/join/range handlers and the two WebGL views (office backdrop, character preview); the markup lives in
+ * `landing/`. It talks to the server only to host or join; once a room is joined it hands over to the room session.
  */
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { CHARACTERS, PLAYER_COLORS } from '@shared/core/characters';
 import { RANGE_RULES, type MatchRules } from '@shared/rules/modes';
+import { CHARACTERS } from '@shared/core/characters';
 import type { ServerStatus } from '@shared/net/info';
 import { createBackdrop, type Backdrop } from '@client/render/menu-backdrop';
 import { loadLook, saveLook, type Look } from '@client/platform/appearance';
@@ -12,34 +14,15 @@ import { fetchInfo, request } from '@client/platform/lobby';
 import { commitName, initialName } from '@client/platform/player-name';
 import { createPreview, type Preview } from '@client/render/menu-preview';
 import { Footer } from '../components/Footer';
-import { Logo } from '../components/Logo';
-import { SprayPicker } from '../components/SprayPicker';
 import { joinRoom } from '../session';
+import { Arena } from './landing/Arena';
+import { Arsenal } from './landing/Arsenal';
+import { FinalCta } from './landing/FinalCta';
+import { Hero } from './landing/Hero';
+import { HowItPlays } from './landing/HowItPlays';
+import { Staff } from './landing/Staff';
+import { TopBar } from './landing/TopBar';
 import { Setup } from './Setup';
-
-/** Hex colour string for a shirt colour. */
-const hex = (c: number): string => `#${c.toString(16).padStart(6, '0')}`;
-
-/** The controls cheat sheet under the buttons (only on tall enough screens). */
-function ControlsHint() {
-  const rows: [string[], string][] = [
-    [['W', 'A', 'S', 'D'], 'Move'],
-    [['Shift', 'Space'], 'Sprint, jump'],
-    [['LMB', 'RMB'], 'Shoot, aim'],
-    [['1', '2', '3', '4', '5'], 'Weapons'],
-    [['G', 'H', 'E'], 'Grenades, doors'],
-  ];
-  return (
-    <div className="hidden grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1.5 text-sm text-dim [@media(min-height:720px)]:grid">
-      {rows.map(([keys, label]) => (
-        <div key={label} className="contents">
-          <span className="flex gap-1">{keys.map((k) => <kbd key={k} className="keycap">{k}</kbd>)}</span>
-          <span>{label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /** Props for {@link Menu}. */
 interface MenuProps {
@@ -67,6 +50,8 @@ export function Menu({ onOpenSettings }: MenuProps) {
   // Captures the look the component mounted with; the mount effect below runs once, before any change to
   // `look` could happen, so this is read-only after the initial render (never reassigned).
   const lookRef = useRef(look);
+  /** Direction of the last arrow press, read once by the effect that updates the preview. */
+  const stepDirection = useRef<0 | 1 | -1>(0);
 
   /** Stops the menu's WebGL views (safe to call twice). */
   const stopViews = useCallback(() => {
@@ -78,13 +63,15 @@ export function Menu({ onOpenSettings }: MenuProps) {
 
   // The two WebGL views live exactly as long as the menu; they are also stopped before a game starts.
   useEffect(() => {
-    preview.current = createPreview(previewCanvas.current!, lookRef.current);
+    preview.current = createPreview(previewCanvas.current!, lookRef.current, { transparent: true });
     backdrop.current = createBackdrop(backdropCanvas.current!);
     return () => stopViews();
   }, [stopViews]);
 
   useEffect(() => {
-    preview.current?.setLook(look);
+    // An arrow press spins the old character out and the new one in; any other change (colour) swaps at once.
+    preview.current?.setLook(look, stepDirection.current || undefined);
+    stepDirection.current = 0;
     saveLook(look);
   }, [look]);
 
@@ -137,103 +124,45 @@ export function Menu({ onOpenSettings }: MenuProps) {
     setSetupOpen(true);
   };
   const closeSetup = useCallback(() => setSetupOpen(false), []);
+  /** Moves to the next or previous character (wrapping round) with the spin transition. */
+  const stepCharacter = (direction: 1 | -1) => {
+    stepDirection.current = direction;
+    setLook({ ...look, model: (look.model + direction + CHARACTERS.length) % CHARACTERS.length });
+  };
+  const startRange = () => void attempt({ t: 'host', rules: RANGE_RULES });
 
-  const character = CHARACTERS[look.model]!;
   return (
     <>
-      <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen scale-105 opacity-0 blur-[3px] transition-opacity duration-1000" aria-hidden="true" />
-      <div className="fixed inset-0 flex flex-col overflow-y-auto bg-ground/70">
-        <div className="mx-auto grid w-full flex-1 max-w-6xl items-center gap-x-10 gap-y-6 px-8 py-6 lg:grid-cols-[1fr_26rem] [@media(min-height:800px)]:py-10">
-          {/* Stage: the game's name, and who you will be. */}
-          <section className="flex flex-col gap-3 [@media(min-height:800px)]:gap-5">
-            <header>
-              <h1 className="w-64 max-w-full text-accent [@media(min-height:800px)]:w-80" aria-label="IT Wars"><Logo /></h1>
-              <p className="mt-2 text-base font-bold text-dim [@media(min-height:800px)]:mt-3 [@media(min-height:800px)]:text-lg">Have you tried turning them off?</p>
-            </header>
-            <canvas ref={previewCanvas} className="h-[clamp(11rem,34vh,22rem)] w-full bg-panel" />
-            <div className="flex items-end justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="text-2xl font-black">{character.name}</div>
-                <div className="line-clamp-2 h-10 text-sm text-dim">{character.blurb}</div>
-              </div>
-              <div className="flex shrink-0 flex-nowrap gap-1.5">
-                {PLAYER_COLORS.map((c, i) => (
-                  <button
-                    key={c}
-                    type="button"
-                    title={`Colour ${i + 1}`}
-                    aria-pressed={i === look.color}
-                    className={`h-7 w-7 cursor-pointer outline-offset-2 outline-ink ${i === look.color ? 'outline-3' : ''}`}
-                    style={{ backgroundColor: hex(c) }}
-                    onClick={() => setLook({ ...look, color: i })}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {CHARACTERS.map((c, i) => (
-                <button
-                  key={c.name}
-                  type="button"
-                  title={c.name}
-                  aria-pressed={i === look.model}
-                  className="choice !px-1 !py-2 text-[11px] uppercase tracking-wide"
-                  onClick={() => setLook({ ...look, model: i })}
-                >
-                  {c.name.split(' ')[0]}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="label shrink-0">Spray <kbd className="keycap">T</kbd></span>
-              <SprayPicker value={look.spray} onChange={(spray) => setLook({ ...look, spray })} />
-            </div>
-          </section>
-
-          {/* Play: callsign, join a friend's room, or host one. */}
-          <section className="slab flex flex-col gap-4 bg-panel p-5 [@media(min-height:800px)]:gap-6 [@media(min-height:800px)]:p-6">
-            <label className="flex flex-col gap-1.5">
-              <span className="label">Callsign</span>
-              <input
-                type="text" maxLength={16} autoComplete="off" spellCheck={false} placeholder="Leave blank for a guest name"
-                className="field text-lg" value={name} onChange={(e) => setName(e.target.value)}
-              />
-            </label>
-
-            <form className="flex flex-col gap-1.5" onSubmit={onJoin}>
-              <label htmlFor="code" className="label">Join with a room code</label>
-              <div className="flex gap-2">
-                <input
-                  id="code" type="text" maxLength={4} autoComplete="off" spellCheck={false} placeholder="ABCD"
-                  className="field min-w-0 flex-1 text-center text-3xl font-black uppercase tracking-[0.35em] placeholder:tracking-[0.35em]"
-                  value={code} onChange={(e) => setCode(e.target.value)}
-                />
-                <button type="submit" className="btn" disabled={busy}>Join</button>
-              </div>
-              <p className="min-h-5 text-sm font-bold text-danger" role="alert">{error}</p>
-            </form>
-
-            <div className="flex flex-col gap-1.5">
-              <span className="label">Or start your own</span>
-              <button type="button" className="btn-quiet !py-3 !text-base" disabled={busy} onClick={openSetup}>Host a game</button>
-              <p className="text-xs text-faint">Pick the kill limit and time limit, then share the code.</p>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <button type="button" className="btn-quiet !py-3 !text-base" disabled={busy} onClick={() => void attempt({ t: 'host', rules: RANGE_RULES })}>
-                Shooting Range
-              </button>
-              <p className="text-xs text-faint">Solo practice: unlimited ammo and grenades, every gun, no setup.</p>
-            </div>
-
-            <div className="flex flex-col gap-2 pt-1 [@media(min-height:800px)]:mt-2">
-              <ControlsHint />
-              <button type="button" className="btn-quiet mt-2 self-start" onClick={onOpenSettings}>Settings and controls</button>
-            </div>
-            <p className="text-xs text-faint">{lanHint}</p>
-          </section>
+      <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen opacity-0 transition-opacity duration-1000" aria-hidden="true" />
+      <div className="fixed inset-0 flex scroll-smooth flex-col overflow-y-auto">
+        <TopBar onOpenSettings={onOpenSettings} />
+        <Hero
+          previewCanvas={previewCanvas}
+          model={look.model}
+          color={look.color}
+          onColor={(color) => setLook({ ...look, color })}
+          onStep={stepCharacter}
+          spray={look.spray}
+          onSpray={(spray) => setLook({ ...look, spray })}
+          name={name}
+          onName={setName}
+          code={code}
+          onCode={setCode}
+          error={error}
+          busy={busy}
+          lanHint={lanHint}
+          onJoin={onJoin}
+          onHost={openSetup}
+          onRange={startRange}
+        />
+        <div className="bg-ground/90">
+          <HowItPlays />
+          <Arsenal />
+          <Arena />
+          <Staff />
+          <FinalCta busy={busy} onHost={openSetup} onRange={startRange} />
+          <Footer />
         </div>
-        <Footer />
       </div>
       {setupOpen && (
         <Setup

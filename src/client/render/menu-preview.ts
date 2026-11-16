@@ -1,17 +1,36 @@
 /**
- * Small rotating 3D preview of the selected character, shown on the welcome screen.
- * Uses its own tiny renderer and a mini stage (office wall, podium, spotlight, rim lights) so it
- * works before the game world exists.
+ * Rotating 3D preview of the selected character, shown on the landing page.
+ * Uses its own tiny renderer and either a mini stage (office wall, podium, spotlight, rim lights) or, when
+ * `transparent`, no stage at all so the character stands over whatever is behind the canvas (the live office).
+ * Works before the game world exists.
  */
 import * as THREE from 'three';
 import { PLAYER_COLORS } from '@shared/core/characters';
 import type { Look } from '@client/platform/appearance';
 import { PlayerModel } from '@client/render/players';
 
+/** Options for {@link createPreview}. */
+export interface PreviewOptions {
+  /** Draw on a transparent canvas with no wall, floor or podium, so the page behind shows through. */
+  transparent?: boolean;
+}
+
+/** How long (ms) one character takes to spin out while the next spins in. */
+const SWAP_MS = 520;
+/** How far (m) the characters slide sideways during a swap. */
+const SWAP_SLIDE = 1.3;
+/** Turn that shows a character's face: the model faces -Z and the camera sits on +Z, so a yaw of pi, plus a little for a 3/4 view. */
+const FRONT_SPIN = Math.PI + 0.35;
+
 /** Handle for controlling the preview. */
 export interface Preview {
-  /** Swaps in a different character or colour. */
-  setLook(look: Look): void;
+  /**
+   * Swaps in a different character or colour.
+   * @param look - The new look.
+   * @param direction - +1 or -1 to spin the old character out and the new one in (new one arrives from the right for
+   *   +1, from the left for -1); omit for an instant swap. Ignored when only the colour changed.
+   */
+  setLook(look: Look, direction?: 1 | -1): void;
   /** Stops rendering and frees the WebGL context (call when leaving the menu). */
   dispose(): void;
 }
@@ -55,9 +74,12 @@ function castShadows(root: THREE.Object3D): void {
  * Starts rendering a character on a small stage into a canvas.
  * @param canvas - Target canvas; its CSS size decides the render size.
  * @param initial - Look to show first.
+ * @param options - Stage options.
  */
-export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+export function createPreview(canvas: HTMLCanvasElement, initial: Look, options: PreviewOptions = {}): Preview {
+  const transparent = options.transparent === true;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: transparent });
+  if (transparent) renderer.setClearColor(0x000000, 0);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(canvas.clientWidth, canvas.clientHeight, false);
   renderer.shadowMap.enabled = true;
@@ -67,23 +89,25 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
   renderer.toneMappingExposure = 1.0;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0c111a);
-  scene.fog = new THREE.Fog(0x0c111a, 6, 11);
+  if (!transparent) {
+    scene.background = new THREE.Color(0x0c111a);
+    scene.fog = new THREE.Fog(0x0c111a, 6, 11);
+  }
 
   // Back wall and floor.
   const wall = new THREE.Mesh(new THREE.PlaneGeometry(9, 9), new THREE.MeshBasicMaterial({ map: wallTexture() }));
   wall.position.set(0, 2.1, -2.4);
-  scene.add(wall);
+  if (!transparent) scene.add(wall);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.MeshLambertMaterial({ color: 0x3b4658 }));
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
-  scene.add(floor);
+  if (!transparent) scene.add(floor);
 
   // Podium with a glowing ring in the player's shirt colour.
   const podium = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.2, 0.08, 40), new THREE.MeshLambertMaterial({ color: 0x566178 }));
   podium.position.y = 0.04;
   podium.receiveShadow = true;
-  scene.add(podium);
+  if (!transparent) scene.add(podium);
   const ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.0, 1.1, 48), ringMat);
   ring.rotation.x = -Math.PI / 2;
@@ -103,7 +127,7 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
   const beam = new THREE.Mesh(new THREE.ConeGeometry(1.25, 4.4, 4, 1, true), beamMat);
   beam.rotation.y = Math.PI / 4;
   beam.position.y = 2.3;
-  scene.add(beam);
+  if (!transparent) scene.add(beam);
 
 
   // Lighting: soft fill, a warm key spotlight casting a shadow, and cool/warm rim lights from behind.
@@ -132,8 +156,37 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
   camera.lookAt(0, 0.95, 0);
 
   let model: PlayerModel | null = null;
-  const setLook = (look: Look) => {
-    if (model) scene.remove(model.root);
+  /** Character index currently shown (-1 before the first). */
+  let shown = -1;
+  /** The character spinning out, and the arrival of the one spinning in, while a swap plays. */
+  let leaving: { model: PlayerModel; t0: number; dir: number; spin: number } | null = null;
+  let arriving: { t0: number; dir: number } | null = null;
+
+  /** Fades every material of a model (1 = opaque). */
+  const setFade = (root: THREE.Object3D, alpha: number) => {
+    root.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+        m.transparent = alpha < 1;
+        m.opacity = alpha;
+      }
+    });
+  };
+  const setLook = (look: Look, direction?: 1 | -1) => {
+    const swap = direction !== undefined && model !== null && look.model !== shown;
+    if (leaving) scene.remove(leaving.model.root);
+    leaving = null;
+    arriving = null;
+    if (model && swap) {
+      // The old character leaves at the angle it had, while the view restarts from the front for the new one.
+      leaving = { model, t0: performance.now(), dir: direction, spin };
+      spin = FRONT_SPIN;
+      spinVel = 0;
+      elevation = 0.1;
+      radius = 4.8;
+      lastInteract = performance.now();
+    } else if (model) scene.remove(model.root);
+    shown = look.model;
     const color = PLAYER_COLORS[look.color]!;
     ringMat.color.setHex(color);
     pulseMat.color.setHex(color);
@@ -144,6 +197,7 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     model.root.position.y = 0.08;
     castShadows(model.root);
     scene.add(model.root);
+    if (swap) arriving = { t0: performance.now(), dir: direction };
   };
   setLook(initial);
 
@@ -151,7 +205,7 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
   const TARGET_Y = 0.95;
   const AUTO_SPIN = 0.7;
   const IDLE_BEFORE_SPIN_MS = 2500;
-  let spin = 0.5;
+  let spin = FRONT_SPIN;
   /** Spin speed in rad/s: set by the drag, decays to the auto-spin speed. */
   let spinVel = AUTO_SPIN;
   let elevation = 0.1;
@@ -204,12 +258,27 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     lastInteract = performance.now();
   }, { passive: false });
 
+  // Stop drawing while the canvas is scrolled out of view (the landing page is long), and follow CSS size changes.
+  let onScreen = true;
+  const observer = new IntersectionObserver(([entry]) => { onScreen = entry?.isIntersecting ?? true; });
+  observer.observe(canvas);
+  let sizeW = canvas.clientWidth;
+  let sizeH = canvas.clientHeight;
+
   let raf = 0;
   let last = performance.now();
   const frame = (now: number) => {
     raf = requestAnimationFrame(frame);
     const dt = Math.max(0, Math.min((now - last) / 1000, 0.1));
     last = now;
+    if (!onScreen) return;
+    if (canvas.clientWidth !== sizeW || canvas.clientHeight !== sizeH) {
+      sizeW = canvas.clientWidth;
+      sizeH = canvas.clientHeight;
+      renderer.setSize(sizeW, sizeH, false);
+      camera.aspect = sizeW / Math.max(sizeH, 1);
+      camera.updateProjectionMatrix();
+    }
     if (!dragging) {
       // Ease back to the gentle auto-spin once the player stops touching the preview.
       const target = now - lastInteract > IDLE_BEFORE_SPIN_MS ? AUTO_SPIN : 0;
@@ -220,7 +289,29 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     camera.lookAt(0, TARGET_Y, 0);
     if (model) {
       model.root.rotation.y = spin;
+      if (arriving) {
+        const p = Math.min(Math.max((now - arriving.t0) / SWAP_MS, 0), 1);
+        const e = 1 - (1 - p) ** 3;
+        model.root.position.x = arriving.dir * SWAP_SLIDE * (1 - e);
+        model.root.rotation.y = spin + arriving.dir * Math.PI * (1 - e);
+        model.root.scale.setScalar(0.6 + 0.4 * e);
+        setFade(model.root, e);
+        if (p >= 1) arriving = null;
+      }
       model.idle(now / 1000);
+    }
+    if (leaving) {
+      const p = Math.min(Math.max((now - leaving.t0) / SWAP_MS, 0), 1);
+      const e = p * p;
+      leaving.model.root.position.x = -leaving.dir * SWAP_SLIDE * e;
+      leaving.model.root.rotation.y = leaving.spin - leaving.dir * Math.PI * e;
+      leaving.model.root.scale.setScalar(1 - 0.4 * e);
+      setFade(leaving.model.root, 1 - e);
+      leaving.model.idle(now / 1000);
+      if (p >= 1) {
+        scene.remove(leaving.model.root);
+        leaving = null;
+      }
     }
     const t = now / 1000;
     // Scanner pulse: grows from the podium edge outward while fading, every 2.4 s.
@@ -236,6 +327,7 @@ export function createPreview(canvas: HTMLCanvasElement, initial: Look): Preview
     setLook,
     dispose: () => {
       cancelAnimationFrame(raf);
+      observer.disconnect();
       renderer.dispose();
       renderer.forceContextLoss();
     },
