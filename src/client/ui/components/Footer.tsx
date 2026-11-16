@@ -2,8 +2,8 @@
  * The site footer: a strip at the end of each non-gameplay screen (it scrolls with the content, it is not pinned)
  * with the seven characters in a row, the tagline and a link to the source. The portraits are 2D renders of the
  * game's own models made by `tools/characters.html`, each in a different shirt colour holding a different gun.
- * Each figure is lifted by half its height so it stands out of the strip, over the yellow top line, and nudged a few
- * pixels up or down at random on every page load so the lineup does not look stamped out.
+ * Each figure is lifted by half its height so it stands out of the strip, over the yellow top line, and on every page
+ * load is nudged a few pixels up or down and tilted a few degrees at random so the lineup does not look stamped out.
  */
 import { useState, type CSSProperties } from 'react';
 import { CHARACTERS } from '@shared/core/characters';
@@ -13,8 +13,8 @@ const REPO_URL = 'https://github.com/barakgotesman/itwars';
 
 /** The footer strip. */
 export function Footer() {
-  /** Per-figure vertical nudge in px, drawn once per mount. */
-  const [nudge] = useState(() => CHARACTERS.map(() => Math.round(Math.random() * 16 - 8)));
+  /** Per-figure vertical nudge (px) and tilt (degrees), drawn once per mount. */
+  const [looks] = useState(() => CHARACTERS.map(() => ({ nudge: Math.round(Math.random() * 16 - 8), tilt: Math.round(Math.random() * 20 - 10) })));
   return (
     // The top margin leaves room for the half of each figure that rises above the strip.
     <footer className="relative mt-12 flex h-16 shrink-0 items-start justify-between gap-6 border-t-4 border-accent bg-panel px-6 [@media(max-height:720px)]:mt-10 [@media(max-height:720px)]:h-12">
@@ -28,8 +28,8 @@ export function Footer() {
           <li
             key={c.slug}
             title={c.name}
-            style={{ '--nudge': `${nudge[i]}px` } as CSSProperties}
-            className="translate-y-[calc(-50%+var(--nudge))] transition-transform duration-100 hover:translate-y-[calc(-50%+var(--nudge)-4px)]"
+            style={{ '--nudge': `${looks[i]!.nudge}px`, '--tilt': `${looks[i]!.tilt}deg` } as CSSProperties}
+            className="translate-y-[calc(-50%+var(--nudge))] rotate-[var(--tilt)] transition-transform duration-100 hover:translate-y-[calc(-50%+var(--nudge)-4px)]"
           >
             <img
               src={`/characters/${c.slug}.png`}
