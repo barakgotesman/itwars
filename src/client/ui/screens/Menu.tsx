@@ -11,6 +11,7 @@ import { loadLook, saveLook, type Look } from '@client/platform/appearance';
 import { fetchInfo, request } from '@client/platform/lobby';
 import { commitName, initialName } from '@client/platform/player-name';
 import { createPreview, type Preview } from '@client/render/menu-preview';
+import { Footer } from '../components/Footer';
 import { Logo } from '../components/Logo';
 import { SprayPicker } from '../components/SprayPicker';
 import { joinRoom } from '../session';
@@ -141,8 +142,8 @@ export function Menu({ onOpenSettings }: MenuProps) {
   return (
     <>
       <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen scale-105 opacity-0 blur-[3px] transition-opacity duration-1000" aria-hidden="true" />
-      <div className="fixed inset-x-0 top-0 bottom-(--footer-h) overflow-y-auto bg-ground/70">
-        <div className="mx-auto grid min-h-full max-w-6xl items-center gap-x-10 gap-y-6 px-8 py-6 lg:grid-cols-[1fr_26rem] [@media(min-height:800px)]:py-10">
+      <div className="fixed inset-0 flex flex-col overflow-y-auto bg-ground/70">
+        <div className="mx-auto grid w-full flex-1 max-w-6xl items-center gap-x-10 gap-y-6 px-8 py-6 lg:grid-cols-[1fr_26rem] [@media(min-height:800px)]:py-10">
           {/* Stage: the game's name, and who you will be. */}
           <section className="flex flex-col gap-3 [@media(min-height:800px)]:gap-5">
             <header>
@@ -232,6 +233,7 @@ export function Menu({ onOpenSettings }: MenuProps) {
             <p className="text-xs text-faint">{lanHint}</p>
           </section>
         </div>
+        <Footer />
       </div>
       {setupOpen && (
         <Setup

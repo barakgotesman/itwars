@@ -8,6 +8,7 @@ import {
   ACTIONS, RENDER_SCALES, WHEEL_ACTIONS, bindingLabel, resetBindings, resetOptions, setBinding, settings, updateSettings,
   type Action,
 } from '@client/platform/settings';
+import { Footer } from '../components/Footer';
 import { Choice, Heading, ResetButton, Row, Slider, Toggle } from '../components/controls';
 import { useSettingsVersion } from '../hooks/useSettings';
 
@@ -169,8 +170,8 @@ export function Settings({ onClose }: { onClose(): void }) {
   }, [capturing, onClose]);
 
   return (
-    <div className="voxel-bg fixed inset-x-0 top-0 bottom-(--footer-h) z-30 flex overflow-y-auto">
-      <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-4 px-8 py-10">
+    <div className="voxel-bg fixed inset-0 z-30 flex flex-col overflow-y-auto">
+      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-8 py-10">
         <div className="flex items-center justify-between">
           <h2 className="text-4xl font-black uppercase tracking-wider">Settings</h2>
           <button type="button" className="btn-quiet" onClick={onClose}>Back</button>
@@ -187,6 +188,7 @@ export function Settings({ onClose }: { onClose(): void }) {
           {tab !== 'Controls' && <ResetButton onClick={resetOptions}>Reset graphics, audio and mouse to defaults</ResetButton>}
         </div>
       </div>
+      <Footer />
       {capturing && <CaptureOverlay action={capturing.action} label={capturing.label} onDone={() => setCapturing(null)} />}
     </div>
   );

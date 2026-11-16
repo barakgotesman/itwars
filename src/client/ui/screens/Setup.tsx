@@ -11,6 +11,7 @@ import { DEFAULT_TIME_LIMIT_MIN, MODES, groupOptions, type MatchRules, type Opti
 import type { ServerStatus } from '@shared/net/info';
 import { loadRules, saveRules } from '@client/platform/rules-storage';
 import { capacityNote } from '../components/CapacityPanel';
+import { Footer } from '../components/Footer';
 import { Chips } from '../components/Chips';
 import { Toggle } from '../components/controls';
 import { RulesSummary } from '../components/RulesSummary';
@@ -119,8 +120,8 @@ export function Setup({ capacity, busy, error, onCreate, onClose }: SetupProps) 
   const groups = groupOptions(options);
 
   return (
-    <div className="voxel-bg fixed inset-x-0 top-0 bottom-(--footer-h) z-20 overflow-y-auto">
-      <div className="mx-auto flex min-h-full max-w-2xl flex-col gap-2 px-6 pb-6">
+    <div className="voxel-bg fixed inset-0 z-20 flex flex-col overflow-y-auto">
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-2 px-6 pb-6">
         {/* The header stays in view and carries the summary of every setting, so the choices are visible at a glance. */}
         <header className="sticky top-0 z-10 -mx-6 flex flex-col gap-2 bg-ground px-6 pb-2 pt-4">
           <div className="flex items-center justify-between">
@@ -190,6 +191,7 @@ export function Setup({ capacity, busy, error, onCreate, onClose }: SetupProps) 
           </section>
         ))}
       </div>
+      <Footer />
     </div>
   );
 }

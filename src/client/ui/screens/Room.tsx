@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MAX_PLAYERS } from '@shared/core/constants';
 import { describeRules } from '@shared/rules/modes';
 import { copyText } from '@client/platform/clipboard';
+import { Footer } from '../components/Footer';
 import { Icon, type IconName } from '../components/Icon';
 import { useApp } from '../app-store';
 import { enterOffice, leaveRoom } from '../session';
@@ -91,22 +92,23 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
 
   if (isRange) {
     return (
-      <div className="fixed inset-x-0 top-0 bottom-(--footer-h) flex overflow-y-auto bg-ground/90 px-6 py-6">
-        <div className="m-auto flex w-full max-w-md flex-col gap-6 text-center">
+      <div className="fixed inset-0 flex flex-col overflow-y-auto bg-ground/90">
+        <div className="m-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-6 text-center">
           <div>
             <p className="label">{entered ? 'Paused' : 'Shooting Range'}</p>
             <p className="mt-2 text-base font-extrabold">Unlimited ammo and grenades. Every gun, no setup.</p>
           </div>
           {actions}
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-(--footer-h) flex overflow-y-auto bg-ground/90 px-6 py-6">
+    <div className="fixed inset-0 flex flex-col overflow-y-auto bg-ground/90">
       {/* Two columns on wide screens so the lobby fits a laptop's height; one column when narrow. */}
-      <div className="m-auto grid w-full max-w-4xl items-center gap-8 md:grid-cols-2 md:gap-12">
+      <div className="m-auto grid w-full max-w-4xl flex-1 items-center gap-8 px-6 py-6 md:grid-cols-2 md:gap-12">
         <section className="flex flex-col items-center gap-2 text-center md:items-start md:text-left">
           <p className="label">{entered ? 'Paused' : 'Lobby'}</p>
           <div className="select-all text-7xl font-black tracking-[0.2em] text-accent lg:text-8xl">{joined.code}</div>
@@ -141,6 +143,7 @@ export function Room({ onOpenSettings }: { onOpenSettings(): void }) {
           {actions}
         </section>
       </div>
+      <Footer />
     </div>
   );
 }
