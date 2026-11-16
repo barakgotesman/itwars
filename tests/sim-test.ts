@@ -14,6 +14,7 @@ import { DEFAULT_RULES, MODES, RANGE_RULES, describeRules, groupOptions, sanitiz
 import type { DoorDef } from '@shared/world/map/door-layout';
 import type { PickupSpot } from '@shared/world/map/pickups';
 import { Room } from '@server/rooms/room';
+import { RoomManager } from '@server/rooms/manager';
 import { FLOOR, FULL_RULES, FakeConn, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
 
 let failed = 0;
@@ -1177,7 +1178,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const dm = MODES[0]!.options;
   const groups = groupOptions(dm);
   check('grouping keeps every option exactly once', groups.flatMap((g) => g.options).length === dm.length && dm.every((o) => groups.some((g) => g.options.includes(o))));
-  check('groups keep registry order', groups.map((g) => g.group).join(',') === 'Match,Weapons,Players' || groups.map((g) => g.group).join(',') === 'Match,Players,Weapons', groups.map((g) => g.group).join(','));
+  check('groups keep registry order', groups.map((g) => g.group).join(',') === 'Match,Weapons,Players,Visibility' || groups.map((g) => g.group).join(',') === 'Match,Players,Weapons,Visibility', groups.map((g) => g.group).join(','));
   check('bot skill sits in the same group as bots', groups.some((g) => g.options.some((o) => o.key === 'bots') && g.options.some((o) => o.key === 'botSkill')));
 }
 
@@ -1370,6 +1371,35 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
     run(room, a, 3);
     check('the looter gets the RPG with just one loaded rocket (the carrier had used them all)', (ma.guns & 16) !== 0 && ma.mag[4] === 1 && ma.reserve[4] === 0, `mag=${ma.mag[4]} res=${ma.reserve[4]}`);
   }
+}
+
+// ---- Lobby browser: RoomManager.list() ----
+{
+  console.log('\nlobby list');
+  const mgr = new RoomManager();
+  check('an empty server lists nothing', mgr.list().length === 0);
+  const open = mgr.create({ ...DEFAULT_RULES, bots: 2 })!;
+  const hostId = open.join(new FakeConn(), 'Boss')!;
+  const hidden = mgr.create({ ...DEFAULT_RULES, listed: 0 })!;
+  hidden.join(new FakeConn(), 'Ghost');
+  const solo = mgr.create(RANGE_RULES)!;
+  solo.join(new FakeConn(), 'Lonely');
+  mgr.create(DEFAULT_RULES);
+  const rows = mgr.list();
+  const row = rows[0];
+  check('only the listed, hosted, non-range room is shown', rows.length === 1 && row?.code === open.code, JSON.stringify(rows.map((r) => r.code)));
+  check('the row carries host, counts, rules and capacity', row?.host === 'Boss' && row.humans === 1 && row.bots === 2 && row.capacity === MAX_PLAYERS && row.rules.bots === 2, JSON.stringify(row));
+  check('a room nobody entered yet is in the lobby phase', row?.phase === 'lobby');
+  open.enter(hostId);
+  check('after the host enters it is in play', mgr.list()[0]?.phase === 'play');
+  open.phase = 'over';
+  check('during the intermission it says so', mgr.list()[0]?.phase === 'over');
+  open.phase = 'play';
+  check('a room with only bots to spare is still joinable', mgr.list()[0]?.joinable === true);
+  const full = mgr.create({ ...DEFAULT_RULES, bots: 0 })!;
+  for (let i = 0; i < MAX_PLAYERS; i++) full.join(new FakeConn(), `P${i}`);
+  check('a room full of humans is listed but not joinable', mgr.list().find((r) => r.code === full.code)?.joinable === false);
+  check('sanitizeRules keeps listed 0/1 and defaults the rest to listed', sanitizeRules({ ...DEFAULT_RULES, listed: 0 }).listed === 0 && sanitizeRules({ ...DEFAULT_RULES, listed: 5 }).listed === 1 && sanitizeRules({}).listed === 1);
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

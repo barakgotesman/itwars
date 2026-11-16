@@ -4,7 +4,8 @@
  * refuses what does not fit and lets humans push bots out, so a busy server never gets slower for the people on it.
  */
 import { CODE_ALPHABET, CODE_LEN } from '@shared/core/constants';
-import type { ServerStatus } from '@shared/net/info';
+import { MAX_PLAYERS } from '@shared/core/constants';
+import type { RoomSummary, ServerStatus } from '@shared/net/info';
 import type { MatchRules } from '@shared/rules/modes';
 import { UNLIMITED, type LoadModel } from '../capacity';
 import { Room } from './room';
@@ -69,6 +70,26 @@ export class RoomManager {
       maxPlayers: h > 0 ? Math.floor(this.model.budgetMs / h + 1e-9) : 999,
       maxBots: Math.min(this.maxBots, this.model.msPerBot > 0 ? Math.floor(this.model.budgetMs / this.model.msPerBot + 1e-9) : 999),
     };
+  }
+
+  /**
+   * The rooms shown in the lobby browser: listed, with a host, and not the solo shooting range.
+   * @returns One summary per room, oldest first.
+   */
+  list(): RoomSummary[] {
+    const seatsFree = this.status().playersAvailable > 0;
+    const out: RoomSummary[] = [];
+    for (const room of this.rooms.values()) {
+      const host = room.hostId === null ? undefined : room.players.get(room.hostId);
+      if (!host || room.rules.mode === 'range' || room.rules.listed !== 1) continue;
+      out.push({
+        code: room.code, host: host.name, humans: room.humans, bots: room.botCount, capacity: MAX_PLAYERS, rules: room.rules,
+        phase: room.phase === 'over' ? 'over' : room.hasStarted ? 'play' : 'lobby',
+        // A human may take a bot's seat (see `admit`), so a room full of bots still has space.
+        joinable: seatsFree && (!room.isFull || room.botCount > 0),
+      });
+    }
+    return out;
   }
 
   /**

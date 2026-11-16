@@ -123,6 +123,11 @@ export class Room implements Sim {
     return (this.navGrid ??= buildNavGrid(this.staticSolids));
   }
 
+  /** True once anyone has entered the match (false while everyone is still in the lobby). */
+  get hasStarted(): boolean {
+    return this.started;
+  }
+
   /** Number of players currently in the room. */
   get size(): number {
     return this.players.size;

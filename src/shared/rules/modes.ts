@@ -30,13 +30,15 @@ export interface MatchRules {
   botSkill: number;
   /** Spawn kit, index into `LOADOUTS`: 0 pistol only (guns are map pickups), 1 full arsenal. */
   loadout: number;
+  /** 1 shows the room in the lobby browser, 0 keeps it joinable by code only. */
+  listed: number;
 }
 
 /** Rules used when the host does not choose any (and the fallback for anything invalid). */
-export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0 };
+export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0, listed: 1 };
 
 /** Numeric rule fields a setup option can control. */
-export type RuleKey = 'killLimit' | 'timeLimitMin' | 'bots' | 'botSkill' | 'loadout';
+export type RuleKey = 'killLimit' | 'timeLimitMin' | 'bots' | 'botSkill' | 'loadout' | 'listed';
 
 /** One option a mode shows on the setup screen. */
 export type OptionDef =
@@ -97,6 +99,10 @@ export interface ModeDef {
   options: readonly OptionDef[];
 }
 
+/** Values of the `listed` rule, and their setup-screen names (index = value). */
+export const LISTED_IDS: readonly number[] = [1, 0];
+export const LISTED_NAMES: readonly string[] = ['Listed', 'Hidden'];
+
 /** Every available mode. The first entry is the default. */
 export const MODES: readonly ModeDef[] = [
   {
@@ -121,6 +127,10 @@ export const MODES: readonly ModeDef[] = [
         kind: 'choice', key: 'botSkill', group: 'Players', label: 'Bot skill', choices: BOT_SKILLS, labels: BOT_SKILL_NAMES, unit: '', dependsOn: 'bots',
         hint: 'Easy bots react slowly and miss; Hard bots aim fast, land headshots and use grenades.',
       },
+      {
+        kind: 'choice', key: 'listed', group: 'Visibility', label: 'Lobby list', choices: LISTED_IDS, labels: LISTED_NAMES, unit: '',
+        hint: 'Listed: the room shows up in "Browse games" for everyone on the network. Hidden: only people with the room code can join.',
+      },
     ],
   },
   {
@@ -132,7 +142,7 @@ export const MODES: readonly ModeDef[] = [
 ];
 
 /** Fixed rules for the menu's one-click "Shooting Range" button: solo, no bots, unlimited ammo (see `server/sim/weapons.ts`/`grenades.ts`). */
-export const RANGE_RULES: MatchRules = { mode: 'range', killLimit: KILL_LIMITS[0]!, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0 };
+export const RANGE_RULES: MatchRules = { mode: 'range', killLimit: KILL_LIMITS[0]!, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0, listed: 0 };
 
 /**
  * Turns anything a client sent into valid rules, falling back to the default for each field that is wrong.
@@ -146,7 +156,8 @@ export function sanitizeRules(raw: unknown): MatchRules {
   const bots = BOT_COUNTS.includes(r.bots as number) ? (r.bots as number) : DEFAULT_RULES.bots;
   const botSkill = BOT_SKILLS.includes(r.botSkill as number) ? (r.botSkill as number) : DEFAULT_RULES.botSkill;
   const loadout = LOADOUT_IDS.includes(r.loadout as number) ? (r.loadout as number) : DEFAULT_RULES.loadout;
-  return { mode, killLimit, timeLimitMin, bots, botSkill, loadout };
+  const listed = r.listed === 0 || r.listed === 1 ? r.listed : DEFAULT_RULES.listed;
+  return { mode, killLimit, timeLimitMin, bots, botSkill, loadout, listed };
 }
 
 /**

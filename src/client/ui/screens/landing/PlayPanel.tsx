@@ -19,11 +19,13 @@ export interface PlayPanelProps {
   lanHint: string;
   onJoin(e: FormEvent): void;
   onHost(): void;
+  /** Opens the lobby browser. */
+  onBrowse(): void;
   onRange(): void;
 }
 
 /** The play block. */
-export function PlayPanel({ name, onName, code, onCode, error, busy, lanHint, onJoin, onHost, onRange }: PlayPanelProps) {
+export function PlayPanel({ name, onName, code, onCode, error, busy, lanHint, onJoin, onHost, onBrowse, onRange }: PlayPanelProps) {
   return (
     <div className="slab flex flex-col gap-4 bg-panel p-5">
       <label className="flex flex-col gap-1.5">
@@ -48,6 +50,8 @@ export function PlayPanel({ name, onName, code, onCode, error, busy, lanHint, on
         </div>
         <p className="min-h-5 text-sm font-bold text-danger" role="alert">{error}</p>
       </form>
+
+      <button type="button" className="btn-quiet !py-3 !text-base" disabled={busy} onClick={onBrowse}>Browse games</button>
 
       <div className="flex flex-col gap-1.5">
         <button type="button" className="btn-quiet !py-3 !text-base" disabled={busy} onClick={onRange}>Shooting Range</button>

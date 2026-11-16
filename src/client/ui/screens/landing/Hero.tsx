@@ -36,7 +36,7 @@ interface HeroProps extends PlayPanelProps {
 export function Hero({ previewCanvas, model, color, onColor, onStep, spray, onSpray, ...play }: HeroProps) {
   const character = CHARACTERS[model]!;
   return (
-    <div id="top" className="relative min-h-[calc(100vh-3.5rem)] w-full">
+    <div id="top" className="relative min-h-[calc(100vh-3.5rem)] w-full shrink-0">
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ground/95 via-ground/75 to-transparent" aria-hidden="true" />
       <div className="relative mx-auto grid w-full max-w-6xl items-center gap-x-10 gap-y-8 px-8 py-8 lg:grid-cols-[minmax(0,30rem)_minmax(0,1fr)]">
         <div className="flex flex-col gap-5">

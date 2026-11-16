@@ -5,7 +5,7 @@
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sendInfo } from '@server/http/api';
+import { sendInfo, sendRooms } from '@server/http/api';
 import { lanAddresses } from '@server/http/lan';
 import { serveStatic } from '@server/http/static';
 import { SERVER_BUDGET_MS, describeCapacity, measureCapacity } from '@server/capacity';
@@ -27,6 +27,7 @@ const rooms = new RoomManager(capacity, botCap);
 const http = createServer((req, res) => {
   const path = (req.url ?? '/').split('?')[0]!;
   if (path === '/api/info') sendInfo(res, PORT, rooms.status());
+  else if (path === '/api/rooms') sendRooms(res, rooms.list());
   else serveStatic(ROOT, path, res);
 });
 

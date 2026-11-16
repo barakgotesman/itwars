@@ -69,7 +69,7 @@ src/shared/   used by BOTH sides (no DOM, no Node APIs)
 src/server/   Node
   index.ts    bootstrap only: http server + gateway + loop
   loop.ts     fixed 60 Hz step of every room, plus `TickMonitor` (warns when ticks run slow)
-  http/       api.ts (/api/info, built from `@shared/net/info`), static.ts (serves dist/), lan.ts (LAN addresses)
+  http/       api.ts (/api/info and /api/rooms, built from `@shared/net/info`), static.ts (serves dist/), lan.ts (LAN addresses)
   net/        gateway.ts: WebSocket on /ws, rate limit, validation, routing to the player's room
   rooms/      room.ts (Room: state + join/enter/leave/input/step, calls the systems), manager.ts (codes, lookup, prune, load budget: create/admit/status), capacity.ts (startup self-measurement)
   sim/        one system per file, plain functions over the room state (state.ts `Sim`):
@@ -114,6 +114,11 @@ Events (`GameEvent`): `shot`, `hit`, `kill`, `spawn {yaw}`, `pickup`, `pk`, `thr
 
 - `host` creates a room and returns a 4-character code (A-Z and 2-9, no 0/O/1/I); `join` takes it. Errors: unknown code, room full. Room is deleted when the last player leaves. Duplicate callsigns get a number suffix; a blank name becomes `GuestNNNN`.
 - **Lobby:** a player who has joined but not clicked "Enter the office" is *not in the match*: not spawned, not in snapshots, cannot be hit, cannot pick anything up. `enter` spawns them (deferred to the restart during an intermission).
+
+### Lobby browser ("Browse games")
+- `GET /api/rooms` returns `RoomSummary[]` (`shared/net/info.ts`) from `RoomManager.list()`: host name, code, humans, bots, capacity, `rules`, `phase` (`lobby` = nobody has entered the match yet, shown as "Waiting"; `play`; `over` = intermission) and `joinable` (not full of humans, server has capacity; a room full of bots is still joinable because `admit` drops a bot). The shooting range, rooms with `listed: 0` and rooms without a host are left out. Rooms are on the one server the page is connected to; there is no discovery of other servers.
+- `MatchRules.listed` (1 listed, 0 hidden, setup option "Lobby list" under Visibility, default listed) lets a host keep a room joinable by code only.
+- `ui/screens/LobbyBrowser.tsx` polls every 2 s, reuses `RulesSummary` for the settings cell and joins through the menu's `attempt({t:'join'})`; opened from the "Browse games" button in `landing/PlayPanel.tsx`.
 
 ## Game design
 
@@ -257,6 +262,8 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 6. Polish and public demo deploy (Fly.io / Render): in progress / not started (deploy).
 
 ## Known gaps
+
+- Lobby browser: `RoomManager.list()` and `/api/rooms` are covered by `test:sim` and `test:smoke`; the screen was checked in a real browser (two rooms listed, hidden room absent, Join entered the room) but not with several humans and not the long-running refresh, empty or server-down states.
 
 - RPG: the rules are covered headlessly (spawn kit, pickup in both loadouts, three rockets, long respawn, ammo boxes ignoring it, rocket flight, wall and body blasts, shooter self-damage, kill credit, reload, movement slowdown on the server and in shared movement, loot, bots leaving it alone), and typecheck/lint/build pass. **Not played**: the viewmodel and its reload animation (whether the hand, rocket and lever motions read well), the back-blast flash, the rocket in flight with its trail, the explosion and its sound, how heavy the 0.6x walk feels, and whether the control cage is hard enough (or too hard) to reach.
 

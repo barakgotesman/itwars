@@ -101,9 +101,15 @@ try {
   check('server acks inputs', last?.t === 'snap' && last.me.ack > 10, `ack=${last?.t === 'snap' ? last.me.ack : '?'}`);
   check('host sees both players', last?.t === 'snap' && last.players.length === 2);
 
+  const listing = (await (await fetch(`http://127.0.0.1:${PORT}/api/rooms`)).json()) as { rooms: { code: string; host: string; humans: number; joinable: boolean }[] };
+  const row = listing.rooms.find((r) => r.code === code);
+  check('/api/rooms lists the open room with its host and players', row?.host === 'Host' && row.humans === 2 && row.joinable, JSON.stringify(row));
+
   guest.ws.close();
   host.ws.close();
   await sleep(200);
+  const after = (await (await fetch(`http://127.0.0.1:${PORT}/api/rooms`)).json()) as { rooms: { code: string }[] };
+  check('/api/rooms drops the room once it is empty', !after.rooms.some((r) => r.code === code));
   const again = await connect();
   again.ws.send(JSON.stringify({ t: 'join', code, name: 'Late' }));
   check('empty room is deleted', (await waitFor(again, (m) => m.t === 'error' && m.reason === 'bad-code')) !== undefined);

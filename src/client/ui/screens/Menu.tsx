@@ -20,8 +20,10 @@ import { Arsenal } from './landing/Arsenal';
 import { FinalCta } from './landing/FinalCta';
 import { Hero } from './landing/Hero';
 import { HowItPlays } from './landing/HowItPlays';
+import { ServerDownBanner } from './landing/ServerDownBanner';
 import { Staff } from './landing/Staff';
 import { TopBar } from './landing/TopBar';
+import { LobbyBrowser } from './LobbyBrowser';
 import { Setup } from './Setup';
 
 /** Props for {@link Menu}. */
@@ -29,6 +31,9 @@ interface MenuProps {
   /** Opens the settings screen. */
   onOpenSettings(): void;
 }
+
+/** How often the menu re-checks that the game server answers. */
+const SERVER_CHECK_MS = 4000;
 
 /** The main menu screen. */
 export function Menu({ onOpenSettings }: MenuProps) {
@@ -38,6 +43,8 @@ export function Menu({ onOpenSettings }: MenuProps) {
   const [busy, setBusy] = useState(false);
   const [look, setLook] = useState<Look>(loadLook);
   const [setupOpen, setSetupOpen] = useState(false);
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [serverDown, setServerDown] = useState(false);
   const [setupError, setSetupError] = useState('');
   const [capacity, setCapacity] = useState<ServerStatus | null>(null);
   const [lanUrl, setLanUrl] = useState(location.origin);
@@ -76,8 +83,12 @@ export function Menu({ onOpenSettings }: MenuProps) {
   }, [look]);
 
   // The server knows this machine's LAN addresses; the page may have been opened as "localhost".
+  // It is asked again every few seconds so the "server down" strip shows up, and goes away, on its own.
   useEffect(() => {
-    void fetchInfo().then((info) => {
+    let alive = true;
+    const check = () => void fetchInfo().then((info) => {
+      if (!alive) return;
+      setServerDown(!info);
       if (!info) return;
       setCapacity(info.status ?? null);
       const ip = info.lan[0];
@@ -86,6 +97,12 @@ export function Menu({ onOpenSettings }: MenuProps) {
       setLanUrl(url);
       setLanHint(`Playing with friends on your network? They open ${url} and join with your room code.`);
     });
+    check();
+    const id = window.setInterval(() => { if (!document.hidden) check(); }, SERVER_CHECK_MS);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
   }, []);
 
   /** Runs a host/join attempt; errors show under the buttons (on the setup screen for hosting). */
@@ -124,6 +141,11 @@ export function Menu({ onOpenSettings }: MenuProps) {
     setSetupOpen(true);
   };
   const closeSetup = useCallback(() => setSetupOpen(false), []);
+  const openBrowse = () => {
+    setError('');
+    setBrowseOpen(true);
+  };
+  const closeBrowse = useCallback(() => setBrowseOpen(false), []);
   /** Moves to the next or previous character (wrapping round) with the spin transition. */
   const stepCharacter = (direction: 1 | -1) => {
     stepDirection.current = direction;
@@ -135,6 +157,7 @@ export function Menu({ onOpenSettings }: MenuProps) {
     <>
       <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen opacity-0 transition-opacity duration-1000" aria-hidden="true" />
       <div className="fixed inset-0 flex scroll-smooth flex-col overflow-y-auto">
+        {serverDown && <ServerDownBanner />}
         <TopBar onOpenSettings={onOpenSettings} />
         <Hero
           previewCanvas={previewCanvas}
@@ -153,9 +176,10 @@ export function Menu({ onOpenSettings }: MenuProps) {
           lanHint={lanHint}
           onJoin={onJoin}
           onHost={openSetup}
+          onBrowse={openBrowse}
           onRange={startRange}
         />
-        <div className="bg-ground/90">
+        <div className="shrink-0 bg-ground/90">
           <HowItPlays />
           <Arsenal />
           <Arena />
@@ -164,6 +188,9 @@ export function Menu({ onOpenSettings }: MenuProps) {
           <Footer />
         </div>
       </div>
+      {browseOpen && (
+        <LobbyBrowser busy={busy} error={error} onJoin={(c) => void attempt({ t: 'join', code: c })} onClose={closeBrowse} />
+      )}
       {setupOpen && (
         <Setup
           capacity={capacity}

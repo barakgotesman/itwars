@@ -2,7 +2,7 @@
  * Talking to the server before a room exists: hosting or joining, and asking `/api/info` what the server
  * can take and where friends can reach it. Used by the Menu screen.
  */
-import type { InfoResponse } from '@shared/net/info';
+import type { InfoResponse, RoomListResponse, RoomSummary } from '@shared/net/info';
 import type { ErrorMsg, HostMsg, JoinedMsg, JoinMsg } from '@shared/net/protocol';
 import { SERVER_HTTP } from '@client/config';
 import { Net } from './net';
@@ -39,4 +39,9 @@ export function request(msg: HostMsg | JoinMsg): Promise<{ net: Net; joined: Joi
 /** Asks the server what it can take and where friends can reach it. */
 export function fetchInfo(): Promise<ServerInfo | null> {
   return fetch(`${SERVER_HTTP}/api/info`).then((r) => r.json() as Promise<ServerInfo>).catch(() => null);
+}
+
+/** Asks the server which rooms are open to join (null when it cannot be reached). */
+export function fetchRooms(): Promise<RoomSummary[] | null> {
+  return fetch(`${SERVER_HTTP}/api/rooms`).then((r) => r.json() as Promise<RoomListResponse>).then((b) => b.rooms).catch(() => null);
 }
