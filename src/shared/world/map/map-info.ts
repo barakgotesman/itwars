@@ -20,6 +20,12 @@ export const MAP_INFO: readonly MapInfo[] = [
   { id: 'datacenter', name: 'Data Center', blurb: 'Rows of humming server racks, cold aisles, a control room and a tape vault. Tight and fast.', size: 'Small · 2-4 players' },
 ];
 
+/**
+ * Version tag added to every map picture URL (`public/maps/*.jpg`). The pictures keep their file names when
+ * `tools/maps.html` regenerates them, so browsers would keep showing the cached old ones: bump this after regenerating.
+ */
+export const PICTURES_REV = 6;
+
 /** Values of the `map` rule (the indices of `MAP_INFO`), for the rules validator and the setup option. */
 export const MAP_IDS: readonly number[] = MAP_INFO.map((_, i) => i);
 /** Names in the same order as `MAP_IDS`, for option labels and summaries. */

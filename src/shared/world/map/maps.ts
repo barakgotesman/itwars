@@ -55,6 +55,13 @@ export interface ShotSpec {
   fov: number;
 }
 
+/** One picture of a map for the landing page's showcase: a camera pose and the file name it is saved under. */
+export interface GalleryShot {
+  /** Letters and hyphens only; the picture is `public/maps/<map id>-<slug>.jpg`. */
+  slug: string;
+  shot: ShotSpec;
+}
+
 /** Everything one map is made of. */
 export interface MapDef {
   id: string;
@@ -77,6 +84,10 @@ export interface MapDef {
   backdrop: BackdropSpec;
   /** Where the setup screen's picture of the map is taken from. */
   shot: ShotSpec;
+  /** Extra pictures for the landing page's showcase (the captions are in `landing/copy.ts`, keyed by slug). */
+  gallery: readonly GalleryShot[];
+  /** The map has a glossy floor (`floorGloss`): the client also draws a mirrored copy of the room under it. */
+  glossy?: boolean;
 }
 
 /** Zone lookup shared by the small maps: first match wins, the last zone is the fallback. */
@@ -94,6 +105,12 @@ const OFFICE: MapDef = {
   podium: { origin: { x: 0, z: 20 }, camPos: [0, 2.3, 12.5], camLook: [0, 1.3, 20], fogColor: 0x242a36, fogDensity: 0.016 },
   backdrop: { from: [-28, 2.2, -1], to: [28, 2.2, -1], period: 150, pitch: -0.1, sway: 0.5, background: 0x9bb0c4, fog: { color: 0x8e9bab, density: 0.012 } },
   shot: { pos: [-14, 2.3, 4], yaw: -0.55, pitch: -0.12, fov: 70 },
+  gallery: [
+    { slug: 'conference', shot: { pos: [22, 2.6, 15.6], yaw: 3.14, pitch: -0.17, fov: 78 } },
+    { slug: 'break-room', shot: { pos: [-34, 1.9, 15.6], yaw: 2.25, pitch: -0.08, fov: 74 } },
+    { slug: 'open-plan', shot: { pos: [-30, 2.2, -2], yaw: -1.9, pitch: -0.06, fov: 70 } },
+    { slug: 'lounge', shot: { pos: [5.5, 3, -9.5], yaw: 2.5, pitch: -0.16, fov: 70 } },
+  ],
 };
 
 /** The small server hall. */
@@ -104,8 +121,15 @@ const DATACENTER: MapDef = {
   zones: datacenter.ZONES, zoneAt: zoneLookup(datacenter.ZONES), bounds: datacenter.BOUNDS,
   // The central bay, filmed from the north lane with the south rack blocks lit behind the pedestals.
   podium: { origin: { x: 0, z: 0 }, camPos: [0, 2.3, -7.5], camLook: [0, 1.3, 0], fogColor: 0x141c2c, fogDensity: 0.02 },
-  backdrop: { from: [-13, 1.8, 3.5], to: [13, 1.8, 3.5], period: 90, pitch: -0.06, sway: 0.35, background: 0x0f1626, fog: { color: 0x16213a, density: 0.03 } },
-  shot: { pos: [-4, 1.9, 4.5], yaw: -0.35, pitch: -0.06, fov: 70 },
+  backdrop: { from: [-13, 1.8, 3.5], to: [13, 1.8, 3.5], period: 90, pitch: -0.06, sway: 0.35, background: 0x070b16, fog: { color: 0x0a1226, density: 0.016 } },
+  shot: { pos: [-13.5, 1.75, 2.6], yaw: -1.5, pitch: -0.03, fov: 66 },
+  gallery: [
+    { slug: 'bay', shot: { pos: [-13.5, 1.75, 2.6], yaw: -1.5, pitch: -0.03, fov: 70 } },
+    { slug: 'aisle', shot: { pos: [-14, 1.7, -8.3], yaw: -Math.PI / 2 + 0.12, pitch: -0.04, fov: 70 } },
+    { slug: 'control-room', shot: { pos: [0, 1.7, 4.5], yaw: 0, pitch: -0.03, fov: 70 } },
+    { slug: 'racks', shot: { pos: [8, 1.7, 11.5], yaw: -0.35, pitch: -0.03, fov: 70 } },
+  ],
+  glossy: true,
 };
 
 /** The shooting range: not selectable, used by `rules.mode === 'range'`. It has no podium and no menu backdrop of its own. */
@@ -114,7 +138,7 @@ export const RANGE_MAP: MapDef = {
   solids: range.SOLIDS, boxes: range.MAP_BOXES, lights: range.LIGHTS, labels: range.LABELS, boards: range.BOARDS,
   pickups: range.PICKUP_SPOTS, spawns: range.SPAWNS, doors: [],
   zones: range.ZONES, zoneAt: zoneLookup(range.ZONES), bounds: range.BOUNDS,
-  podium: OFFICE.podium, backdrop: OFFICE.backdrop, shot: OFFICE.shot,
+  podium: OFFICE.podium, backdrop: OFFICE.backdrop, shot: OFFICE.shot, gallery: [],
 };
 
 /** The selectable maps, indexed by the `map` rule (the same order as `MAP_INFO`). */

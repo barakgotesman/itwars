@@ -13,6 +13,7 @@ export type MaterialId =
   | 'desk' | 'chair' | 'sofa' | 'sofa2' | 'shelf' | 'metal' | 'rack' | 'white' | 'dark'
   | 'red' | 'blue' | 'green' | 'pot' | 'cardboard' | 'crate' | 'paper'
   | 'screen' | 'screenTerm' | 'screenDesk' | 'screenSheet' | 'screenSaver' | 'screenBsod' | 'screenOff'
+  | 'floorHidden' | 'floorGloss'
   | 'led' | 'ledBlink' | 'ledBlinkB' | 'signGreen' | 'signBlue' | 'signOrange' | 'signRed';
 
 /** A box with a material; non-solid boxes are decoration only and never collide. */

@@ -6,8 +6,6 @@
 import { MAX_PLAYERS } from '@shared/core/constants';
 import { KILL_LIMITS } from '@shared/rules/modes';
 import { GRENADES, WEAPONS } from '@shared/rules/weapons';
-import { DOORS } from '@shared/world/map/door-layout';
-import { ZONES } from '@shared/world/map/zones';
 
 /** The headline under the logo. */
 export const HEADLINE = 'Have you tried turning them off?';
@@ -46,16 +44,38 @@ export const GRENADE_NAMES: readonly string[] = GRENADES.map((g) => g.name);
 /** Arsenal intro line. */
 export const ARSENAL_INTRO = 'A stapler, a sheet of A4, and whatever you find on the way.';
 
-/** The arena section. */
-export const ARENA_TEXT = 'One floor of open-plan chaos: cubicle pods, a lobby, a break room and a server room you will want to visit. Sliding doors close on command. Every room has its own light.';
+/** The arena section's heading line. */
+export const ARENA_TEXT = 'Two places to settle it. You pick the map when you host.';
 
-/** Fact chips in the arena section. */
-export const ARENA_FACTS: readonly { value: string; label: string }[] = [
-  { value: String(MAX_PLAYERS), label: 'players per room' },
-  { value: String(DOORS.length), label: 'sliding doors' },
-  { value: String(ZONES.length), label: 'lit zones' },
-  { value: `${WEAPONS.length} + ${GRENADES.length}`, label: 'guns and grenades' },
-];
+/** What the arena section says about one map: a tagline and a caption for each picture (keyed by gallery slug). */
+export interface MapStory {
+  /** The map's one-line pitch, shown on its tab. */
+  tagline: string;
+  /** Caption under each picture: a short name and one dry line. */
+  captions: Readonly<Record<string, { title: string; line: string }>>;
+}
+
+/** The arena copy per map, keyed by map id (`MAP_INFO`). Pictures are `public/maps/<id>-<slug>.jpg` (`tools/maps.html`). */
+export const MAP_STORIES: Readonly<Record<string, MapStory>> = {
+  office: {
+    tagline: 'The whole floor. Rooms, open plan, sliding doors.',
+    captions: {
+      conference: { title: 'Conference room', line: 'A long table, a big screen and nothing to hide behind.' },
+      'break-room': { title: 'Break room', line: 'Bright, loud, and the coffee machine is not cover.' },
+      'open-plan': { title: 'Open plan', line: 'Cubicle pods and long sight lines. Keep moving.' },
+      lounge: { title: 'The lounge', line: 'Orange sofas in the middle of everything. Bad idea.' },
+    },
+  },
+  datacenter: {
+    tagline: 'Small and tight. One cold hall of glowing racks.',
+    captions: {
+      bay: { title: 'The bay', line: 'The open middle. Everyone ends up here sooner or later.' },
+      aisle: { title: 'Cold aisle', line: 'Fast fights between the rack rows.' },
+      'control-room': { title: 'Control room', line: 'A glass door, a desk of screens and a shotgun.' },
+      racks: { title: 'Rack row', line: 'Blue light on every cabinet. You can see them coming.' },
+    },
+  },
+};
 
 /** The staff section. */
 export const STAFF_TEXT = 'Seven colleagues, eight shirt colours, one spray-paint tag. Use the arrows beside the character at the top to pick who you are.';

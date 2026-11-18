@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { DEFAULT_RULES, type MatchRules } from '@shared/rules/modes';
 import type { MaterialId } from '@shared/world/map';
-import { LIGHTS, MAP_BOXES, SOLIDS } from './active-map';
+import { GLOSSY, LIGHTS, MAP_BOXES, SOLIDS } from './active-map';
 import { LightField } from './light-field';
 import { makeBaker, makeLightModel } from './lighting';
 import { ScoreWall } from './score-wall';
@@ -22,6 +22,10 @@ interface MatDef {
   /** >1 makes the surface self-lit and bright enough for bloom; such surfaces skip baked lighting. */
   glow?: number;
   opacity?: number;
+  /** Collides (it is a normal map box) but is never drawn: a thick solid floor under a thin glossy one. */
+  invisible?: boolean;
+  /** Gets baked lighting even though it has an opacity (the glossy floor still shows the room's lamps). */
+  lit?: boolean;
   texture?: TexKind;
 }
 
@@ -48,6 +52,10 @@ const MATERIALS: Record<MaterialId, MatDef> = {
   lightFlicker: { color: 0xeaf0ff, glow: 2 },
   glass: { color: 0x9fd6ee, opacity: 0.35 },
   sky: { color: 0xbcdcff, glow: 2.6 },
+  // Glossy floor (Data Center): the solid slab stays but is not drawn; a thin translucent dark layer on top lets the
+  // mirrored copy of the room (see `buildWorld`) show through as a reflection.
+  floorHidden: { color: 0x000000, invisible: true },
+  floorGloss: { color: 0x3a4250, opacity: 0.9, lit: true, texture: 'floorDark' },
   brick: { color: 0xb5654a, texture: 'brick' },
   cork: { color: 0xb68a58, texture: 'cork' },
   duct: { color: 0xa9b0b8, texture: 'brushed' },
@@ -280,7 +288,8 @@ export function buildWorld(scene: THREE.Object3D, rules: MatchRules = DEFAULT_RU
     const floorLike = def.texture === 'carpet' || def.texture === 'tile' || def.texture === 'wood' ||
       def.texture === 'concrete' || def.texture === 'floorDark';
     const step = floorLike ? 0.8 : 1.5;
-    const baked = def.glow === undefined && def.opacity === undefined;
+    if (def.invisible) continue;
+    const baked = def.glow === undefined && (def.opacity === undefined || def.lit === true);
     const geos: THREE.BufferGeometry[] = [];
 
     for (const b of MAP_BOXES) {
@@ -305,6 +314,15 @@ export function buildWorld(scene: THREE.Object3D, rules: MatchRules = DEFAULT_RU
     const mesh = new THREE.Mesh(mergeGeometries(geos)!, mat);
     if (def.opacity !== undefined) mesh.renderOrder = 1;
     root.add(mesh);
+    // The reflection: the same geometry and material flipped under the floor. It shares the baked colours (so it
+    // is lit exactly like the room) and the blinking materials (so reflected LEDs blink too); the translucent
+    // floor decides how much of it shows. Costs extra draws, so only maps that ask for it get it.
+    if (GLOSSY && id !== 'floorGloss') {
+      const mirror = new THREE.Mesh(mesh.geometry, mat);
+      mirror.scale.y = -1;
+      mirror.renderOrder = mesh.renderOrder;
+      root.add(mirror);
+    }
 
     if (id === 'lightFlicker') {
       // Mostly on, with brief stutters like a dying tube.

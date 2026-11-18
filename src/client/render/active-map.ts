@@ -23,6 +23,8 @@ export let LABELS = active.labels;
 export let BOARDS = active.boards;
 /** Pickup spots, in protocol order. */
 export let PICKUP_SPOTS = active.pickups;
+/** True when the world draws a mirrored copy under a glossy floor (see `MapDef.glossy`). */
+export let GLOSSY = active.glossy === true;
 
 /**
  * Switches every export above to the given map. Call before any map data is read, and again immediately before
@@ -36,6 +38,7 @@ export function setActiveMap(next: MapDef): void {
   LABELS = next.labels;
   BOARDS = next.boards;
   PICKUP_SPOTS = next.pickups;
+  GLOSSY = next.glossy === true;
 }
 
 /** The map currently active. */

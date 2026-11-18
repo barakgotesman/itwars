@@ -95,6 +95,48 @@ function checkMap(map: MapDef): void {
 
 for (const m of [...MAPS, RANGE_MAP]) checkMap(m);
 
+/**
+ * Z-fighting: two boxes with a face in the same plane, facing the same way, over an overlapping area flicker
+ * (the baked colours differ per box, so the winner changes with the camera). Returns a description per clash.
+ */
+function coplanarClashes(boxes: MapDef['boxes']): string[] {
+  const out: string[] = [];
+  const EPS = 1e-4;
+  const keys = ['X', 'Y', 'Z'] as const;
+  type Key = `min${'X' | 'Y' | 'Z'}` | `max${'X' | 'Y' | 'Z'}`;
+  /** True if the point lies strictly inside any box other than the two clashing ones (so the faces are buried). */
+  const buriedAt = (p: Record<'X' | 'Y' | 'Z', number>, skipA: MapDef['boxes'][number], skipB: MapDef['boxes'][number]) =>
+    boxes.some((c) => c !== skipA && c !== skipB && p.X > c.minX && p.X < c.maxX && p.Y > c.minY && p.Y < c.maxY && p.Z > c.minZ && p.Z < c.maxZ);
+  for (let i = 0; i < boxes.length; i++) {
+    for (let j = i + 1; j < boxes.length; j++) {
+      const a = boxes[i]!, b = boxes[j]!;
+      for (const ax of keys) {
+        const others = keys.filter((k) => k !== ax);
+        const mid: Record<'X' | 'Y' | 'Z', number> = { X: 0, Y: 0, Z: 0 };
+        let overlapping = true;
+        for (const k of others) {
+          const lo = Math.max(a[`min${k}` as Key], b[`min${k}` as Key]), hi = Math.min(a[`max${k}` as Key], b[`max${k}` as Key]);
+          if (hi - lo <= EPS) { overlapping = false; break; }
+          mid[k] = (lo + hi) / 2;
+        }
+        if (!overlapping) continue;
+        for (const [face, sign] of [[`min${ax}`, -1], [`max${ax}`, 1]] as const) {
+          const v = a[face as Key];
+          if (Math.abs(v - b[face as Key]) >= EPS) continue;
+          // Just outside the faces: if that point is inside a third box, nobody can see the clash.
+          mid[ax] = v + sign * 0.02;
+          if (!buriedAt(mid, a, b)) out.push(`${a.mat}/${b.mat} share the ${face} plane at ${v.toFixed(2)} near x ${mid.X.toFixed(1)}, y ${mid.Y.toFixed(1)}, z ${mid.Z.toFixed(1)}`);
+        }
+      }
+    }
+  }
+  return out;
+}
+const dc = MAPS.find((x) => x.id === 'datacenter')!;
+// The hidden solid floor is never drawn, so it cannot flicker against the glossy layer.
+const clashes = coplanarClashes(dc.boxes).filter((c) => !c.includes('floorHidden'));
+check('datacenter: no coplanar same-facing faces (z-fighting)', clashes.length === 0, `${clashes.length}: ${clashes.slice(0, 8).join(' | ')}`);
+
 // A real room on each selectable map: everyone spawns on that map's spawns, bots roam 
 // and the map's doors and pickups are the ones sent to the client.
 for (const [index, map] of MAPS.entries()) {

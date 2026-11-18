@@ -122,6 +122,16 @@
   animation: scope-glint 5s ease-in-out infinite alternate;
 }
 
+/* The arenas showcase's timer: a thin bar that fills while a picture is up (paused while the pointer is over it). */
+@keyframes arena-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.arena-progress {
+  transform-origin: left;
+  animation: arena-progress var(--slide-ms, 5500ms) linear forwards;
+}
+
 /* Low health: the screen edge pulses red until you heal. Opacity only, so it costs nothing per frame. */
 @keyframes low-hp {
   from { opacity: 0.35; }
