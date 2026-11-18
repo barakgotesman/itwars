@@ -238,7 +238,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       const mag = new THREE.Group();
       g.add(bolt, reel, mag);
       box(g, 0x2b6d72, 0.062, 0.082, 0.34, 0, 0, -0.17);
-      box(g, 0x1d4a4d, 0.064, 0.03, 0.34, 0, -0.03, -0.17);
+      box(g, 0x1d4a4d, 0.064, 0.03, 0.344, 0, -0.03, -0.17);
       box(g, 0xf39c12, 0.066, 0.01, 0.2, 0, 0.004, -0.2);
       box(g, 0x15171a, 0.036, 0.014, 0.3, 0, 0.048, -0.17);
       for (const z of [-0.06, -0.1, -0.14, -0.18, -0.22, -0.26]) box(g, 0x2a2d33, 0.042, 0.006, 0.012, 0, 0.056, z);
@@ -266,7 +266,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       // Ejection port and the charging handle that runs back and forth in it.
       box(g, 0x15171a, 0.004, 0.024, 0.05, 0.033, 0.018, -0.16);
       box(bolt, 0x8d949c, 0.016, 0.02, 0.045, 0.042, 0.03, -0.15);
-      box(bolt, 0xd9dde2, 0.018, 0.008, 0.02, 0.043, 0.042, -0.15);
+      box(bolt, 0xd9dde2, 0.018, 0.008, 0.02, 0.0445, 0.042, -0.15);
       // Yellow label cartridge as the magazine, then the trigger guard and ribbed grip.
       box(mag, 0xf2c230, 0.036, 0.12, 0.05, 0, -0.105, -0.13);
       box(mag, 0x1c1e23, 0.04, 0.012, 0.054, 0, -0.168, -0.13);
@@ -286,7 +286,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       const pump = new THREE.Group();
       g.add(pump);
       box(g, 0x7a828c, 0.092, 0.1, 0.4, 0, 0, -0.2);
-      box(g, 0x4f565e, 0.094, 0.04, 0.4, 0, -0.035, -0.2);
+      box(g, 0x4f565e, 0.094, 0.04, 0.404, 0, -0.035, -0.2);
       box(g, 0x14161a, 0.07, 0.012, 0.22, 0, 0.056, -0.2);
       box(g, 0xf4f4f1, 0.06, 0.03, 0.004, 0, 0.074, -0.2);
       box(g, 0xe2e2dc, 0.056, 0.028, 0.004, 0.006, 0.072, -0.215);
@@ -325,7 +325,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       box(g, 0x0e0e12, 0.03, 0.012, 0.36, 0, 0.052, -0.17);
       box(g, 0x14161a, 0.05, 0.06, 0.3, 0, 0, -0.5);
       for (const z of [-0.4, -0.45, -0.5, -0.55, -0.6]) box(g, 0x30343c, 0.054, 0.02, 0.016, 0, 0.012, z);
-      box(g, 0x0e0e12, 0.026, 0.026, 0.3, 0, 0.01, -0.78);
+      box(g, 0x0e0e12, 0.026, 0.026, 0.28, 0, 0.01, -0.77);
       box(g, 0x2a2d33, 0.044, 0.044, 0.06, 0, 0.01, -0.9);
       for (const z of [-0.885, -0.9, -0.915]) box(g, 0x0e0e12, 0.048, 0.012, 0.01, 0, 0.01, z);
       glow(g, 0xff3030, 0.022, 0.022, 0.012, 0, 0.01, -0.936);
@@ -410,8 +410,8 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       // Tube: olive steel with a light top strip, a dark underside, welded side seams and a row of rivets along each
       // shoulder; cooling ribs round the rear and a red band and a yellow-and-black warning stripe further up.
       box(g, 0x5c6b3a, 0.11, 0.11, 0.95, 0, 0, -0.4);
-      box(g, 0x7d8c52, 0.06, 0.006, 0.9, 0, 0.057, -0.4);
-      box(g, 0x3f4a26, 0.07, 0.006, 0.9, 0, -0.057, -0.4);
+      box(g, 0x7d8c52, 0.06, 0.008, 0.9, 0, 0.059, -0.4);
+      box(g, 0x3f4a26, 0.07, 0.008, 0.9, 0, -0.059, -0.4);
       for (const x of [-0.0555, 0.0555]) box(g, 0x3a4224, 0.004, 0.07, 0.9, x, 0, -0.4);
       for (let z = -0.82; z < -0.3; z += 0.065) for (const x of [-0.04, 0.04]) box(g, 0x8d949c, 0.008, 0.008, 0.008, x, 0.0555, z);
       for (const z of [0.055, 0.03, 0.005]) box(g, 0x4a5730, 0.118, 0.118, 0.01, 0, 0, z);
@@ -420,9 +420,9 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       box(g, 0x14161a, 0.114, 0.114, 0.025, 0, 0, -0.65);
       // Wooden heat shield: two-tone wood with grooves, a lit top edge, and steel clamp bands with bolts at both ends.
       box(g, 0x7a4f2c, 0.12, 0.12, 0.24, 0, 0, -0.2);
-      box(g, 0x9a6a3c, 0.07, 0.006, 0.22, 0, 0.061, -0.2);
+      box(g, 0x9a6a3c, 0.07, 0.006, 0.22, 0, 0.0625, -0.2);
       box(g, 0x5e3b1f, 0.124, 0.03, 0.22, 0, -0.03, -0.2);
-      for (const z of [-0.12, -0.2, -0.28]) box(g, 0x4a2f19, 0.124, 0.124, 0.012, 0, 0, z);
+      for (const z of [-0.12, -0.2, -0.28]) box(g, 0x4a2f19, 0.128, 0.128, 0.012, 0, 0, z);
       for (const z of [-0.075, -0.325]) {
         box(g, 0x8d949c, 0.128, 0.128, 0.014, 0, 0, z);
         for (const x of [-0.065, 0.065]) box(g, 0xd9dde2, 0.008, 0.012, 0.012, x, 0.02, z);
@@ -442,7 +442,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       // Left side (the one you see): a yellow stencil plate with dark lettering, a steel data plate, the safety lever and
       // a small green light that comes on when a rocket is loaded and the lever is cocked.
       box(g, 0xf2c230, 0.004, 0.045, 0.14, -0.0575, 0.005, -0.5);
-      for (const z of [-0.54, -0.5, -0.46]) box(g, 0x14161a, 0.005, 0.03, 0.012, -0.058, 0.005, z);
+      for (const z of [-0.54, -0.5, -0.46]) box(g, 0x14161a, 0.005, 0.03, 0.012, -0.0595, 0.005, z);
       box(g, 0x8d949c, 0.004, 0.03, 0.07, -0.0575, -0.015, -0.7);
       box(g, 0x2a2d33, 0.016, 0.04, 0.05, -0.064, -0.04, -0.02);
       box(g, 0x8d949c, 0.014, 0.012, 0.038, -0.07, -0.048, -0.02);
@@ -455,22 +455,22 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       // middle of it) and a front blade with a bright bead, both on the left of the tube. Both stand tall enough that
       // the aim point sits above the bulk of the tube, which then fills the bottom of the screen and not the middle.
       box(g, 0x23262c, 0.05, 0.012, 0.03, SIGHT_X, 0.061, -0.05);
-      box(g, 0x2a2d33, 0.03, 0.012, 0.03, SIGHT_X + 0.025, 0.056, -0.05);
+      box(g, 0x2a2d33, 0.03, 0.012, 0.034, SIGHT_X + 0.025, 0.056, -0.05);
       for (const x of [-0.016, 0.016]) box(g, 0x14161a, 0.006, 0.1, 0.01, SIGHT_X + x, 0.115, -0.05);
       box(g, 0x14161a, 0.038, 0.006, 0.01, SIGHT_X, 0.165, -0.05);
       box(g, 0x14161a, 0.038, 0.006, 0.01, SIGHT_X, 0.115, -0.05);
       box(g, 0x23262c, 0.03, 0.012, 0.03, SIGHT_X, 0.061, -0.8);
-      box(g, 0x2a2d33, 0.03, 0.012, 0.03, SIGHT_X + 0.025, 0.056, -0.8);
+      box(g, 0x2a2d33, 0.03, 0.012, 0.034, SIGHT_X + 0.025, 0.056, -0.8);
       box(g, 0x14161a, 0.008, 0.07, 0.01, SIGHT_X, 0.09, -0.8);
       glow(g, 0xffe27a, 0.007, 0.007, 0.006, SIGHT_X, 0.128, -0.8);
       // Pistol grip: ribbed, with a trigger, a trigger guard and a steel linkage rod running up along the tube.
       box(g, 0x23262c, 0.044, 0.1, 0.056, 0, -0.105, -0.02, 0.2);
       for (const y of [-0.085, -0.105, -0.125]) box(g, 0x15171a, 0.048, 0.008, 0.058, 0, y, -0.015, 0.2);
-      box(g, 0x14161a, 0.048, 0.012, 0.06, 0, -0.058, -0.02);
+      box(g, 0x14161a, 0.048, 0.012, 0.056, 0, -0.058, -0.022);
       box(g, 0x8d949c, 0.008, 0.024, 0.008, 0, -0.07, -0.07);
       box(g, 0x23262c, 0.044, 0.006, 0.075, 0, -0.088, -0.065);
       box(g, 0x23262c, 0.044, 0.03, 0.006, 0, -0.073, -0.1);
-      box(g, 0x8d949c, 0.01, 0.01, 0.3, -0.03, -0.0575, -0.2);
+      box(g, 0x8d949c, 0.01, 0.01, 0.3, -0.027, -0.0575, -0.2);
       // Fore-grip under the shield: a steel bracket, a dark body with a wooden side panel and a ribbed base.
       box(g, 0x8d949c, 0.03, 0.02, 0.07, 0, -0.06, -0.45);
       box(g, 0x23262c, 0.042, 0.1, 0.05, 0, -0.105, -0.45);
@@ -487,7 +487,7 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       box(rocket, 0x8d949c, 0.008, 0.1, 0.08, 0, 0, rz(-0.55));
       box(rocket, 0x3a4224, 0.09, 0.09, 0.05, 0, 0, rz(-0.515));
       box(rocket, 0x14161a, 0.06, 0.06, 0.03, 0, 0, rz(-0.5));
-      box(rocket, 0x23262c, 0.085, 0.085, 0.06, 0, 0, rz(-0.88));
+      box(rocket, 0x23262c, 0.085, 0.085, 0.052, 0, 0, rz(-0.876));
       box(rocket, 0xd62828, 0.115, 0.115, 0.09, 0, 0, rz(-0.935));
       box(rocket, 0xf2c230, 0.12, 0.12, 0.012, 0, 0, rz(-0.955));
       box(rocket, 0x14161a, 0.12, 0.12, 0.012, 0, 0, rz(-0.968));

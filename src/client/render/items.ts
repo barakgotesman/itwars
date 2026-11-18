@@ -190,6 +190,54 @@ function buildGrenade(slot: number): THREE.Group {
   return g;
 }
 
+/**
+ * A detailed grenade for showing off (the landing page's arsenal): the Coffee Bomb is a striped mug of coffee with a
+ * handle and a glowing fuse, the Fire Alarm a red alarm clock with a white face, hands, two bells and a hammer. Layered
+ * parts stand at least 0.5 mm proud of what is under them so nothing z-fights. Faces forward along +Z.
+ * @param slot - Grenade slot (0 Coffee Bomb, 1 Fire Alarm).
+ */
+export function buildGrenadeModel(slot: number): THREE.Group {
+  const g = new THREE.Group();
+  const glow = (color: number, w: number, h: number, d: number, x: number, y: number, z: number) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color }));
+    m.position.set(x, y, z);
+    g.add(m);
+  };
+  if (slot === 0) {
+    box(g, 0xf4f4f1, 0.1, 0.12, 0.1, 0, 0, 0);
+    box(g, 0x3a2418, 0.082, 0.006, 0.082, 0, 0.063, 0);
+    box(g, 0xd62828, 0.104, 0.02, 0.104, 0, -0.01, 0);
+    box(g, 0xe6e6e1, 0.104, 0.012, 0.104, 0, -0.063, 0);
+    // Handle: a loop of four bars on the right.
+    box(g, 0xf4f4f1, 0.03, 0.02, 0.022, 0.065, 0.035, 0);
+    box(g, 0xf4f4f1, 0.03, 0.02, 0.022, 0.065, -0.035, 0);
+    box(g, 0xf4f4f1, 0.02, 0.09, 0.022, 0.085, 0, 0);
+    // Fuse: a stick rising out of the coffee with a glowing tip.
+    box(g, 0x8a5a2b, 0.012, 0.06, 0.012, 0.005, 0.093, 0);
+    glow(0xffd34a, 0.02, 0.02, 0.02, 0.005, 0.128, 0);
+    glow(0xff7a1a, 0.012, 0.012, 0.012, 0.005, 0.142, 0);
+  } else {
+    box(g, 0xd62828, 0.12, 0.12, 0.06, 0, 0, 0);
+    // The darker cap stands 2 mm above the body's top (a shared top face is what flickers).
+    box(g, 0xa81f1f, 0.126, 0.03, 0.064, 0, 0.048, 0);
+    box(g, 0xfafafa, 0.092, 0.092, 0.01, 0, 0, 0.0325);
+    for (const [x, y] of [[0, 0.04], [0, -0.04], [0.04, 0], [-0.04, 0]] as const) box(g, 0x23262c, 0.008, 0.008, 0.006, x, y, 0.0385);
+    box(g, 0x14161a, 0.008, 0.036, 0.007, 0, 0.016, 0.0415);
+    box(g, 0x14161a, 0.028, 0.008, 0.007, 0.012, 0, 0.042);
+    box(g, 0xd62828, 0.01, 0.01, 0.009, 0, 0, 0.0425);
+    // Bells, hammer, and two legs.
+    for (const x of [-0.042, 0.042]) {
+      box(g, 0xf2c230, 0.05, 0.034, 0.05, x, 0.082, 0);
+      box(g, 0xd6a417, 0.054, 0.008, 0.054, x, 0.098, 0);
+    }
+    box(g, 0x23262c, 0.01, 0.034, 0.01, 0, 0.082, 0);
+    box(g, 0x23262c, 0.018, 0.006, 0.018, 0, 0.101, 0);
+    for (const x of [-0.04, 0.04]) box(g, 0x23262c, 0.016, 0.026, 0.02, x, -0.072, 0);
+    glow(0xffffff, 0.012, 0.012, 0.004, 0, -0.052, 0.0335);
+  }
+  return g;
+}
+
 /** Grenades in flight, smoothed between 30 Hz snapshots. */
 export class GrenadeVisuals {
   private readonly live = new Map<number, { mesh: THREE.Group; target: THREE.Vector3 }>();
