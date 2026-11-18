@@ -380,13 +380,16 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       sheet.add(tip);
       box(tip, 0xe5ecfd, 0.208, 0.0076, 0.12, 0, 0, -0.06);
       box(tip, 0xc4cee6, 0.214, 0.011, 0.007, 0, 0, -0.116);
-      for (let i = 0; i < 28; i++) {
-        const z = -0.045 - i * 0.009;
-        if (z > -0.178) box(sheet, 0x7fd0f5, 0.206, 0.0035, 0.0012, 0, 0.00475, z);
-        else box(tip, 0x7fd0f5, 0.204, 0.0035, 0.0012, 0, 0.00475, z + 0.18);
+      // Printed on both faces, so the sheet reads as paper from the back too (the arsenal turntable shows both).
+      for (const side of [1, -1]) {
+        for (let i = 0; i < 28; i++) {
+          const z = -0.045 - i * 0.009;
+          if (z > -0.178) box(sheet, 0x7fd0f5, 0.206, 0.0035, 0.0012, 0, 0.00475 * side, z);
+          else box(tip, 0x7fd0f5, 0.204, 0.0035, 0.0012, 0, 0.00475 * side, z + 0.18);
+        }
+        box(sheet, 0xe0476a, 0.0018, 0.0045, 0.186, -0.075, 0.0055 * side, -0.095);
+        box(tip, 0xe0476a, 0.0018, 0.0042, 0.114, -0.075, 0.0054 * side, -0.057);
       }
-      box(sheet, 0xe0476a, 0.0018, 0.0045, 0.186, -0.075, 0.0055, -0.095);
-      box(tip, 0xe0476a, 0.0018, 0.0042, 0.114, -0.075, 0.0054, -0.057);
       return {
         group: g, muzzle: new THREE.Vector3(0, 0, -0.3), handR: new THREE.Vector3(0, -0.01, 0.01), handL: new THREE.Vector3(-0.2, -0.3, 0.3),
         // No sights to bring up: aiming stays where the hip pose is (the right click is the heavy stab).
@@ -505,6 +508,15 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       };
     }
   }
+}
+
+/**
+ * The model of one weapon on its own (no hands, no animation), for previews outside the game such as the landing page's
+ * arsenal. Its glass lenses keep their painted reflection but do not drift.
+ * @param weapon - Index into `WEAPONS`.
+ */
+export function buildGunModel(weapon: number): THREE.Group {
+  return buildGun(weapon, []).group;
 }
 
 /** 0 -> 1 over `attack` seconds, then back to 0 over `release` seconds; 0 before and after. */
