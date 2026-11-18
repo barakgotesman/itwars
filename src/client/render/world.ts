@@ -6,7 +6,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { DEFAULT_RULES, type MatchRules } from '@shared/rules/modes';
 import type { MaterialId } from '@shared/world/map';
-import { GLOSSY, LIGHTS, MAP_BOXES, SOLIDS } from './active-map';
+import { CEILING_H } from '@shared/world/map/builder';
+import { CAMERAS, GLOSSY, LIGHTS, MAP_BOXES, SCREENS, SOLIDS } from './active-map';
+import { SecurityCameras } from './security-cameras';
+import { ScreenWall } from './screens';
 import { LightField } from './light-field';
 import { makeBaker, makeLightModel } from './lighting';
 import { ScoreWall } from './score-wall';
@@ -342,6 +345,8 @@ export function buildWorld(scene: THREE.Object3D, rules: MatchRules = DEFAULT_RU
 
   buildSigns(root, (m) => MATERIALS[m].color, rules);
   const scoreWall = new ScoreWall(root, rules, myId);
+  const screens = new ScreenWall(root, SCREENS, GLOSSY);
+  const cameras = new SecurityCameras(root, CAMERAS, CEILING_H, GLOSSY);
 
   return {
     lightField: new LightField(model),
@@ -349,6 +354,8 @@ export function buildWorld(scene: THREE.Object3D, rules: MatchRules = DEFAULT_RU
     root,
     update(t) {
       for (const a of animated) a.mat.color.copy(a.base).multiplyScalar(a.fn(t));
+      screens.update(t);
+      cameras.update(t);
     },
     dispose() {
       root.removeFromParent();

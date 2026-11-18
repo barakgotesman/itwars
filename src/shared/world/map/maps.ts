@@ -13,7 +13,7 @@ import * as office from './index';
 import { MAP_INFO } from './map-info';
 import type { PickupSpot } from './pickups';
 import * as range from './range';
-import type { BoardSpec, LabelSpec, LightSource, MapBox } from './types';
+import type { BoardSpec, LabelSpec, LightSource, MapBox, ScreenSpec, CameraSpec } from './types';
 import { ZONES as OFFICE_ZONES, zoneAt as officeZoneAt, type Zone } from './zones';
 import { X0, X1, Z0, Z1 } from './builder';
 
@@ -71,6 +71,10 @@ export interface MapDef {
   lights: readonly LightSource[];
   labels: readonly LabelSpec[];
   boards: readonly BoardSpec[];
+  /** Animated screens (monitors, video walls); none on the office and the range. */
+  screens: readonly ScreenSpec[];
+  /** Ceiling security cameras that pan (the client animates them). */
+  cameras: readonly CameraSpec[];
   pickups: readonly PickupSpot[];
   spawns: readonly (readonly [number, number])[];
   /** Sliding doors in wire order (empty for a map without any). */
@@ -98,7 +102,7 @@ function zoneLookup(zones: readonly Zone[]): (x: number, z: number) => Zone {
 /** The big office (the default). */
 const OFFICE: MapDef = {
   id: 'office', name: 'The Office',
-  solids: office.SOLIDS, boxes: office.MAP_BOXES, lights: office.LIGHTS, labels: office.LABELS, boards: office.BOARDS,
+  solids: office.SOLIDS, boxes: office.MAP_BOXES, lights: office.LIGHTS, labels: office.LABELS, boards: office.BOARDS, screens: [], cameras: [],
   pickups: office.PICKUP_SPOTS, spawns: office.SPAWNS, doors: DOORS,
   zones: OFFICE_ZONES, zoneAt: officeZoneAt, bounds: { x0: X0, x1: X1, z0: Z0, z1: Z1 },
   // The lobby's open waiting area, between its two pillars and clear of the reception desk.
@@ -116,7 +120,7 @@ const OFFICE: MapDef = {
 /** The small server hall. */
 const DATACENTER: MapDef = {
   id: 'datacenter', name: 'Data Center',
-  solids: datacenter.SOLIDS, boxes: datacenter.MAP_BOXES, lights: datacenter.LIGHTS, labels: datacenter.LABELS, boards: datacenter.BOARDS,
+  solids: datacenter.SOLIDS, boxes: datacenter.MAP_BOXES, lights: datacenter.LIGHTS, labels: datacenter.LABELS, boards: datacenter.BOARDS, screens: datacenter.SCREENS, cameras: datacenter.CAMERAS,
   pickups: datacenter.PICKUP_SPOTS, spawns: datacenter.SPAWNS, doors: datacenter.MAP_DOORS,
   zones: datacenter.ZONES, zoneAt: zoneLookup(datacenter.ZONES), bounds: datacenter.BOUNDS,
   // The central bay, filmed from the north lane with the south rack blocks lit behind the pedestals.
@@ -126,7 +130,7 @@ const DATACENTER: MapDef = {
   gallery: [
     { slug: 'bay', shot: { pos: [-13.5, 1.75, 2.6], yaw: -1.5, pitch: -0.03, fov: 70 } },
     { slug: 'aisle', shot: { pos: [-14, 1.7, -8.3], yaw: -Math.PI / 2 + 0.12, pitch: -0.04, fov: 70 } },
-    { slug: 'control-room', shot: { pos: [0, 1.7, 4.5], yaw: 0, pitch: -0.03, fov: 70 } },
+    { slug: 'control-room', shot: { pos: [0.4, 1.8, -9.5], yaw: 0.03, pitch: -0.04, fov: 88 } },
     { slug: 'racks', shot: { pos: [8, 1.7, 11.5], yaw: -0.35, pitch: -0.03, fov: 70 } },
   ],
   glossy: true,
@@ -135,7 +139,7 @@ const DATACENTER: MapDef = {
 /** The shooting range: not selectable, used by `rules.mode === 'range'`. It has no podium and no menu backdrop of its own. */
 export const RANGE_MAP: MapDef = {
   id: 'range', name: 'Shooting Range',
-  solids: range.SOLIDS, boxes: range.MAP_BOXES, lights: range.LIGHTS, labels: range.LABELS, boards: range.BOARDS,
+  solids: range.SOLIDS, boxes: range.MAP_BOXES, lights: range.LIGHTS, labels: range.LABELS, boards: range.BOARDS, screens: [], cameras: [],
   pickups: range.PICKUP_SPOTS, spawns: range.SPAWNS, doors: [],
   zones: range.ZONES, zoneAt: zoneLookup(range.ZONES), bounds: range.BOUNDS,
   podium: OFFICE.podium, backdrop: OFFICE.backdrop, shot: OFFICE.shot, gallery: [],

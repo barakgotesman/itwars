@@ -3,7 +3,7 @@
  * board registries per map, plus the primitives the office builder offers, so two maps never mix their geometry
  * (the office's own registries in `builder.ts` are shared module state and are left alone).
  */
-import type { BoardSpec, LabelSpec, LightSource, MapBox, MaterialId } from './types';
+import type { BoardSpec, LabelSpec, LightSource, MapBox, MaterialId, ScreenKind, ScreenSpec, CameraSpec } from './types';
 
 /** The registries and primitives of one map under construction. */
 export interface LocalMap {
@@ -11,6 +11,12 @@ export interface LocalMap {
   readonly lights: LightSource[];
   readonly labels: LabelSpec[];
   readonly boards: BoardSpec[];
+  readonly screens: ScreenSpec[];
+  readonly cameras: CameraSpec[];
+  /** A ceiling security camera that pans; see `CameraSpec`. */
+  camera(spec: CameraSpec): void;
+  /** An animated screen (a monitor or a video-wall panel); `facing` is the way it looks along its axis. */
+  screen(kind: ScreenKind, axis: 'x' | 'z', x: number, y: number, z: number, facing: 1 | -1, w: number, h: number): void;
   /** Adds a box given centre x/z, base y and size; `solid` false is decoration that never collides. */
   box(mat: MaterialId, cx: number, y: number, cz: number, w: number, h: number, d: number, solid?: boolean): void;
   /** Floor slab whose top face is y = 0. */
@@ -31,6 +37,8 @@ export function createLocalMap(): LocalMap {
   const lights: LightSource[] = [];
   const labels: LabelSpec[] = [];
   const boards: BoardSpec[] = [];
+  const screens: ScreenSpec[] = [];
+  const cameras: CameraSpec[] = [];
 
   const box: LocalMap['box'] = (mat, cx, y, cz, w, h, d, solid = true) => {
     boxes.push({ minX: cx - w / 2, maxX: cx + w / 2, minY: y, maxY: y + h, minZ: cz - d / 2, maxZ: cz + d / 2, mat, solid });
@@ -39,7 +47,9 @@ export function createLocalMap(): LocalMap {
     lights.push({ x, y, z, color, intensity, radius });
   };
   return {
-    boxes, lights, labels, boards, box, lamp,
+    boxes, lights, labels, boards, screens, cameras, box, lamp,
+    camera: (spec) => { cameras.push(spec); },
+    screen: (kind, axis, x, y, z, facing, w, h) => { screens.push({ kind, axis, x, y, z, facing, w, h }); },
     floor: (mat, x0, x1, z0, z1) => box(mat, (x0 + x1) / 2, -1, (z0 + z1) / 2, x1 - x0, 1, z1 - z0),
     stripe: (mat, x0, x1, z0, z1) => box(mat, (x0 + x1) / 2, 0, (z0 + z1) / 2, x1 - x0, 0.02, z1 - z0, false),
     plaque: (text, x, y, z, axis, facing, w, h, accent, glow = false) => { labels.push({ text, x, y, z, axis, facing, w, h, accent, glow }); },

@@ -41,6 +41,32 @@ export interface BoardSpec {
   w: number; h: number;
 }
 
+/** What a live screen shows; the client draws it (`render/screens.ts`). */
+export type ScreenKind = 'terminal' | 'graph' | 'network' | 'radar' | 'status' | 'bars';
+
+/** A monitor or video-wall panel that shows an animated picture; placed like a `BoardSpec`. */
+export interface ScreenSpec {
+  kind: ScreenKind;
+  /** 'x' for a wall running along X (screen faces +-z), 'z' for one along Z (screen faces +-x). */
+  axis: 'x' | 'z';
+  /** Centre of the screen. */
+  x: number; y: number; z: number;
+  facing: 1 | -1;
+  w: number; h: number;
+}
+
+/** A ceiling security camera that pans back and forth; the client animates it (`render/security-cameras.ts`). */
+export interface CameraSpec {
+  /** Where it hangs (y is the pivot height, below the ceiling). */
+  x: number; y: number; z: number;
+  /** Resting direction in the game's yaw convention (0 faces -z, positive turns left) and the half-angle it sweeps either side. */
+  yaw: number;
+  sweep: number;
+  /** Radians per second of the sweep's phase, and its starting phase so cameras are not in step. */
+  speed: number;
+  phase: number;
+}
+
 /** A door nameplate; the client draws `text` on a plane at this position, facing `facing` along the wall normal. */
 export interface LabelSpec {
   text: string;

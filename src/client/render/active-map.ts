@@ -21,6 +21,10 @@ export let LIGHTS = active.lights;
 export let LABELS = active.labels;
 /** Live scoreboard screens. */
 export let BOARDS = active.boards;
+/** Animated screens (monitors and video walls). */
+export let SCREENS = active.screens;
+/** Ceiling security cameras. */
+export let CAMERAS = active.cameras;
 /** Pickup spots, in protocol order. */
 export let PICKUP_SPOTS = active.pickups;
 /** True when the world draws a mirrored copy under a glossy floor (see `MapDef.glossy`). */
@@ -37,6 +41,8 @@ export function setActiveMap(next: MapDef): void {
   LIGHTS = next.lights;
   LABELS = next.labels;
   BOARDS = next.boards;
+  SCREENS = next.screens;
+  CAMERAS = next.cameras;
   PICKUP_SPOTS = next.pickups;
   GLOSSY = next.glossy === true;
 }
