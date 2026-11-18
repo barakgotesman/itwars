@@ -48,7 +48,15 @@ export function maskOf(weapons: readonly number[]): number {
   return weapons.reduce((m, w) => withGun(m, w), 0);
 }
 
+/** Weapons every player owns under every loadout and in every mode (the A4 paper): never a pickup, never dropped. */
+export const ALWAYS_OWNED: readonly WeaponId[] = [5];
+
+/** Ownership mask a loadout spawns with: its guns plus the always-owned weapons. */
+export function spawnMask(loadout: number): number {
+  return maskOf([...loadoutOf(loadout).startWeapons, ...ALWAYS_OWNED]);
+}
+
 /** True when weapon `w` is part of the loadout's spawn kit (a starter gun is never dropped on death). */
 export function isStarter(loadout: number, w: number): boolean {
-  return loadoutOf(loadout).startWeapons.includes(w as WeaponId);
+  return ALWAYS_OWNED.includes(w as WeaponId) || loadoutOf(loadout).startWeapons.includes(w as WeaponId);
 }

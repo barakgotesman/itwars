@@ -3,8 +3,31 @@
  */
 import { TICK_RATE } from '@shared/core/constants';
 
-/** Index into `WEAPONS` (key 1-4 maps to 0-3). */
-export type WeaponId = 0 | 1 | 2 | 3 | 4;
+/** Index into `WEAPONS` (key 1-6 maps to 0-5). */
+export type WeaponId = 0 | 1 | 2 | 3 | 4 | 5;
+
+/** Index of the A4 paper, the melee weapon every player always owns. */
+export const MELEE_WEAPON = 5;
+
+/** One swing of a melee weapon. Times are in server ticks, angles in radians, distances in metres. */
+export interface MeleeAttack {
+  /** Damage to the one player it lands on. */
+  damage: number;
+  /** How far the blade reaches, measured to the surface of the body. */
+  reach: number;
+  /** Half-angle of the cone in front of the crosshair that can be hit. */
+  halfArc: number;
+  /** Ticks between the click and the moment the swing lands (the target can still step away). */
+  windup: number;
+  /** Ticks from the click until the next attack may start. */
+  interval: number;
+}
+
+/** The two swings of a melee weapon: left click (slash) and right click (heavy). */
+export interface MeleeDef {
+  slash: MeleeAttack;
+  heavy: MeleeAttack;
+}
 
 /** A guided-by-nothing rocket: how a weapon with a `rocket` entry fires instead of a hitscan ray. */
 export interface RocketDef {
@@ -60,6 +83,10 @@ export interface WeaponDef {
   boxAmmo?: false;
   /** False: bots do not go looking for this gun on the map (they still use one they loot). */
   botsSeek?: false;
+  /** True: never shows a crosshair, from the hip or aiming (the paper: it is a close-range swing, not a shot). */
+  noCrosshair?: true;
+  /** Present for melee weapons: left click slashes, right click does the heavy attack; there is no ammo, reload, aiming or crosshair. */
+  melee?: MeleeDef;
 }
 
 /** The five guns, in key order. */
@@ -91,6 +118,18 @@ export const WEAPONS: readonly WeaponDef[] = [
     falloffStart: 200, falloffEnd: 201, minMul: 1, recoil: 0.45, zoom: 1.25, aimRecoilMul: 0.3, hipCrosshair: false,
     rocket: { speed: 28, radius: 6, damage: 140, lifeTicks: 240 },
     moveMul: 0.6, pickupReserveFraction: 1, boxAmmo: false, botsSeek: false,
+  },
+  // A4 Paper: the fallback when the guns run dry. Always owned, no ammo, light in the hand (faster walk), two swings.
+  // Two slashes kill from full health; the heavy stab kills in one but telegraphs and leaves you open if it misses.
+  {
+    name: 'A4 Paper', auto: false, damage: 0, pellets: 1, headMul: 1, interval: 24,
+    magSize: 0, maxReserve: 0, reloadTicks: 0, spread: 0, aimSpread: 0,
+    falloffStart: 0, falloffEnd: 1, minMul: 1, recoil: 0, zoom: 1,
+    moveMul: 1.15, boxAmmo: false, botsSeek: false, noCrosshair: true,
+    melee: {
+      slash: { damage: 50, reach: 2.0, halfArc: 0.87, windup: 6, interval: 24 },
+      heavy: { damage: 100, reach: 2.3, halfArc: 0.44, windup: 30, interval: 66 },
+    },
   },
 ];
 

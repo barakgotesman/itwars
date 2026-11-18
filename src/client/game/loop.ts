@@ -107,7 +107,7 @@ export function startFrameLoop(d: LoopDeps): void {
       hud.scope(scoped);
     }
     // A launcher shows no crosshair from the hip: you have to raise the sights to know where it will go.
-    const nowCross = WEAPONS[input.weapon]!.hipCrosshair !== false || viewmodel.aim > 0.85;
+    const nowCross = !WEAPONS[input.weapon]!.noCrosshair && (WEAPONS[input.weapon]!.hipCrosshair !== false || viewmodel.aim > 0.85);
     if (nowCross !== crosshairShown) {
       crosshairShown = nowCross;
       hud.crosshair(nowCross);

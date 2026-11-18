@@ -116,7 +116,7 @@ function roamInput(sim: Sim, p: Player, st: BotState, tune: BotTuning): BotInput
   if ((sim.tick + p.id) % 10 === 5) considerGrenade(sim, p, st, tune);
   // Lining up a grenade throw takes over the view (and the legs) for a moment.
   const lob = lineUpThrow(sim, p, st, tune);
-  if (lob) return { keys: lob.keys, yaw: lob.yaw, pitch: lob.pitch, weapon: chooseWeapon(sim, p, st, IDLE_DISTANCE) };
+  if (lob) return { keys: lob.keys, yaw: lob.yaw, pitch: lob.pitch, weapon: chooseWeapon(sim, p, st, IDLE_DISTANCE, tune) };
   const nav = navigate(sim, p, st, tune);
   let face = nav.faceYaw;
   if (st.heard && sim.tick - st.heard.tick < GLANCE_TICKS) {
@@ -124,7 +124,7 @@ function roamInput(sim: Sim, p: Player, st: BotState, tune: BotTuning): BotInput
     if (Math.hypot(dx, dz) > 1) face = yawTo(dx, dz);
   }
   const step = tune.turnRate * TICK_DT;
-  const weapon = chooseWeapon(sim, p, st, IDLE_DISTANCE);
+  const weapon = chooseWeapon(sim, p, st, IDLE_DISTANCE, tune);
   return {
     keys: nav.keys | reloadKey(p, st, false),
     yaw: turnToward(p.state.yaw, face, step),

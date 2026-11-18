@@ -4,7 +4,9 @@
  */
 import type { LightField, Tint } from './light-field';
 import * as THREE from 'three';
+import { TICK_RATE } from '@shared/core/constants';
 import type { PlayerInfo, SnapPlayer } from '@shared/net/protocol';
+import { MELEE_WEAPON, WEAPONS } from '@shared/rules/weapons';
 
 /** How far behind real time remote players are drawn. */
 const INTERP_DELAY_MS = 100;
@@ -21,6 +23,8 @@ const GUN_LOOK = [
   { len: 0.85, thick: 0.06, color: 0x1e1e24 },
   // RPG: a fat olive tube, the longest and thickest of them all.
   { len: 0.95, thick: 0.13, color: 0x5c6b3a },
+  // A4 Paper: a flat sheet held on its edge (drawn by `buildPaperInto`, so only the length is used, for the reach of a swing).
+  { len: 0.3, thick: 0.02, color: 0xf4f4f1 },
 ] as const;
 
 /** Weapon index of the RPG, which is carried on the shoulder with both hands instead of held out in front. */
@@ -86,6 +90,10 @@ function nameTag(name: string): THREE.Sprite {
  * and -Z is up. Shared by held guns, map pickups and loot bags so a gun looks the same everywhere.
  */
 export function buildGunInto(g: THREE.Object3D, w: number): void {
+  if (w === MELEE_WEAPON) {
+    buildPaperInto(g);
+    return;
+  }
   const look = GUN_LOOK[w] ?? GUN_LOOK[0];
   const { len, thick: t } = look;
   // The arm's local -Y points along the aim, so the barrel runs down -Y.
@@ -144,6 +152,20 @@ export function buildGunInto(g: THREE.Object3D, w: number): void {
   }
 }
 
+/**
+ * The A4 sheet as others see it: a thin white slab held by its short edge in the hand and stood on its long edge, with
+ * a pale cutting edge at the front and a few text lines and a red stamp a few mm proud of both faces.
+ */
+function buildPaperInto(g: THREE.Object3D): void {
+  // Barrel direction is -Y and up is -Z here: 0.297 m along the aim, 0.21 m tall, 8 mm thick.
+  part(g, 0xf4f4f1, 0.008, 0.297, 0.21, 0, -0.17, 0);
+  part(g, 0xd9dde2, 0.01, 0.008, 0.21, 0, -0.318, 0);
+  for (const x of [-0.006, 0.006]) {
+    for (const y of [-0.08, -0.14, -0.2]) part(g, 0x8d949c, 0.004, 0.008, 0.14, x, y, 0.02);
+    part(g, 0xc0392b, 0.004, 0.06, 0.04, x, -0.26, -0.05);
+  }
+}
+
 /** A free-standing gun prop lying level (barrel along +X, sights up), for pickups and loot bags. */
 export function buildGunProp(w: number): THREE.Group {
   const g = new THREE.Group();
@@ -165,6 +187,10 @@ export class PlayerModel {
   private readonly gun = new THREE.Group();
   /** Holds the RPG on the shoulder (a child of the body, so it does not swing with an arm). */
   private readonly rpgHold = new THREE.Group();
+  /** The A4 swing in progress: seconds since it began (negative when none), which attack, and the slash's side (flips each slash). */
+  private meleeT = -1;
+  private meleeHeavy = false;
+  private meleeSide: 1 | -1 = 1;
   /** True while the RPG shoulder pose is applied (arms stretched to the grips, gun on the shoulder). */
   private rpgPose = false;
   private readonly tag: THREE.Sprite;
@@ -498,10 +524,70 @@ export class PlayerModel {
       return;
     }
     if (this.rpgPose) this.endRpgPose();
+    this.armR.scale.set(1, 1, 1);
     // Both hands hold the gun forward; the support arm sits a little lower.
-    this.armR.rotation.x = Math.PI / 2 + pitch * 0.9;
+    if (weapon === MELEE_WEAPON) {
+      this.poseMelee(dt, pitch, swing);
+      return;
+    }
+    this.meleeT = -1;
+    this.armR.rotation.set(Math.PI / 2 + pitch * 0.9, 0, 0);
     this.armL.rotation.x = Math.PI / 2.3 + pitch * 0.9;
     this.armL.rotation.y = 0.35;
+    this.armL.rotation.z = 0;
+  }
+
+  /**
+   * Starts the swing animation of the A4 paper (the server announced a swing by this player).
+   * @param heavy - True for the right-click stab; false for the slash, which alternates sides.
+   */
+  swing(heavy: boolean): void {
+    this.meleeT = 0;
+    this.meleeHeavy = heavy;
+    if (!heavy) this.meleeSide = this.meleeSide === 1 ? -1 : 1;
+  }
+
+  /**
+   * Poses a player holding the A4 paper: the right arm holds the sheet out and cuts or stabs with it while the left
+   * hangs and swings with the walk. Arm rotation about Z sweeps it sideways and about X raises or lowers it.
+   * @param dt - Seconds since last frame.
+   * @param pitch - View pitch.
+   * @param stride - Walk swing (rad) for the free arm.
+   */
+  private poseMelee(dt: number, pitch: number, stride: number): void {
+    const def = WEAPONS[MELEE_WEAPON]!.melee!;
+    const atk = this.meleeHeavy ? def.heavy : def.slash;
+    const wind = atk.windup / TICK_RATE;
+    const total = atk.interval / TICK_RATE;
+    let lift = 0, sweep = 0, reach = 1, lean = 0;
+    if (this.meleeT >= 0) {
+      this.meleeT += dt;
+      if (this.meleeT >= total) this.meleeT = -1;
+    }
+    const t = this.meleeT;
+    const smooth = (x: number) => { const c = THREE.MathUtils.clamp(x, 0, 1); return c * c * (3 - 2 * c); };
+    if (t >= 0) {
+      const side = this.meleeSide;
+      const tail = Math.max(0.01, total - wind - 0.09);
+      if (!this.meleeHeavy) {
+        if (t < wind) sweep = 0.7 * side * smooth(t / wind);
+        else if (t < wind + 0.09) { const k = (t - wind) / 0.09; sweep = (0.7 - 1.7 * k) * side; reach = 1 + 0.1 * k; lean = 0.1 * k; }
+        else { const k = smooth((t - wind - 0.09) / tail); sweep = -1.0 * side * (1 - k); reach = 1.1 - 0.1 * k; lean = 0.1 * (1 - k); }
+      } else if (t < wind) {
+        const k = smooth(t / wind);
+        lift = 1.0 * k; lean = -0.12 * k;
+      } else if (t < wind + 0.08) {
+        const k = (t - wind) / 0.08;
+        lift = 1.0 - 1.25 * k; reach = 1 + 0.2 * k; lean = -0.12 + 0.35 * k;
+      } else {
+        const k = smooth((t - wind - 0.08) / Math.max(0.01, total - wind - 0.08));
+        lift = -0.25 * (1 - k); reach = 1.2 - 0.2 * k; lean = 0.23 * (1 - k);
+      }
+    }
+    this.armR.rotation.set(Math.PI / 2 + pitch * 0.9 + lift, 0, sweep);
+    this.armR.scale.set(1, reach, 1);
+    this.armL.rotation.set(-stride * 0.8, 0, -0.08);
+    this.body.rotation.x = lean;
   }
 
   /**
@@ -710,6 +796,11 @@ export class RemotePlayers {
     }
     // Right shoulder: 0.37 m to the right of the body centre, 1.4 m up.
     return new THREE.Vector3(p.x + Math.cos(yaw) * 0.37, p.y + 1.4, p.z - Math.sin(yaw) * 0.37).addScaledVector(dir, reach);
+  }
+
+  /** Plays the A4 swing animation on a remote player's model. */
+  swing(id: number, heavy: boolean): void {
+    this.remotes.get(id)?.model.swing(heavy);
   }
 
   /** Eye position of a remote player's latest snapshot (for tracers), or null if unknown. */

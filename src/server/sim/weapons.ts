@@ -10,6 +10,7 @@ import { owns } from './arsenal';
 import { damage } from './damage';
 import { useDoor } from './doors';
 import { throwGrenade } from './grenades';
+import { cancelMelee, resolveMelee, startMelee } from './melee';
 import type { Player } from './player';
 import { fireRocket } from './rockets';
 import { useSpray } from './spray';
@@ -43,18 +44,29 @@ export function tickWeapons(sim: Sim, p: Player): void {
     p.weapon = cmd.weapon;
     p.reloadEnd = 0;
     p.fireLatch = false;
+    cancelMelee(p);
     p.nextFire = Math.max(p.nextFire, sim.tick + SWITCH_TICKS);
   }
   const w = WEAPONS[p.weapon]!;
 
   const pressed = (bit: number) => (keys & bit) !== 0 && (p.prevKeys & bit) === 0;
-  if (pressed(Key.Reload)) startReload(sim, p);
-  if (pressed(Key.Fire)) p.fireLatch = true;
-  if (!(keys & Key.Fire)) p.fireLatch = false;
-  const wantsFire = w.auto ? (keys & Key.Fire) !== 0 : p.fireLatch;
-  if (wantsFire && sim.tick >= p.nextFire && !p.reloadEnd) {
-    if (p.mag[p.weapon]! <= 0) startReload(sim, p);
-    else fire(sim, p, w, (keys & Key.Aim) !== 0);
+  if (w.melee) {
+    // Left click slashes, right click does the heavy attack; each click is buffered until the paper is ready.
+    resolveMelee(sim, p, w.melee);
+    if (pressed(Key.Fire)) p.meleeWant = 1;
+    if (pressed(Key.Aim)) p.meleeWant = 2;
+    if (p.meleeWant === 1 && !(keys & Key.Fire)) p.meleeWant = 0;
+    if (p.meleeWant === 2 && !(keys & Key.Aim)) p.meleeWant = 0;
+    if (p.meleeWant !== 0 && p.meleeAt === 0 && sim.tick >= p.nextFire) startMelee(sim, p, w.melee, p.meleeWant === 2);
+  } else {
+    if (pressed(Key.Reload)) startReload(sim, p);
+    if (pressed(Key.Fire)) p.fireLatch = true;
+    if (!(keys & Key.Fire)) p.fireLatch = false;
+    const wantsFire = w.auto ? (keys & Key.Fire) !== 0 : p.fireLatch;
+    if (wantsFire && sim.tick >= p.nextFire && !p.reloadEnd) {
+      if (p.mag[p.weapon]! <= 0) startReload(sim, p);
+      else fire(sim, p, w, (keys & Key.Aim) !== 0);
+    }
   }
 
   if (pressed(Key.Grenade1)) throwGrenade(sim, p, 0);

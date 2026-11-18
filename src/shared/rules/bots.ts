@@ -57,6 +57,8 @@ export interface BotTuning {
   sprintWhenRoaming: boolean;
   /** Whether it hops while fighting. */
   jumpsInFights: boolean;
+  /** Whether it ever takes out the A4 paper (Hard only: Easy and Normal bots reload, flee or heal instead). */
+  useMelee: boolean;
 }
 
 /** Tuning per skill, index 0 = Easy, 1 = Normal, 2 = Hard. */
@@ -64,17 +66,17 @@ export const BOT_TUNING: readonly BotTuning[] = [
   {
     fovHalf: 0.87, sightRange: 40, hearRange: 18, turnRate: 2.2, reactionTicks: 60, aimError: 0.16, errorPerSpeed: 0.5,
     errorSettleTicks: 90, headshotBias: 0.05, burstOn: 12, burstOff: 10, memoryTicks: 120, retreatHp: 50,
-    strafeSwitchTicks: 50, grenadeChance: 0.1, sprintWhenRoaming: false, jumpsInFights: false,
+    strafeSwitchTicks: 50, grenadeChance: 0.1, sprintWhenRoaming: false, jumpsInFights: false, useMelee: false,
   },
   {
     fovHalf: 0.96, sightRange: 55, hearRange: 28, turnRate: 4.2, reactionTicks: 32, aimError: 0.07, errorPerSpeed: 0.3,
     errorSettleTicks: 55, headshotBias: 0.2, burstOn: 20, burstOff: 6, memoryTicks: 240, retreatHp: 35,
-    strafeSwitchTicks: 35, grenadeChance: 0.25, sprintWhenRoaming: true, jumpsInFights: false,
+    strafeSwitchTicks: 35, grenadeChance: 0.25, sprintWhenRoaming: true, jumpsInFights: false, useMelee: false,
   },
   {
     fovHalf: 1.05, sightRange: 80, hearRange: 40, turnRate: 8.4, reactionTicks: 12, aimError: 0.022, errorPerSpeed: 0.12,
     errorSettleTicks: 25, headshotBias: 0.45, burstOn: 40, burstOff: 3, memoryTicks: 420, retreatHp: 25,
-    strafeSwitchTicks: 22, grenadeChance: 0.4, sprintWhenRoaming: true, jumpsInFights: true,
+    strafeSwitchTicks: 22, grenadeChance: 0.4, sprintWhenRoaming: true, jumpsInFights: true, useMelee: true,
   },
 ];
 

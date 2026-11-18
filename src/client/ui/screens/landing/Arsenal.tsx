@@ -13,7 +13,7 @@ const GRENADE_KINDS = ['frag', 'flash'] as const;
 export function Arsenal() {
   return (
     <Section id="arsenal" kicker="02 / The arsenal" title="Office supplies, repurposed" intro={ARSENAL_INTRO}>
-      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+      <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-6">
         {GUN_BLURBS.map((g, i) => (
           <li key={GUN_NAMES[i]} className="slab flex flex-col gap-3 bg-panel p-5">
             <GunIcon kind={i} className="block h-14 w-full" />

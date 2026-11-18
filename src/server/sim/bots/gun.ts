@@ -31,6 +31,15 @@ const ROCKET_SAFE_SHARE = 0.9;
 const ROCKET_SPLASH_BONUS = 2.2;
 /** Reload when the magazine is below this fraction and no enemy is in sight. */
 const IDLE_RELOAD_BELOW = 0.4;
+/** A Hard bot weighs the paper as a real option only once the enemy is this close (m); with every gun dry it holds it at any range. */
+const MELEE_CONSIDER_RANGE = 2.6;
+/** Score of the paper when it is the only thing left: above nothing, below any gun with a round in it. */
+const MELEE_LAST_RESORT = 0.5;
+
+/** True when some gun other than `except` still has a round (loaded or spare). */
+function hasAmmoElsewhere(p: Player, except: number): boolean {
+  return WEAPONS.some((w, i) => i !== except && !w.melee && owns(p, i) && (p.mag[i] ?? 0) + (p.reserve[i] ?? 0) > 0);
+}
 
 /** Damage multiplier at a distance, the same curve the server applies. */
 function falloff(w: WeaponDef, d: number): number {
@@ -40,10 +49,17 @@ function falloff(w: WeaponDef, d: number): number {
 }
 
 /** How useful a weapon is at a distance: damage per second, discounted by how many shots will miss. */
-function usefulness(p: Player, i: number, d: number, aiming: boolean): number {
+function usefulness(p: Player, i: number, d: number, aiming: boolean, tune: BotTuning): number {
   const w = WEAPONS[i]!;
   // A gun the bot has not found yet is no option at all (the server would ignore the switch anyway).
   if (!owns(p, i)) return 0;
+  if (w.melee) {
+    if (!tune.useMelee) return 0;
+    // Close enough to cut: weigh it like a gun (damage per second, no misses to speak of).
+    if (d <= MELEE_CONSIDER_RANGE) return (w.melee.slash.damage * 60 / w.melee.slash.interval);
+    // Out of range it is only worth holding when nothing else can shoot, so the bot runs in with it.
+    return hasAmmoElsewhere(p, i) ? 0 : MELEE_LAST_RESORT;
+  }
   const mag = p.mag[i] ?? 0;
   const reserve = p.reserve[i] ?? 0;
   if (mag + reserve <= 0) return 0;
@@ -59,15 +75,15 @@ function usefulness(p: Player, i: number, d: number, aiming: boolean): number {
  * Picks the weapon to hold for a target `dist` metres away and remembers it in `st.wantWeapon`.
  * @returns The weapon index to put in the input.
  */
-export function chooseWeapon(sim: Sim, p: Player, st: BotState, dist: number): number {
+export function chooseWeapon(sim: Sim, p: Player, st: BotState, dist: number, tune: BotTuning): number {
   // After a respawn the wanted gun may be one the bot no longer owns: fall back to what is in hand.
   if (!owns(p, st.wantWeapon)) st.wantWeapon = p.weapon;
   const aiming = dist > ADS_DISTANCE;
-  const current = usefulness(p, st.wantWeapon, dist, aiming);
+  const current = usefulness(p, st.wantWeapon, dist, aiming, tune);
   let best = st.wantWeapon;
   let bestScore = current;
   for (let i = 0; i < WEAPONS.length; i++) {
-    const score = usefulness(p, i, dist, aiming);
+    const score = usefulness(p, i, dist, aiming, tune);
     if (score > bestScore) { bestScore = score; best = i; }
   }
   // Swap when clearly better, but not constantly; a gun with nothing left is dropped at once.

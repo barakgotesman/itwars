@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { EYE_HEIGHT, TICK_RATE } from '@shared/core/constants';
 import type { GameEvent } from '@shared/net/protocol';
 import { ROCKET_BOOM } from '@shared/net/protocol';
-import { GRENADES, WEAPONS } from '@shared/rules/weapons';
+import { GRENADES, MELEE_WEAPON, WEAPONS } from '@shared/rules/weapons';
 import type { Input } from '@client/platform/input';
 import { WEAPON_FX } from '@client/render/weapon-fx';
 import type { Feed, Hud } from './ports';
@@ -149,6 +149,29 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
             particles.emit(at.x, at.y, at.z, 26, shirt, 5, 1.4, 14, new THREE.Vector3(0, 2.5, 0), 0.13);
             particles.emit(at.x, at.y, at.z, 10, 0xf1c9a5, 4, 1.2, 14, new THREE.Vector3(0, 2.5, 0), 0.1);
           }
+        }
+        break;
+      }
+      case 'melee': {
+        // The A4 paper. Starting a swing plays the arm/sheet animation and its swish; landing on someone throws paper
+        // bits and red specks at them (a heavy stab throws more) and, for the one swung at, a jolt.
+        const mine = e.id === myId;
+        if (e.r === 0) {
+          if (mine) viewmodel.swing(e.heavy);
+          else remotes.swing(e.id, e.heavy);
+          sfx.melee(e.heavy, 0, mine ? undefined : posOf(e.id));
+        } else if (e.r === 1) {
+          const at = e.to === myId ? new THREE.Vector3(me.x, me.y + 1.2, me.z) : remotes.eyeOf(e.to)?.sub(new THREE.Vector3(0, 0.4, 0));
+          if (at && e.to !== myId) {
+            const fx = WEAPON_FX[MELEE_WEAPON]!;
+            particles.emit(at.x, at.y, at.z, fx.impactBits * (e.heavy ? 2 : 1), 0xf4f4f1, fx.impactSpeed, 0.6, 5, undefined, 0.05);
+            particles.emit(at.x, at.y, at.z, e.heavy ? 12 : 6, 0xff4a4a, 3, 0.45, 9, undefined, 0.07);
+          }
+          if (mine) {
+            viewmodel.swingHit(e.heavy);
+            camFx.kick += e.heavy ? 0.03 : 0.012;
+          }
+          sfx.melee(e.heavy, 1, mine ? undefined : posOf(e.id));
         }
         break;
       }

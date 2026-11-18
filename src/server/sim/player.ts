@@ -45,6 +45,11 @@ export interface Player {
   sprayReadyAt: number;
   /** Semi-auto trigger pull waiting for the weapon to be ready. */
   fireLatch: boolean;
+  /** Melee click waiting for the weapon to be ready: 0 none, 1 slash (left), 2 heavy (right). */
+  meleeWant: 0 | 1 | 2;
+  /** Swing in progress: the tick it lands (0 = none) and whether it is the heavy one. */
+  meleeAt: number;
+  meleeHeavy: boolean;
   protectUntil: number;
   respawnAt: number;
   blindEnd: number;
@@ -71,7 +76,7 @@ export function newPlayer(id: number, name: string, conn: Conn, model: number, c
     id, name, conn, model, color, spray, bot, sprayReadyAt: 0,
     state: newPlayerState(0, 0, 0), hp: MAX_HP, alive: false, playing: false, kills: 0, deaths: 0, weapon: 0, guns: 0,
     mag: [], reserve: [], gren: [], reloadEnd: 0, nextFire: 0, nextThrow: 0, fireLatch: false,
-    protectUntil: 0, respawnAt: 0, blindEnd: 0, blindMax: 0, queue: [], lastCmd: null, prevKeys: 0,
+    meleeWant: 0, meleeAt: 0, meleeHeavy: false, protectUntil: 0, respawnAt: 0, blindEnd: 0, blindMax: 0, queue: [], lastCmd: null, prevKeys: 0,
     ack: 0, credit: 0,
   };
 }

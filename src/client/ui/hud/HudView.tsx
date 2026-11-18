@@ -13,7 +13,7 @@ import { useSettingsVersion } from '../hooks/useSettings';
 import { FeedView } from './FeedView';
 import { useHud } from './hud-store';
 
-const WEAPON_KEYS: readonly Action[] = ['weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5'];
+const WEAPON_KEYS: readonly Action[] = ['weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5', 'weapon6'];
 const GRENADE_KEYS: readonly Action[] = ['grenade1', 'grenade2'];
 
 /** Colour class for a value that warns as it gets low: ink, then orange, then red. */
@@ -246,8 +246,10 @@ function AmmoPanel() {
   const size = def?.magSize ?? 1;
   // Low magazine turns the number orange and empty turns it red, so you know before the click.
   const low = rounds <= Math.ceil(size / 4);
-  const reloading = reload > 0 && def !== undefined;
-  const note = reloading ? 'Reloading' : rounds === 0 ? (spare === 0 ? 'No ammo' : 'Press R') : '';
+  // The paper never runs out: show an infinity sign and the two clicks instead of ammo.
+  const melee = def?.melee !== undefined;
+  const reloading = !melee && reload > 0 && def !== undefined;
+  const note = melee ? 'Click: slash · Right: stab' : reloading ? 'Reloading' : rounds === 0 ? (spare === 0 ? 'No ammo' : 'Press R') : '';
   const stocks = stock.split(',');
   return (
     <div className="absolute bottom-5 right-5 flex flex-col items-end gap-2">
@@ -255,12 +257,18 @@ function AmmoPanel() {
         <div className="flex items-end justify-between">
           <span className="text-xs font-bold text-dim">{def?.name ?? ''}</span>
           <div className="leading-none">
-            <span className={`text-6xl font-black tabular-nums ${rounds === 0 ? 'text-danger' : low ? 'text-warn' : ''}`}>{rounds}</span>
-            <span className="text-xl font-bold text-dim"> / <span className="tabular-nums">{spare}</span></span>
+            {melee
+              ? <span className="text-6xl font-black">∞</span>
+              : (
+                <>
+                  <span className={`text-6xl font-black tabular-nums ${rounds === 0 ? 'text-danger' : low ? 'text-warn' : ''}`}>{rounds}</span>
+                  <span className="text-xl font-bold text-dim"> / <span className="tabular-nums">{spare}</span></span>
+                </>
+              )}
           </div>
         </div>
         <div className="mt-2 flex h-2.5 gap-[2px]">
-          {Array.from({ length: size }, (_, i) => (
+          {Array.from({ length: melee ? 0 : size }, (_, i) => (
             <span key={i} className={`h-full flex-1 ${i < rounds ? (low ? 'bg-warn' : 'bg-ink') : 'bg-raised'}`} />
           ))}
         </div>
@@ -277,7 +285,7 @@ function AmmoPanel() {
         {WEAPONS.map((wp, i) => ((guns & (1 << i)) === 0
           ? null
           : (
-            <div key={wp.name} title={wp.name} className={slotClass('h-12 w-[4.5rem]', i === w, stocks[i] === '0')}>
+            <div key={wp.name} title={wp.name} className={slotClass('h-12 w-[4.5rem]', i === w, stocks[i] === '0' && wp.melee === undefined)}>
               <SlotKey action={WEAPON_KEYS[i]!} />
               <GunIcon kind={i} className="h-7 w-14" />
             </div>

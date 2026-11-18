@@ -96,6 +96,8 @@ export interface BotState {
   /** Trigger or reload key was pressed last tick, so this tick releases it (the server needs a fresh press). */
   firePulse: boolean;
   reloadPulse: boolean;
+  /** The A4 paper's attack key was pressed last tick, so this tick releases it (the server needs a fresh press). */
+  meleePulse: boolean;
   /** Earliest tick for the next semi-automatic shot. */
   semiNextAt: number;
   /** Weapon the bot wants in hand, and the tick it last changed. */
@@ -119,7 +121,7 @@ export function newBotState(doorCount: number): BotState {
     doorReadyAt: new Array<number>(doorCount).fill(0), holdSince: 0, ignoreDoorsUntil: 0,
     targetId: -1, visible: false, visibleSince: 0, engageStart: 0, seen: null, heard: null, chasing: false, wasFighting: false,
     errYaw: 0, errPitch: 0, aimHead: false, aimRollAt: 0, fireHeld: false, burstUntil: 0, pauseUntil: 0,
-    firePulse: false, reloadPulse: false, semiNextAt: 0, wantWeapon: 0, switchedAt: 0, strafeDir: 1, strafeAt: 0, throwAt: null, grenadeReadyAt: 0, lastFire: null,
+    firePulse: false, reloadPulse: false, meleePulse: false, semiNextAt: 0, wantWeapon: 0, switchedAt: 0, strafeDir: 1, strafeAt: 0, throwAt: null, grenadeReadyAt: 0, lastFire: null,
   };
 }
 
@@ -151,5 +153,6 @@ export function resetCombat(st: BotState): void {
   st.fireHeld = false;
   st.firePulse = false;
   st.reloadPulse = false;
+  st.meleePulse = false;
   st.throwAt = null;
 }

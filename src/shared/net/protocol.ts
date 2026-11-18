@@ -126,6 +126,8 @@ export type GameEvent =
   /** A blast: `s` is the grenade slot, or `ROCKET_BOOM` for a rocket. */
   | { k: 'boom'; s: number; x: number; y: number; z: number }
   | { k: 'reload'; id: number }
+  /** A melee swing: `r` is 0 when it starts (the wind-up), 1 when it lands on player `to`, 2 when it lands on nothing. */
+  | { k: 'melee'; id: number; heavy: boolean; r: 0 | 1 | 2; to: number }
   | { k: 'matchEnd'; winner: number; restartIn: number; reason: 'kills' | 'time' }
   | { k: 'door'; i: number; o: number; t: number }
   | { k: 'hole'; x: number; y: number; z: number; a: number; s: number }

@@ -139,6 +139,33 @@ export class Sfx {
     }
   }
 
+  /**
+   * The A4 paper. `r` 0 is the start of a swing: a quick swish for the slash, a long rising tear that ends in a
+   * hard whoosh when the stab lands for the heavy one. 1 is the paper landing on someone (a slap, heavier for the
+   * stab); 2 is a swing that hit nothing, which is already covered by the swish.
+   */
+  melee(heavy: boolean, r: 0 | 1 | 2, pos?: { x: number; z: number }): void {
+    if (r === 2) return;
+    const d = this.out(pos);
+    if (!d || !this.ctx) return;
+    const t = this.ctx.currentTime;
+    if (r === 1) {
+      this.burst(d, t, heavy ? 0.14 : 0.08, 'lowpass', heavy ? 700 : 1100, heavy ? 0.9 : 0.6);
+      this.tone(d, t, heavy ? 0.18 : 0.1, 'sine', heavy ? 170 : 240, 70, heavy ? 0.7 : 0.4);
+      this.burst(d, t, 0.05, 'highpass', 3500, 0.35);
+      return;
+    }
+    if (!heavy) {
+      this.burst(d, t, 0.14, 'bandpass', 3000, 0.35, 0.9);
+      this.burst(d, t + 0.03, 0.1, 'highpass', 4500, 0.2);
+      return;
+    }
+    // Heavy: the sheet is drawn back with a ripping rattle that speeds up, then thrown forward.
+    for (let i = 0; i < 9; i++) this.burst(d, t + 0.05 + i * (0.05 - i * 0.003), 0.04, 'highpass', 2500 + i * 250, 0.12 + i * 0.03);
+    this.burst(d, t + 0.46, 0.2, 'bandpass', 2400, 0.55, 0.8);
+    this.tone(d, t + 0.46, 0.15, 'sawtooth', 900, 300, 0.12);
+  }
+
   /** Magazine out / slide / magazine in; the RPG has its own slow, staged reload that follows its animation. */
   reload(pos?: { x: number; z: number }, weapon = 0): void {
     const d = this.out(pos);

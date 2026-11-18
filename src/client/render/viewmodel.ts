@@ -4,7 +4,8 @@
  * moving parts of each gun: pistol slide, SMG bolt and tape reel, shotgun pump, sniper bolt, magazines and ejected casings.
  */
 import * as THREE from 'three';
-import { WEAPONS } from '@shared/rules/weapons';
+import { TICK_RATE } from '@shared/core/constants';
+import { MELEE_WEAPON, WEAPONS } from '@shared/rules/weapons';
 import { WEAPON_FX } from './weapon-fx';
 
 /** Per-frame inputs the viewmodel needs from the game. */
@@ -38,6 +39,9 @@ interface Parts {
   carry?: THREE.Group;
   /** RPG: the green "loaded" light, on only when a rocket is in the tube and the lever is cocked. */
   led?: THREE.Group;
+  /** A4 paper: the whole sheet (pivots at the grip, rolled so it stands on its edge) and its front part, which bends. */
+  sheet?: THREE.Group;
+  tip?: THREE.Group;
 }
 
 /** What a gun spits out when it cycles. */
@@ -70,9 +74,14 @@ interface GunRig {
   hip?: THREE.Vector3;
   /** Turn (radians, about the up axis) toward the centre while not aiming, so a shouldered tube points at the crosshair. */
   hipTurn?: number;
+  /** Only one hand holds it (the paper): the support hand is not drawn. */
+  oneHanded?: boolean;
   /** How hard and how long a shot kicks the gun back: a multiplier on the usual kick, and how fast it settles (per second). */
   recoil?: { scale: number; decay: number };
 }
+
+/** Roll (rad) that stands the flat A4 sheet up on its edge, like a blade held in the right hand. */
+const SHEET_ROLL = 1.2;
 
 /** Where (gun space, x) the RPG's sights stand: on the left of the tube, so aiming lines the eye up with them and the tube sits to the right. */
 const SIGHT_X = -0.07;
@@ -355,6 +364,30 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
         casing: { color: 0xd4af37, size: [0.016, 0.016, 0.06] }, ejectAt: 0.55,
       };
     }
+    case MELEE_WEAPON: {
+      // A4 Paper: a white sheet held by its short edge in the right hand and stood on its long edge like a blade. The
+      // front part hangs from a hinge so it flexes and flutters; grey text lines, a teal header and a red stamp sit a
+      // few mm proud of the face, and a pale strip marks the "sharp" leading edge.
+      const sheet = new THREE.Group();
+      const tip = new THREE.Group();
+      g.add(sheet);
+      sheet.rotation.z = SHEET_ROLL;
+      box(sheet, 0xf4f4f1, 0.21, 0.008, 0.18, 0, 0, -0.09);
+      tip.position.set(0, 0, -0.18);
+      sheet.add(tip);
+      box(tip, 0xf4f4f1, 0.21, 0.008, 0.117, 0, 0, -0.0585);
+      box(tip, 0xd9dde2, 0.21, 0.01, 0.008, 0, 0, -0.113);
+      box(sheet, 0x2b6d72, 0.07, 0.004, 0.022, 0.05, 0.006, -0.03);
+      for (const z of [-0.07, -0.1, -0.13, -0.16]) box(sheet, 0x8d949c, 0.15, 0.004, 0.008, -0.025, 0.006, z);
+      box(sheet, 0xc0392b, 0.05, 0.004, 0.035, 0.06, 0.006, -0.12);
+      for (const z of [-0.03, -0.06, -0.09]) box(tip, 0x8d949c, 0.15, 0.004, 0.008, -0.025, 0.006, z);
+      return {
+        group: g, muzzle: new THREE.Vector3(0, 0, -0.3), handR: new THREE.Vector3(0, -0.01, 0.01), handL: new THREE.Vector3(-0.2, -0.3, 0.3),
+        // No sights to bring up: aiming stays where the hip pose is (the right click is the heavy stab).
+        hip: new THREE.Vector3(0.2, -0.19, -0.36), ads: new THREE.Vector3(0.2, -0.19, -0.36), oneHanded: true,
+        parts: { sheet, tip }, port: new THREE.Vector3(0, 0, 0), casing: { color: 0xf4f4f1, size: [0.01, 0.01, 0.01] }, ejectAt: Infinity,
+      };
+    }
     default: {
       // RPG: an olive launch tube with a wooden heat shield, a flared rear venturi, a pistol grip and a fore-grip, a
       // cocking lever and a rocket you can see in the muzzle. On reload the rocket is fetched, brought round to the
@@ -535,6 +568,10 @@ export class ViewModel {
   private reelAngle = 0;
   /** The RPG's reload progress on the previous frame, to catch the moments it clunks home. */
   private rpgPrev = 0;
+  /** The A4 paper's swing: seconds since it began (negative when idle), which attack, and which way the slash goes (flips each slash). */
+  private swingT = -1;
+  private swingHeavy = false;
+  private swingSide: 1 | -1 = 1;
   /** Back-blast flash behind a launcher: a softer, fainter glow than the muzzle flash, so it does not white out the screen. */
   private readonly rearMat = new THREE.MeshBasicMaterial({ color: 0xff8a2a, map: softGlowTexture(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
   private readonly rearFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.5), this.rearMat);
@@ -573,7 +610,7 @@ export class ViewModel {
         box(parent, sleeveColor, 0.085, 0.085, 0.5, p.x + side * 0.02, p.y - 0.045, p.z + 0.3, 0.32);
       };
       hand(rig.group, rig.handR, 1);
-      hand(rig.handLParent ?? rig.group, rig.handL, -1);
+      if (!rig.oneHanded) hand(rig.handLParent ?? rig.group, rig.handL, -1);
       rig.group.visible = false;
       this.root.add(rig.group);
       return rig;
@@ -613,6 +650,21 @@ export class ViewModel {
     this.shotT = 0;
     this.ejected = false;
     if (weapon === 1) this.reelVel = Math.min(this.reelVel + 5, 24);
+  }
+
+  /**
+   * Starts the A4 paper's swing animation (called when the server announces the swing).
+   * @param heavy - True for the right-click stab, false for the slash (which alternates sides, so repeated clicks make a combo).
+   */
+  swing(heavy: boolean): void {
+    this.swingT = 0;
+    this.swingHeavy = heavy;
+    if (!heavy) this.swingSide = this.swingSide === 1 ? -1 : 1;
+  }
+
+  /** The swing landed on someone: a short jolt through the hand. @param heavy - Whether it was the stab. */
+  swingHit(heavy: boolean): void {
+    this.kick = Math.min(1.4, this.kick + (heavy ? 1 : 0.55));
   }
 
   /** Throws a spent casing out of the gun's ejection port. */
@@ -703,6 +755,9 @@ export class ViewModel {
         if (p.bolt) p.bolt.rotation.z = lift * 1.0;
         break;
       }
+      case MELEE_WEAPON:
+        this.animatePaper(rig, s, dt);
+        break;
       default:
         this.animateRpg(p, s);
     }
@@ -711,6 +766,83 @@ export class ViewModel {
       this.ejected = true;
       this.eject(rig);
     }
+  }
+
+  /**
+   * Poses the A4 paper for this frame: idle sway with a fluttering tip, or the slash / heavy stab in progress. The whole
+   * rig (hand and sheet together) moves, so the sheet and the hand never part.
+   * @remarks Slash: pull to one side (wind-up), cut across to the other (fast, with a forward lunge), settle. Heavy:
+   * draw back and up with the sheet bending and trembling for half a second, thrust forward hard with the sheet
+   * stiff, overshoot, then recover slowly, so the cost of a miss is easy to see. Times come from the weapon's data.
+   */
+  private animatePaper(rig: GunRig, s: ViewState, dt: number): void {
+    const def = WEAPONS[MELEE_WEAPON]!.melee!;
+    const atk = this.swingHeavy ? def.heavy : def.slash;
+    const wind = atk.windup / TICK_RATE;
+    const total = atk.interval / TICK_RATE;
+    let px = 0, py = 0, pz = 0, rx = 0, ry = 0, rz = 0, roll = 0;
+    let bend: number;
+    if (this.swingT >= 0) {
+      this.swingT += dt;
+      if (this.swingT >= total) this.swingT = -1;
+    }
+    const t = this.swingT;
+    if (t >= 0) {
+      if (!this.swingHeavy) {
+        const side = this.swingSide;
+        const strike = 0.09;
+        if (t < wind) {
+          const k = ease(t / wind);
+          px = 0.09 * side * k; py = 0.02 * k; pz = 0.03 * k;
+          ry = -0.5 * side * k; rz = -0.25 * side * k;
+          bend = 0.3 * k;
+        } else if (t < wind + strike) {
+          const k = (t - wind) / strike;
+          const e = 1 - (1 - k) * (1 - k);
+          px = 0.09 * side - 0.26 * side * e; py = 0.02 - 0.03 * e; pz = 0.03 - 0.16 * Math.sin(e * Math.PI * 0.75);
+          ry = -0.5 * side + 1.4 * side * e; rz = -0.25 * side + 0.35 * side * e;
+          bend = 0.3 - 0.8 * e;
+          roll = 0.3 * side * e;
+        } else {
+          const k = ease((t - wind - strike) / Math.max(0.01, total - wind - strike));
+          px = -0.17 * side * (1 - k); py = -0.01 * (1 - k); pz = -0.07 * (1 - k);
+          ry = 0.9 * side * (1 - k); rz = 0.1 * side * (1 - k);
+          bend = -0.5 * (1 - k) * Math.cos(k * 9);
+          roll = 0.3 * side * (1 - k);
+        }
+      } else {
+        const strike = 0.08;
+        if (t < wind) {
+          const k = ease(t / wind);
+          // Drawn back beside the head with the sheet bent back, trembling harder the closer it gets to letting go.
+          const shake = Math.sin(t * 80) * 0.006 * k * k;
+          px = -0.04 * k + shake; py = 0.09 * k; pz = 0.12 * k;
+          rx = 0.45 * k; ry = 0.15 * k; rz = 0.2 * k;
+          bend = 0.9 * k + Math.sin(t * 60) * 0.1 * k * k;
+        } else if (t < wind + strike) {
+          const k = (t - wind) / strike;
+          const e = k * (2 - k);
+          px = -0.04 * (1 - e); py = 0.09 - 0.12 * e; pz = 0.12 - 0.5 * e;
+          rx = 0.45 - 0.62 * e; ry = 0.15 * (1 - e); rz = 0.2 * (1 - e);
+          bend = 0.9 * (1 - e) - 0.15 * e;
+        } else {
+          const k = ease((t - wind - strike) / Math.max(0.01, total - wind - strike));
+          py = -0.03 * (1 - k); pz = -0.38 * (1 - k);
+          rx = -0.17 * (1 - k);
+          bend = -0.15 * (1 - k) * Math.cos(k * 7);
+        }
+      }
+    } else {
+      // At rest the sheet sways gently and its front flutters; it flaps harder when running.
+      const run = s.onGround ? Math.min(s.speed / 7.5, 1.5) : 0;
+      rz = Math.sin(this.time * 1.4) * 0.02;
+      bend = Math.sin(this.time * 2.6) * 0.06 + Math.sin(this.time * 11) * 0.03 * run;
+    }
+    rig.group.position.set(px, py, pz);
+    rig.group.rotation.set(rx, ry, rz);
+    const { sheet, tip } = rig.parts;
+    if (sheet) sheet.rotation.z = SHEET_ROLL + roll;
+    if (tip) tip.rotation.x = bend;
   }
 
   /**

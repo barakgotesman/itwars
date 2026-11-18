@@ -3,7 +3,7 @@
  * fallen player's bag, check out a noise, otherwise wander. Each wish gets a score and the highest wins, with a margin before the bot
  * changes its mind so it does not dither. Pickups are read from the same tables the server uses.
  */
-import { loadoutOf } from '@shared/rules/loadout';
+import { ALWAYS_OWNED, loadoutOf } from '@shared/rules/loadout';
 import { GRENADES, WEAPONS } from '@shared/rules/weapons';
 import { MAX_HP } from '@shared/core/constants';
 import type { BotTuning } from '@shared/rules/bots';
@@ -62,7 +62,7 @@ export function ammoShare(p: Player): number {
 
 /** How many guns the bot owns beyond its spawn kit, so the wish for another one fades as the kit fills. */
 function extraGuns(sim: Sim, p: Player): number {
-  const start = loadoutOf(sim.rules.loadout).startWeapons.length;
+  const start = loadoutOf(sim.rules.loadout).startWeapons.length + ALWAYS_OWNED.length;
   let n = 0;
   WEAPONS.forEach((_, i) => { if (owns(p, i)) n++; });
   return Math.max(0, n - start);

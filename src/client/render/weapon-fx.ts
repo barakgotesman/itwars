@@ -48,6 +48,8 @@ export const WEAPON_FX: readonly WeaponFx[] = [
   { tracerColor: 0xff2a3a, tracerLife: 0.85, beam: true, beamRadius: 0.028, extraTracers: 0, flashColor: 0xff2a4a, flashSize: 1.7, flashLife: 0.16, flashLight: 3.5, kick: 1.25, impactColor: 0xff4a5a, impactCount: 22, impactSpeed: 5, impactBits: 0, smoke: 5 },
   // RPG: no tracer (the rocket itself is the visible thing); a huge orange fireball at the muzzle and a wall of smoke.
   { tracerColor: 0xffb04a, tracerLife: 0, beam: false, beamRadius: 0, extraTracers: 0, flashColor: 0xff7a1a, flashSize: 2.2, flashLife: 0.16, flashLight: 2.5, kick: 2.2, impactColor: 0xffb04a, impactCount: 0, impactSpeed: 0, impactBits: 0, smoke: 16 },
+  // A4 Paper: no tracer, flash or smoke. A hit throws white paper bits and a few red specks; the swing itself is drawn by the viewmodel.
+  { tracerColor: 0xffffff, tracerLife: 0, beam: false, beamRadius: 0, extraTracers: 0, flashColor: 0xffffff, flashSize: 0, flashLife: 0.01, flashLight: 0, kick: 0, impactColor: 0xf4f4f1, impactCount: 6, impactSpeed: 3, impactBits: 8, smoke: 0 },
 ];
 
 /** A live tracer: its meshes plus fade state. */

@@ -13,7 +13,7 @@ const HOLD_BITS: Partial<Record<Action, number>> = {
 };
 
 /** Weapon-select actions and the weapon index they choose. */
-const WEAPON_SLOT: Partial<Record<Action, number>> = { weapon1: 0, weapon2: 1, weapon3: 2, weapon4: 3, weapon5: 4 };
+const WEAPON_SLOT: Partial<Record<Action, number>> = { weapon1: 0, weapon2: 1, weapon3: 2, weapon4: 3, weapon5: 4, weapon6: 5 };
 
 /** Radians of turn per mouse count at sensitivity 1. */
 const BASE_SENSITIVITY = 0.0022;

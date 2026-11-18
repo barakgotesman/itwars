@@ -7,7 +7,7 @@
 export type Action =
   | 'forward' | 'back' | 'left' | 'right' | 'jump' | 'sprint'
   | 'fire' | 'aim' | 'reload' | 'grenade1' | 'grenade2'
-  | 'weapon1' | 'weapon2' | 'weapon3' | 'weapon4' | 'weapon5' | 'nextWeapon' | 'prevWeapon'
+  | 'weapon1' | 'weapon2' | 'weapon3' | 'weapon4' | 'weapon5' | 'weapon6' | 'nextWeapon' | 'prevWeapon'
   | 'interact' | 'spray' | 'scoreboard';
 
 /** One row in the controls list. */
@@ -35,6 +35,7 @@ export const ACTIONS: readonly ActionInfo[] = [
   { id: 'weapon3', label: 'Paper Shredder', group: 'Weapons' },
   { id: 'weapon4', label: 'Laser Pointer', group: 'Weapons' },
   { id: 'weapon5', label: 'RPG', group: 'Weapons' },
+  { id: 'weapon6', label: 'A4 Paper', group: 'Weapons' },
   { id: 'nextWeapon', label: 'Next weapon', group: 'Weapons' },
   { id: 'prevWeapon', label: 'Previous weapon', group: 'Weapons' },
   { id: 'interact', label: 'Use / open and close doors', group: 'Other' },
@@ -49,12 +50,12 @@ export const ACTIONS: readonly ActionInfo[] = [
 export const DEFAULT_BINDINGS: Readonly<Record<Action, string>> = {
   forward: 'KeyW', back: 'KeyS', left: 'KeyA', right: 'KeyD', jump: 'Space', sprint: 'ShiftLeft',
   fire: 'Mouse0', aim: 'Mouse2', reload: 'KeyR', grenade1: 'KeyG', grenade2: 'KeyH', interact: 'KeyE', spray: 'KeyT',
-  weapon1: 'Digit1', weapon2: 'Digit2', weapon3: 'Digit3', weapon4: 'Digit4', weapon5: 'Digit5',
+  weapon1: 'Digit1', weapon2: 'Digit2', weapon3: 'Digit3', weapon4: 'Digit4', weapon5: 'Digit5', weapon6: 'Digit6',
   nextWeapon: 'WheelDown', prevWeapon: 'WheelUp', scoreboard: 'Tab',
 };
 
 /** Actions that may be bound to the mouse wheel (it has no "held" state). */
-export const WHEEL_ACTIONS: ReadonlySet<Action> = new Set<Action>(['weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5', 'nextWeapon', 'prevWeapon']);
+export const WHEEL_ACTIONS: ReadonlySet<Action> = new Set<Action>(['weapon1', 'weapon2', 'weapon3', 'weapon4', 'weapon5', 'weapon6', 'nextWeapon', 'prevWeapon']);
 
 /** Render-scale choices shown in the graphics tab. */
 export const RENDER_SCALES: readonly number[] = [0.5, 0.75, 1, 1.5];

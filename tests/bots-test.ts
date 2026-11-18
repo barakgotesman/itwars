@@ -625,7 +625,7 @@ function joinHuman(rooms: RoomManager, room: Room, name: string): number | null 
   const id = [...room.players.keys()][0]!;
   const p = mut(room, id);
   const st = room.bots.get(id)!;
-  check('a bot spawns with the pistol only and wants it', p.guns === 1 && p.weapon === 0 && st.wantWeapon === 0);
+  check('a bot spawns with the pistol only and wants it', p.guns === (1 | (1 << 5)) && p.weapon === 0 && st.wantWeapon === 0);
   let got = -1;
   let wished = false;
   for (let t = 0; t < 900 && got < 0; t++) {
@@ -682,14 +682,89 @@ function joinHuman(rooms: RoomManager, room: Room, name: string): number | null 
   const pl = p as unknown as Parameters<typeof chooseWeapon>[1];
   st.wantWeapon = 0;
   st.switchedAt = -1000;
-  check('a bot does not pick the RPG for a target next to it', chooseWeapon(sim, pl, st, 3) !== 4);
+  check('a bot does not pick the RPG for a target next to it', chooseWeapon(sim, pl, st, 3, botTuning(2)) !== 4);
   st.wantWeapon = 0;
   st.switchedAt = -1000;
-  check('a bot picks the RPG for a distant target', chooseWeapon(sim, pl, st, 30) === 4);
+  check('a bot picks the RPG for a distant target', chooseWeapon(sim, pl, st, 30, botTuning(2)) === 4);
   p.mag[4] = 0;
   p.reserve[4] = 0;
   st.switchedAt = -1000;
-  check('and drops it once it has no rockets', chooseWeapon(sim, pl, st, 30) !== 4);
+  check('and drops it once it has no rockets', chooseWeapon(sim, pl, st, 30, botTuning(2)) !== 4);
+}
+
+
+// ---------------------------------------------------------------- the A4 paper: Hard bots only, and only fairly
+{
+  check('only the Hard tuning lets a bot use the paper', BOT_TUNING.map((t) => t.useMelee).join() === 'false,false,true');
+
+  // Choosing: with every gun dry, Easy and Normal keep what they have; Hard takes the paper, even at a distance.
+  const dry = (skill: number) => {
+    const room = new Room('DRY', { seed: 4, solids: [FLOOR], spawns: FLAT_SPAWNS, pickups: [], doors: [], rules: { ...DEFAULT_RULES, bots: 1, botSkill: skill }, botsPlayImmediately: true });
+    const id = [...room.players.keys()][0]!;
+    const p = mut(room, id);
+    p.mag.fill(0);
+    p.reserve.fill(0);
+    return { sim: room as unknown as Parameters<typeof chooseWeapon>[0], pl: p as unknown as Parameters<typeof chooseWeapon>[1], st: room.bots.get(id)! };
+  };
+  for (const skill of [1, 2]) {
+    const { sim, pl, st } = dry(skill);
+    st.wantWeapon = 0;
+    st.switchedAt = -1000;
+    check(`a ${skill === 1 ? 'Easy' : 'Normal'} bot with empty guns never picks the paper (close or far)`, chooseWeapon(sim, pl, st, 1.5, botTuning(skill)) !== 5 && chooseWeapon(sim, pl, st, 30, botTuning(skill)) !== 5);
+  }
+  {
+    const { sim, pl, st } = dry(3);
+    st.wantWeapon = 0;
+    st.switchedAt = -1000;
+    check('a Hard bot with empty guns takes the paper to run in with', chooseWeapon(sim, pl, st, 30, botTuning(3)) === 5);
+    pl.mag[0] = 12;
+    pl.reserve[0] = 30;
+    st.switchedAt = -1000;
+    check('but goes back to a loaded pistol for a distant target', chooseWeapon(sim, pl, st, 30, botTuning(3)) === 0);
+    pl.mag.fill(0);
+    pl.reserve.fill(0);
+    pl.mag[3] = 5;
+    pl.reserve[3] = 10;
+    pl.guns |= 8;
+    st.wantWeapon = 3;
+    st.switchedAt = -1000;
+    check('and prefers the paper to a sniper rifle when the enemy is on top of it', chooseWeapon(sim, pl, st, 1.5, botTuning(3)) === 5);
+  }
+
+  // Fighting: an empty bot against a still target 12 m away.
+  const cutter = (skill: number, seed: number) => {
+    const { room, botId, dummyId, conn, bot } = duel(seed, skill);
+    const p = mut(room, botId);
+    p.mag.fill(0);
+    p.reserve.fill(0);
+    let badLos = 0, held = 0;
+    for (let t = 0; t < 2400; t++) {
+      room.step();
+      if (bot.lastFire && !bot.lastFire.los) badLos++;
+      if (mut(room, botId).weapon === 5) held++;
+      if (!room.inspect(dummyId)!.alive) break;
+    }
+    // The dummy's connection saw every event, so the swings and the kill are counted from there.
+    const seen = conn.events();
+    const swings = seen.filter((e) => e.k === 'melee' && e.id === botId && e.r === 0).length;
+    const killer = seen.find((e) => e.k === 'kill' && e.to === dummyId);
+    const killedBy = killer && killer.k === 'kill' && typeof killer.w === 'number' ? killer.w : -1;
+    return { swings, killedBy, badLos, held, hp: room.inspect(dummyId)!.hp };
+  };
+  for (const skill of [1, 2]) {
+    const r = cutter(skill, 7);
+    check(`${skill === 1 ? 'an Easy' : 'a Normal'} bot with no ammo never swings the paper`, r.swings === 0 && r.held === 0 && r.hp === 100, JSON.stringify(r));
+  }
+  let kills = 0, swings = 0, bad = 0;
+  for (let seed = 1; seed <= 6; seed++) {
+    const r = cutter(3, seed);
+    if (r.killedBy === 5) kills++;
+    swings += r.swings;
+    bad += r.badLos;
+  }
+  check('a Hard bot with no ammo walks up and kills with the paper', kills >= 5, `${kills}/6 kills with the paper`);
+  check('it swings more than once (a slash needs two cuts)', swings >= 6, `${swings} swings`);
+  check('every swing was made with a clear line to the target', bad === 0, `${bad} ticks`);
 }
 
 console.log(`bots tests: ${passed} passed, ${failed} failed`);

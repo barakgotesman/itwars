@@ -10,6 +10,7 @@ import type { Player } from '../player';
 import type { Sim } from '../state';
 import { aimAt } from './aim';
 import { ADS_DISTANCE, chooseWeapon, idealRange, reloadKey, trigger } from './gun';
+import { MELEE_STAND_OFF, meleeKey } from './melee';
 import type { BotState } from './state';
 
 /** What a fight wants this tick. */
@@ -46,7 +47,7 @@ export function fight(sim: Sim, p: Player, st: BotState, tune: BotTuning): Fight
   }
   const s = p.state;
   const dist = Math.hypot(target.state.x - s.x, target.state.z - s.z);
-  const weapon = chooseWeapon(sim, p, st, dist);
+  const weapon = chooseWeapon(sim, p, st, dist, tune);
   const w = WEAPONS[p.weapon]!;
   const aim = aimAt(sim, p, st, tune, target);
 
@@ -56,11 +57,22 @@ export function fight(sim: Sim, p: Player, st: BotState, tune: BotTuning): Fight
   const los = hasLineOfSight(sim.solids, s.x, s.y + EYE_HEIGHT, s.z, target.state.x, target.state.y + CHEST_Y, target.state.z);
   const ready = sim.phase === 'play' && sim.tick >= st.engageStart + tune.reactionTicks && aim.angleErr < cone && los &&
     sim.tick >= p.blindEnd && sim.tick >= target.protectUntil;
-  const fire = trigger(sim, p, st, tune, ready);
+  // The paper is swung with the attack keys (left click slash, right click heavy); every gun uses the trigger.
+  const melee = w.melee !== undefined;
+  const fire = melee ? meleeKey(sim, p, st, target, ready, dist, aim.angleErr) : trigger(sim, p, st, tune, ready);
   if (fire) st.lastFire = { tick: sim.tick, los };
 
-  let keys = fire | reloadKey(p, st, true);
-  if (aim.dist > ADS_DISTANCE || w.zoom >= 2) keys |= Key.Aim;
+  let keys = fire | (melee ? 0 : reloadKey(p, st, true));
+  // Right click is the heavy attack with the paper, so a bot never "aims" it.
+  if (!melee && (aim.dist > ADS_DISTANCE || w.zoom >= 2)) keys |= Key.Aim;
+
+  if (melee) {
+    // Close in and stay on the target; hold still while a swing is landing so it is not walked out of the cone.
+    if (dist > MELEE_STAND_OFF) keys |= Key.Forward;
+    if (dist > 6) keys |= Key.Sprint;
+    if (p.meleeAt === 0 && dist < 4) keys |= st.strafeDir > 0 ? Key.Right : Key.Left;
+    return { yaw: aim.yaw, pitch: aim.pitch, keys, weapon };
+  }
 
   // Dodge side to side and hold a range that suits the weapon.
   if (sim.tick >= st.strafeAt) {

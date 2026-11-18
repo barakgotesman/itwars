@@ -17,6 +17,9 @@ import { Room } from '@server/rooms/room';
 import { RoomManager } from '@server/rooms/manager';
 import { FLOOR, FULL_RULES, FakeConn, aimPitch, idle, makeRoom, mut, place, run, warm, type Who } from './helpers';
 
+/** Ownership bit of the A4 paper, which every player always has. */
+const PAPER = 1 << 5;
+
 let failed = 0;
 let passed = 0;
 
@@ -837,7 +840,7 @@ const lootEvents = (c: FakeConn): LootEv[] => c.events().filter((e): e is LootEv
   place(room, a.id, 0, -10);
   run(room, a, 3);
   check('hovering over the bag loots it automatically', lootEvents(a.conn).some((e) => e.k === 'lootTake' && e.by === a.id && e.from === b.id));
-  check('the bag holds half of what the victim carried (rounded down)', WEAPONS.every((w, i) => m.reserve[i] === Math.min(w.maxReserve, Math.floor(carried[i]! * LOOT_FRACTION))), `reserve=${m.reserve} carried=${carried}`);
+  check('the bag holds half of what the victim carried (rounded down)', WEAPONS.every((w, i) => (m.reserve[i] ?? 0) === Math.min(w.maxReserve, Math.floor(carried[i]! * LOOT_FRACTION))), `reserve=${m.reserve} carried=${carried}`);
   check('a lone grenade still drops (grenades round up)', m.gren[0] === 1 && m.gren[1] === 1);
   check('an emptied bag disappears', lootEvents(a.conn).some((e) => e.k === 'lootGone'));
 }
@@ -1023,7 +1026,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const b = add('B');
   warm(room);
   const m = mut(room, a.id);
-  check('default rules spawn the pistol only', m.guns === 1 && m.weapon === 0 && a.conn.snap?.me.guns === 1);
+  check('default rules spawn the pistol only', m.guns === (1 | PAPER) && m.weapon === 0 && a.conn.snap?.me.guns === (1 | PAPER));
   check('unowned guns carry no ammo', m.mag[1] === 0 && m.reserve[1] === 0 && m.mag[0] === WEAPONS[0]!.magSize);
   run(room, a, 4, { weapon: 1 });
   check('switching to a gun you have not found is ignored', m.weapon === 0);
@@ -1031,7 +1034,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   place(room, a.id, 10, 0);
   run(room, a, 2);
   const smg = WEAPONS[1]!;
-  check('a gun pickup grants the gun with a full magazine and half its reserve', m.guns === 0b11 && m.mag[1] === smg.magSize && m.reserve[1] === Math.floor(smg.maxReserve * 0.5), `guns=${m.guns} mag=${m.mag[1]} res=${m.reserve[1]}`);
+  check('a gun pickup grants the gun with a full magazine and half its reserve', m.guns === (0b11 | PAPER) && m.mag[1] === smg.magSize && m.reserve[1] === Math.floor(smg.maxReserve * 0.5), `guns=${m.guns} mag=${m.mag[1]} res=${m.reserve[1]}`);
   check('the pickup event names the gun', pickupEvents(a.conn).some((e) => e.kind === 'weapon' && e.w === 1 && e.got === 'gun'));
   check('the gun spot goes away like any box', a.conn.events().some((e) => e.k === 'pk' && !e.on));
   run(room, a, 4, { weapon: 1 });
@@ -1043,7 +1046,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   m.reserve[1] = 0;
   place(room, a.id, 10, 0);
   run(room, a, 2);
-  check('walking over a gun you own tops up only that gun', m.reserve[1] === Math.ceil(smg.maxReserve * PICKUP_DEFS.weapon.amount) && m.guns === 0b11 && m.reserve[2] === 0);
+  check('walking over a gun you own tops up only that gun', m.reserve[1] === Math.ceil(smg.maxReserve * PICKUP_DEFS.weapon.amount) && m.guns === (0b11 | PAPER) && m.reserve[2] === 0);
   check('the pickup event says it was ammo', pickupEvents(a.conn).some((e) => e.kind === 'weapon' && e.w === 1 && e.got === 'ammo'));
   place(room, a.id, 0, 0);
   idle(room, PICKUP_DEFS.weapon.respawnTicks + 2);
@@ -1074,7 +1077,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const drop = lootEvents(b.conn).find((e) => e.k === 'lootDrop');
   check('dying with a found gun in hand drops it in the bag', drop?.k === 'lootDrop' && drop.w === 1, `w=${drop?.k === 'lootDrop' ? drop.w : 'none'}`);
   const mb = mut(room, b.id);
-  check('the victim respawns without it', (() => { idle(room, RESPAWN_TICKS + 2); return m.guns === 1 && m.weapon === 0; })());
+  check('the victim respawns without it', (() => { idle(room, RESPAWN_TICKS + 2); return m.guns === (1 | PAPER) && m.weapon === 0; })());
   place(room, b.id, 0, -10);
   run(room, b, 3);
   check('looting a bag with a gun grants that gun', (mb.guns & 0b10) !== 0 && mb.mag[1] === smg.magSize, `guns=${mb.guns}`);
@@ -1130,7 +1133,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const a = add('A');
   warm(room);
   const m = mut(room, a.id);
-  check('full arsenal spawns with every gun, SMG in hand', m.guns === 0b1111 && m.weapon === 1 && WEAPONS.every((w, i) => m.mag[i] === (i === 4 ? 0 : w.magSize)));
+  check('full arsenal spawns with every gun, SMG in hand', m.guns === (0b1111 | PAPER) && m.weapon === 1 && WEAPONS.every((w, i) => m.mag[i] === (i === 4 ? 0 : w.magSize)));
   place(room, a.id, 10, 0);
   m.reserve[2] = 0;
   run(room, a, 2);
@@ -1142,7 +1145,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const a = add('A');
   warm(room);
   const m = mut(room, a.id);
-  check('the range starts with the pistol only', m.guns === 1 && m.weapon === 0);
+  check('the range starts with the pistol only (and the paper)', m.guns === (1 | PAPER) && m.weapon === 0);
   place(room, a.id, 5, 0);
   run(room, a, 2);
   check('an armory gun is picked up', (m.guns & 0b100) !== 0);
@@ -1400,6 +1403,150 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   for (let i = 0; i < MAX_PLAYERS; i++) full.join(new FakeConn(), `P${i}`);
   check('a room full of humans is listed but not joinable', mgr.list().find((r) => r.code === full.code)?.joinable === false);
   check('sanitizeRules keeps listed 0/1 and defaults the rest to listed', sanitizeRules({ ...DEFAULT_RULES, listed: 0 }).listed === 0 && sanitizeRules({ ...DEFAULT_RULES, listed: 5 }).listed === 1 && sanitizeRules({}).listed === 1);
+}
+
+// ---------------------------------------------------------------- the A4 paper: always owned, two swings, light
+
+{
+  const paper = WEAPONS[5]!;
+  const melee = paper.melee!;
+  check('the paper is a melee weapon with no ammo', melee !== undefined && paper.magSize === 0 && paper.maxReserve === 0);
+  check('two slashes kill from full health, one does not', melee.slash.damage * 2 >= MAX_HP && melee.slash.damage < MAX_HP);
+  check('the heavy stab kills in one hit, from a narrower cone but a longer reach', melee.heavy.damage >= MAX_HP && melee.heavy.halfArc < melee.slash.halfArc && melee.heavy.reach > melee.slash.reach);
+  check('the heavy stab winds up longer and recovers longer', melee.heavy.windup > melee.slash.windup && melee.heavy.interval > melee.slash.interval);
+  check('the paper is light: faster than walking with anything else', (paper.moveMul ?? 1) > 1 && WEAPONS.every((w, i) => i === 5 || (w.moveMul ?? 1) <= 1));
+  check('the paper has no zoom', paper.zoom === 1);
+
+  for (const [label, rules] of [['pistol only', DEFAULT_RULES], ['full arsenal', FULL_RULES], ['range', RANGE_RULES]] as const) {
+    const { room, add } = makeRoom([FLOOR], [], [], rules);
+    const a = add('Owner');
+    warm(room);
+    check(`${label}: everyone spawns owning the paper`, (mut(room, a.id).guns & 32) !== 0);
+  }
+
+  // Swinging: the slash, ammo, credit.
+  {
+    const { room, add } = makeRoom([FLOOR], [], [], DEFAULT_RULES);
+    const a = add('Cutter');
+    const b = add('Victim');
+    warm(room);
+    const m = mut(room, a.id);
+    m.weapon = 5;
+    place(room, a.id, 0, 0, 0, 0);
+    place(room, b.id, 0, -1.5, 0, 0);
+    const mb = mut(room, b.id);
+    const ammoBefore = [...m.mag, ...m.reserve].join();
+    run(room, a, 1, { keys: Key.Fire });
+    check('the click starts a wind-up that has not hurt anyone yet', mb.hp === MAX_HP && a.conn.events().some((e) => e.k === 'melee' && e.r === 0 && !e.heavy));
+    idle(room, melee.slash.windup + 2);
+    check('the slash lands and takes half the health', mb.hp === MAX_HP - melee.slash.damage, `hp=${mb.hp}`);
+    check('it announces a hit on the victim', a.conn.events().some((e) => e.k === 'melee' && e.r === 1 && e.to === b.id));
+    check('no ammo is spent', [...m.mag, ...m.reserve].join() === ammoBefore);
+    run(room, a, 1, { keys: 0 });
+    idle(room, melee.slash.interval + 2);
+    run(room, a, 1, { keys: Key.Fire });
+    idle(room, melee.slash.windup + 2);
+    check('the second slash kills', !mb.alive, `hp=${mb.hp}`);
+    check('the kill is credited to the paper', a.conn.events().some((e) => e.k === 'kill' && e.w === 5 && e.by === a.id && e.to === b.id));
+    check('the paper is never dropped as a loot gun', !a.conn.events().some((e) => e.k === 'lootDrop' && e.w === 5));
+  }
+
+  // The cone and the reach.
+  {
+    const { room, add } = makeRoom([FLOOR], [], [], DEFAULT_RULES);
+    const a = add('Cutter');
+    const b = add('Victim');
+    warm(room);
+    mut(room, a.id).weapon = 5;
+    const mb = mut(room, b.id);
+    const swing = (bx: number, bz: number, keys: number) => {
+      mb.hp = MAX_HP;
+      mb.alive = true;
+      place(room, a.id, 0, 0, 0, 0);
+      place(room, b.id, bx, bz, 0, 0);
+      idle(room, 80);
+      run(room, a, 1, { keys });
+      run(room, a, 1, { keys: 0 });
+      idle(room, 40);
+      return mb.hp;
+    };
+    check('a target within reach is cut', swing(0, -1.5, Key.Fire) < MAX_HP);
+    check('a target beyond reach is missed', swing(0, -3.5, Key.Fire) === MAX_HP);
+    check('a target behind is missed', swing(0, 1.5, Key.Fire) === MAX_HP);
+    check('a target far off to the side is missed', swing(2.0, -0.1, Key.Fire) === MAX_HP);
+    check('a target just off-centre is still cut', swing(0.8, -1.4, Key.Fire) < MAX_HP);
+    check('the heavy stab kills in one hit', swing(0, -1.8, Key.Aim) <= 0);
+    check('the heavy stab misses what the slash would catch off to the side', swing(1.2, -1.2, Key.Aim) === MAX_HP);
+    check('the heavy stab reaches further than the slash', swing(0, -2.5, Key.Aim) <= 0 && swing(0, -2.5, Key.Fire) === MAX_HP);
+  }
+
+  // A wall in the way.
+  {
+    const WALL: Aabb = { minX: -3, maxX: 3, minY: 0, maxY: 4, minZ: -1.1, maxZ: -1.0 };
+    const { room, add } = makeRoom([FLOOR, WALL], [], [], DEFAULT_RULES);
+    const a = add('Cutter');
+    const b = add('Victim');
+    warm(room);
+    mut(room, a.id).weapon = 5;
+    const mb = mut(room, b.id);
+    place(room, a.id, 0, 0, 0, 0);
+    place(room, b.id, 0, -1.8, 0, 0);
+    run(room, a, 1, { keys: Key.Fire });
+    idle(room, melee.slash.windup + 2);
+    check('a wall between them stops the swing', mb.hp === MAX_HP);
+  }
+
+  // Dodging the wind-up, and switching away.
+  {
+    const { room, add } = makeRoom([FLOOR], [], [], DEFAULT_RULES);
+    const a = add('Cutter');
+    const b = add('Victim');
+    warm(room);
+    mut(room, a.id).weapon = 5;
+    const mb = mut(room, b.id);
+    place(room, a.id, 0, 0, 0, 0);
+    place(room, b.id, 0, -1.8, 0, 0);
+    run(room, a, 1, { keys: Key.Aim });
+    run(room, a, 1, { keys: 0 });
+    idle(room, 10);
+    place(room, b.id, 4, -1.8, 0, 0); // steps out of the cone during the wind-up
+    idle(room, melee.heavy.windup);
+    check('stepping away during the heavy wind-up dodges it', mb.hp === MAX_HP);
+    check('the miss is announced', a.conn.events().some((e) => e.k === 'melee' && e.heavy && e.r === 2));
+
+    place(room, b.id, 0, -1.8, 0, 0);
+    idle(room, melee.heavy.interval);
+    run(room, a, 1, { keys: Key.Aim });
+    run(room, a, 3, { keys: 0, weapon: 0 });
+    idle(room, melee.heavy.windup + 4);
+    check('switching weapons cancels the swing', mb.hp === MAX_HP);
+  }
+
+  // Flooding the click gains nothing.
+  {
+    const { room, add } = makeRoom([FLOOR], [], [], DEFAULT_RULES);
+    const a = add('Cutter');
+    const b = add('Victim');
+    warm(room);
+    mut(room, a.id).weapon = 5;
+    place(room, a.id, 0, 0, 0, 0);
+    place(room, b.id, 0, -1.5, 0, 0);
+    const t0 = room.tick;
+    for (let i = 0; i < melee.slash.interval * 2; i++) run(room, a, 1, { keys: i % 2 ? Key.Fire : 0 });
+    const starts = a.conn.events().filter((e) => e.k === 'melee' && e.r === 0).length;
+    check('swings start no faster than the interval', starts <= Math.ceil((room.tick - t0) / melee.slash.interval) && starts >= 1, `starts=${starts} ticks=${room.tick - t0}`);
+  }
+
+  // Lighter in the hand.
+  {
+    const speedOf = (weapon: number) => {
+      const s = newPlayerState(0, 0, 0);
+      const cmd = { keys: Key.Forward, yaw: 0, pitch: 0, weapon };
+      for (let i = 0; i < 60; i++) stepMovement(s, cmd, TICK_DT, [FLOOR]);
+      return Math.hypot(s.vx, s.vz);
+    };
+    check('walking with the paper is faster than with the pistol', speedOf(5) > speedOf(0) * 1.1, `${speedOf(5)} vs ${speedOf(0)}`);
+  }
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -3,7 +3,7 @@
  */
 import { INTERMISSION_TICKS, MAX_HP, SPAWN_PROTECT_TICKS, SWITCH_TICKS, TICK_RATE } from '@shared/core/constants';
 import { newPlayerState } from '@shared/core/physics';
-import { loadoutOf, maskOf, ownsBit } from '@shared/rules/loadout';
+import { loadoutOf, ownsBit, spawnMask } from '@shared/rules/loadout';
 import { GRENADES, START_RESERVE_FRACTION, WEAPONS } from '@shared/rules/weapons';
 import type { Player } from './player';
 import type { Sim } from './state';
@@ -28,7 +28,8 @@ export function spawn(sim: Sim, p: Player): void {
   p.hp = MAX_HP;
   p.alive = true;
   const kit = loadoutOf(sim.rules.loadout);
-  p.guns = maskOf(kit.startWeapons);
+  p.guns = spawnMask(sim.rules.loadout);
+  p.meleeAt = 0;
   p.weapon = kit.startWeapons[0] ?? 0;
   // Unowned guns carry nothing: finding one on the map (or in a bag) is what fills these in.
   p.mag = WEAPONS.map((w, i) => (ownsBit(p.guns, i) ? w.magSize : 0));
