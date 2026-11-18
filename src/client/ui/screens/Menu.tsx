@@ -49,6 +49,8 @@ export function Menu({ onOpenSettings }: MenuProps) {
   const [browseOpen, setBrowseOpen] = useState(false);
   const [serverDown, setServerDown] = useState(false);
   const [pastLogo, setPastLogo] = useState(false);
+  /** The element that scrolls the landing page (the top bar follows its scroll position). */
+  const scroller = useRef<HTMLDivElement>(null);
   const [setupError, setSetupError] = useState('');
   const [capacity, setCapacity] = useState<ServerStatus | null>(null);
   const [lanUrl, setLanUrl] = useState(location.origin);
@@ -161,11 +163,12 @@ export function Menu({ onOpenSettings }: MenuProps) {
     <>
       <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen opacity-0 transition-opacity duration-1000" aria-hidden="true" />
       <div
+        ref={scroller}
         className="fixed inset-0 flex scroll-smooth flex-col overflow-y-auto"
         onScroll={(e) => setPastLogo(e.currentTarget.scrollTop > HERO_LOGO_PX)}
       >
         {serverDown && <ServerDownBanner />}
-        <TopBar onOpenSettings={onOpenSettings} showLogo={pastLogo} />
+        <TopBar onOpenSettings={onOpenSettings} showLogo={pastLogo} scroller={scroller} />
         <Hero
           previewCanvas={previewCanvas}
           model={look.model}
