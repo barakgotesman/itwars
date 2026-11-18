@@ -6,6 +6,7 @@
 import { KILLS_TO_WIN } from '@shared/core/constants';
 import { LOADOUT_IDS, LOADOUT_NAMES } from '@shared/rules/loadout';
 import { BOT_COUNTS, BOT_SKILLS, BOT_SKILL_NAMES, DEFAULT_BOT_SKILL, botSkillName } from '@shared/rules/bots';
+import { MAP_IDS, MAP_NAMES, mapName } from '@shared/world/map/map-info';
 
 /** Identifier of a game mode. Add new modes here as they are built. */
 export type ModeId = 'dm' | 'range';
@@ -32,13 +33,15 @@ export interface MatchRules {
   loadout: number;
   /** 1 shows the room in the lobby browser, 0 keeps it joinable by code only. */
   listed: number;
+  /** The arena, an index into `MAP_INFO` / `MAPS` (0 the office, 1 the Data Center). Ignored by the shooting range. */
+  map: number;
 }
 
 /** Rules used when the host does not choose any (and the fallback for anything invalid). */
-export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0, listed: 1 };
+export const DEFAULT_RULES: MatchRules = { mode: 'dm', killLimit: KILLS_TO_WIN, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0, listed: 1, map: 0 };
 
 /** Numeric rule fields a setup option can control. */
-export type RuleKey = 'killLimit' | 'timeLimitMin' | 'bots' | 'botSkill' | 'loadout' | 'listed';
+export type RuleKey = 'killLimit' | 'timeLimitMin' | 'bots' | 'botSkill' | 'loadout' | 'listed' | 'map';
 
 /** One option a mode shows on the setup screen. */
 export type OptionDef =
@@ -110,6 +113,10 @@ export const MODES: readonly ModeDef[] = [
     name: 'Deathmatch',
     blurb: 'Free-for-all. Frag everyone in the office. First to the kill limit wins.',
     options: [
+      {
+        kind: 'choice', key: 'map', group: 'Map', label: 'Map', choices: MAP_IDS, labels: MAP_NAMES, unit: '',
+        hint: 'Where the match is played. The setup screen shows the maps as cards with a picture; small maps suit two to four players.',
+      },
       { kind: 'choice', key: 'killLimit', group: 'Match', label: 'Kill limit', hint: 'First player to reach this many kills wins.', choices: KILL_LIMITS, unit: 'kills' },
       {
         kind: 'optional-choice', key: 'timeLimitMin', group: 'Match', label: 'Time limit', unit: 'min', choices: TIME_LIMITS_MIN, defaultOn: DEFAULT_TIME_LIMIT_MIN,
@@ -142,7 +149,7 @@ export const MODES: readonly ModeDef[] = [
 ];
 
 /** Fixed rules for the menu's one-click "Shooting Range" button: solo, no bots, unlimited ammo (see `server/sim/weapons.ts`/`grenades.ts`). */
-export const RANGE_RULES: MatchRules = { mode: 'range', killLimit: KILL_LIMITS[0]!, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0, listed: 0 };
+export const RANGE_RULES: MatchRules = { mode: 'range', killLimit: KILL_LIMITS[0]!, timeLimitMin: 0, bots: 0, botSkill: DEFAULT_BOT_SKILL, loadout: 0, listed: 0, map: 0 };
 
 /**
  * Turns anything a client sent into valid rules, falling back to the default for each field that is wrong.
@@ -157,7 +164,8 @@ export function sanitizeRules(raw: unknown): MatchRules {
   const botSkill = BOT_SKILLS.includes(r.botSkill as number) ? (r.botSkill as number) : DEFAULT_RULES.botSkill;
   const loadout = LOADOUT_IDS.includes(r.loadout as number) ? (r.loadout as number) : DEFAULT_RULES.loadout;
   const listed = r.listed === 0 || r.listed === 1 ? r.listed : DEFAULT_RULES.listed;
-  return { mode, killLimit, timeLimitMin, bots, botSkill, loadout, listed };
+  const map = MAP_IDS.includes(r.map as number) ? (r.map as number) : DEFAULT_RULES.map;
+  return { mode, killLimit, timeLimitMin, bots, botSkill, loadout, listed, map };
 }
 
 /**
@@ -167,5 +175,6 @@ export function describeRules(rules: MatchRules): string {
   const mode = MODES.find((m) => m.id === rules.mode)?.name ?? 'Deathmatch';
   const bots = rules.bots > 0 ? ` · ${rules.bots} ${rules.bots === 1 ? 'bot' : 'bots'} (${botSkillName(rules.botSkill).toLowerCase()})` : '';
   const kit = rules.loadout === 1 ? ' · full arsenal' : '';
-  return `${mode} · first to ${rules.killLimit}${rules.timeLimitMin > 0 ? ` · ${rules.timeLimitMin} min` : ' · no time limit'}${kit}${bots}`;
+  const arena = rules.mode === 'dm' && rules.map !== DEFAULT_RULES.map ? ` · ${mapName(rules.map)}` : '';
+  return `${mode}${arena} · first to ${rules.killLimit}${rules.timeLimitMin > 0 ? ` · ${rules.timeLimitMin} min` : ' · no time limit'}${kit}${bots}`;
 }

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Capture map pictures</title>
+    <style>
+      body { margin: 0; padding: 16px; background: #1b2230; color: #eee; font: 14px system-ui, sans-serif; }
+      #strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      #strip img { width: 480px; background: #0c111a; }
+    </style>
+  </head>
+  <body>
+    <!-- Dev only: served by `npm run dev` at /tools/maps.html. Renders one picture per map and saves public/maps/<id>.jpg. -->
+    <div id="status">Rendering...</div>
+    <div id="strip"></div>
+    <script type="module" src="./maps-page.ts"></script>
+  </body>
+</html>

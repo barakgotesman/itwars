@@ -4,7 +4,7 @@
  */
 
 /** Names of the available icons. */
-export type IconName = 'copy' | 'check' | 'settings' | 'exit' | 'prev' | 'next' | 'mode' | 'skull' | 'timer' | 'timerOff' | 'bot';
+export type IconName = 'copy' | 'check' | 'settings' | 'exit' | 'prev' | 'next' | 'mode' | 'skull' | 'timer' | 'timerOff' | 'bot' | 'map';
 
 /** The shapes of each icon, stroked at 1.25 px on a 16 x 16 grid. */
 const SHAPES: Record<IconName, string[]> = {
@@ -26,6 +26,8 @@ const SHAPES: Record<IconName, string[]> = {
   timerOff: ['M3 5.5h10v9H3z', 'M6 1.5h4', 'M8 1.5v4', 'M5.5 8l5 5M10.5 8l-5 5'],
   // A square robot head: computer players.
   bot: ['M3 5h10v8H3z', 'M8 1.5V5', 'M5.5 8.5h1M9.5 8.5h1', 'M6 11h4'],
+  // A floor plan: a room outline with a wall and a doorway: the map.
+  map: ['M1.5 2.5h13v11h-13z', 'M6 2.5v4.5M6 9.5v4', 'M6 8.5h5'],
 };
 
 /** Renders an icon at `size` CSS pixels. */

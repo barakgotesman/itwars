@@ -11,9 +11,9 @@ import { loadoutOf } from '@shared/rules/loadout';
 import { DEFAULT_RULES, type MatchRules } from '@shared/rules/modes';
 import type { PickupSpot } from '@shared/world/map/pickups';
 import { Doors } from '@shared/world/doors';
-import { DOORS, type DoorDef } from '@shared/world/map/door-layout';
-import { PICKUP_SPOTS, SOLIDS, SPAWNS } from '@shared/world/map';
-import { PICKUP_SPOTS as RANGE_PICKUPS, SOLIDS as RANGE_SOLIDS, SPAWNS as RANGE_SPAWNS, TARGETS as RANGE_TARGETS } from '@shared/world/map/range';
+import type { DoorDef } from '@shared/world/map/door-layout';
+import { mapFor } from '@shared/world/map/maps';
+import { TARGETS as RANGE_TARGETS } from '@shared/world/map/range';
 import { buildNavGrid, type NavGrid } from '@shared/world/nav';
 import { addBots, stepBots } from '@server/sim/bots';
 import type { BotState } from '@server/sim/bots/state';
@@ -42,13 +42,13 @@ export interface RoomOptions {
   rules?: MatchRules;
   /** Seed for the room's random numbers (spread, spawn colours). */
   seed?: number;
-  /** Collision geometry; defaults to the office. */
+  /** Collision geometry; defaults to the room's map (see `mapFor`). */
   solids?: readonly Aabb[];
-  /** Spawn points as `[x, z]`; defaults to the office spawns. */
+  /** Spawn points as `[x, z]`; defaults to the map's spawns. */
   spawns?: readonly (readonly [number, number])[];
-  /** Sliding doors; defaults to the office doors, or none when custom `solids` are given. */
+  /** Sliding doors; defaults to the map's doors, or none when custom `solids` are given. */
   doors?: readonly DoorDef[];
-  /** Pickup spots; defaults to the office pickups. */
+  /** Pickup spots; defaults to the map's pickups. */
   pickups?: readonly PickupSpot[];
   /**
    * Skips the lobby for bots and puts them straight into the match. Real rooms leave this off: bots wait
@@ -108,11 +108,13 @@ export class Room implements Sim {
     this.rng = makeRng(opts.seed ?? (Math.random() * 2 ** 32) >>> 0);
     this.rules = opts.rules ?? DEFAULT_RULES;
     const isRange = this.rules.mode === 'range';
-    this.doors = new Doors(opts.doors ?? (opts.solids || isRange ? [] : DOORS));
-    this.staticSolids = opts.solids ?? (isRange ? RANGE_SOLIDS : SOLIDS);
+    const map = mapFor(this.rules);
+    // Tests pass their own solids: those rooms get no doors unless the test also passes some.
+    this.doors = new Doors(opts.doors ?? (opts.solids ? [] : map.doors));
+    this.staticSolids = opts.solids ?? map.solids;
     this.solids = [...this.staticSolids, ...this.doors.boxes];
-    this.spawns = opts.spawns ?? (isRange ? RANGE_SPAWNS : SPAWNS);
-    this.spots = opts.pickups ?? (isRange ? RANGE_PICKUPS : PICKUP_SPOTS);
+    this.spawns = opts.spawns ?? map.spawns;
+    this.spots = opts.pickups ?? map.pickups;
     this.pickupReady = this.spots.map(() => 0);
     if (this.rules.bots > 0) addBots(this, opts.botsPlayImmediately === true);
     if (isRange) addRangeDummies(this, RANGE_TARGETS);

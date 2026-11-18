@@ -13,6 +13,7 @@ import { loadRules, saveRules } from '@client/platform/rules-storage';
 import { capacityNote } from '../components/CapacityPanel';
 import { Footer } from '../components/Footer';
 import { Chips } from '../components/Chips';
+import { MapPicker } from '../components/MapPicker';
 import { Toggle } from '../components/controls';
 import { RulesSummary } from '../components/RulesSummary';
 import { SetupRow } from '../components/SetupRow';
@@ -116,7 +117,8 @@ export function Setup({ capacity, busy, error, onCreate, onClose }: SetupProps) 
   const current = capacity && base.bots > capacity.botsAvailable ? { ...base, bots: capacity.botsAvailable } : base;
   const mode = hostableModes.find((m) => m.id === current.mode) ?? hostableModes[0]!;
   // Options that depend on another (bot skill needs bots) appear only while that one is on.
-  const options = mode.options.filter((o) => o.kind !== 'choice' || !o.dependsOn || current[o.dependsOn] > 0);
+  // The map is shown as cards (`MapPicker`) rather than a row, so it is left out of the generated panels.
+  const options = mode.options.filter((o) => o.key !== 'map' && (o.kind !== 'choice' || !o.dependsOn || current[o.dependsOn] > 0));
   const groups = groupOptions(options);
 
   return (
@@ -171,6 +173,12 @@ export function Setup({ capacity, busy, error, onCreate, onClose }: SetupProps) 
           </div>
           <p className="text-xs text-dim">{mode.blurb}</p>
         </section>
+        {mode.options.some((o) => o.key === 'map') && (
+          <section className="flex flex-col gap-1.5">
+            <h3 className="label">Map</h3>
+            <MapPicker value={current.map} onPick={(map) => setRules({ ...current, map })} />
+          </section>
+        )}
         {groups.map((g) => (
           <section key={g.group} className="flex flex-col gap-1.5">
             <h3 className="label">{g.group}</h3>

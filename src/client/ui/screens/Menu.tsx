@@ -156,6 +156,8 @@ export function Menu() {
   return (
     <>
       <canvas ref={backdropCanvas} className="pointer-events-none fixed inset-0 h-screen w-screen opacity-0 transition-opacity duration-1000" aria-hidden="true" />
+      {/* Soft vignette over the backdrop: darkens the corners so the 3D view recedes behind the page. */}
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,rgba(11,13,18,0.55)_100%)]" aria-hidden="true" />
       <div
         ref={scroller}
         className="fixed inset-0 flex scroll-smooth flex-col overflow-y-auto"

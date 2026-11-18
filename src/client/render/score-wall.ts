@@ -50,7 +50,7 @@ export class ScoreWall {
    * @param rules - The room's rules (kill limit and time limit).
    * @param myId - The local player's id, so their row is highlighted (-1 in the menu backdrop).
    */
-  constructor(scene: THREE.Scene, rules: { killLimit: number; timeLimitMin: number }, myId = -1) {
+  constructor(scene: THREE.Object3D, rules: { killLimit: number; timeLimitMin: number }, myId = -1) {
     this.canvas.width = W;
     this.canvas.height = H;
     this.g = this.canvas.getContext('2d')!;

@@ -251,17 +251,24 @@ export interface World {
   lightField: LightField;
   /** The live scoreboards on the walls. */
   scoreWall: ScoreWall;
+  /** Group holding every mesh of this world; hide it to take the map out of a frame without freeing it. */
+  root: THREE.Group;
+  /** Removes the world from its parent and frees its geometry, materials and textures. */
+  dispose(): void;
 }
 
 /**
- * Builds the office meshes into the scene. Boxes are merged per material, subdivided so baked
- * lighting has enough vertices, and lit once at load.
- * @param scene - Scene to add the office to.
+ * Builds the active map's meshes (see `active-map.ts`; set the map right before calling this). Boxes are merged
+ * per material, subdivided so baked lighting has enough vertices, and lit once at load. Everything goes into one
+ * group, so several worlds can live in the same scene and be shown, hidden and freed independently.
+ * @param scene - Scene (or group) to add the world to.
  * @param rules - The room's rules, so the signs and boards show the real kill limit.
  * @param myId - The local player's id (highlighted on the scoreboards); -1 when not in a room.
  * @returns Handle for per-frame animation.
  */
-export function buildWorld(scene: THREE.Scene, rules: MatchRules = DEFAULT_RULES, myId = -1): World {
+export function buildWorld(scene: THREE.Object3D, rules: MatchRules = DEFAULT_RULES, myId = -1): World {
+  const root = new THREE.Group();
+  scene.add(root);
   // Tall solids block light and cast contact shadows; floors and low furniture do not.
   const occluders = SOLIDS.filter((b) => b.maxY - b.minY > 1.0 && b.maxY > 0.5);
   const model = makeLightModel(LIGHTS, occluders);
@@ -297,7 +304,7 @@ export function buildWorld(scene: THREE.Scene, rules: MatchRules = DEFAULT_RULES
     });
     const mesh = new THREE.Mesh(mergeGeometries(geos)!, mat);
     if (def.opacity !== undefined) mesh.renderOrder = 1;
-    scene.add(mesh);
+    root.add(mesh);
 
     if (id === 'lightFlicker') {
       // Mostly on, with brief stutters like a dying tube.
@@ -315,14 +322,27 @@ export function buildWorld(scene: THREE.Scene, rules: MatchRules = DEFAULT_RULES
     }
   }
 
-  buildSigns(scene, (m) => MATERIALS[m].color, rules);
-  const scoreWall = new ScoreWall(scene, rules, myId);
+  buildSigns(root, (m) => MATERIALS[m].color, rules);
+  const scoreWall = new ScoreWall(root, rules, myId);
 
   return {
     lightField: new LightField(model),
     scoreWall,
+    root,
     update(t) {
       for (const a of animated) a.mat.color.copy(a.base).multiplyScalar(a.fn(t));
+    },
+    dispose() {
+      root.removeFromParent();
+      root.traverse((o) => {
+        if (!(o instanceof THREE.Mesh)) return;
+        o.geometry.dispose();
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          // Generated canvas textures are not freed by disposing the material.
+          (m as THREE.MeshBasicMaterial).map?.dispose();
+          m.dispose();
+        }
+      });
     },
   };
 }

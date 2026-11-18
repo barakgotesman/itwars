@@ -19,7 +19,7 @@ const CELL_H = 90;
  * @param colorOf - Colour of an accent material, used as the sign's background.
  * @param rules - The room's rules; `{KILLS}` and `{MINUTES}` in a sign's text become the real numbers.
  */
-export function buildSigns(scene: THREE.Scene, colorOf: (m: MaterialId) => number, rules: { killLimit: number; timeLimitMin: number }): void {
+export function buildSigns(scene: THREE.Object3D, colorOf: (m: MaterialId) => number, rules: { killLimit: number; timeLimitMin: number }): void {
   buildSignSet(scene, LABELS.filter((l) => !l.glow), false, colorOf, rules);
   buildSignSet(scene, LABELS.filter((l) => l.glow), true, colorOf, rules);
 }
@@ -29,7 +29,7 @@ export function buildSigns(scene: THREE.Scene, colorOf: (m: MaterialId) => numbe
  * near-black plate and render brighter than white, so the bloom pass makes them shine in a dark room.
  */
 function buildSignSet(
-  scene: THREE.Scene, labels: readonly (typeof LABELS)[number][], glow: boolean,
+  scene: THREE.Object3D, labels: readonly (typeof LABELS)[number][], glow: boolean,
   colorOf: (m: MaterialId) => number, rules: { killLimit: number; timeLimitMin: number },
 ): void {
   const textOf = (l: (typeof LABELS)[number]) => fillRuleTokens(l.text, rules);

@@ -5,6 +5,7 @@
  */
 import { MODES, type MatchRules } from '@shared/rules/modes';
 import { botSkillName } from '@shared/rules/bots';
+import { mapName } from '@shared/world/map/map-info';
 import { GunIcon } from './GunIcon';
 import { Icon, type IconName } from './Icon';
 
@@ -61,6 +62,12 @@ export function RulesSummary({ rules }: { rules: MatchRules }) {
       <Item title={modeName}>
         <IconValue icon="mode" />
       </Item>
+      {rules.mode === 'dm' && (
+        <Item title={`Map: ${mapName(rules.map)}`}>
+          <IconValue icon="map" />
+          <span className="text-sm font-black">{mapName(rules.map)}</span>
+        </Item>
+      )}
       {/* One block per topic, in the same order and grouping as the setup panels below (Match, Weapons, Players). */}
       <Cluster>
         <Item title={`First to ${rules.killLimit} kills`}>

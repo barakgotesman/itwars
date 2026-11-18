@@ -22,26 +22,18 @@ import { ViewModel } from '@client/render/viewmodel';
 import { Tracers } from '@client/render/weapon-fx';
 import { Atmosphere } from '@client/render/atmosphere';
 import { PICKUP_SPOTS, SOLIDS, setActiveMap } from '@client/render/active-map';
+import { mapFor } from '@shared/world/map/maps';
 import { addPodium, type PodiumEntry, type PodiumScene } from '@client/render/podium';
 import { buildWorld } from '@client/render/world';
 import type { Hud } from './ports';
 
-/** World point the post-match podium stands on: the lobby's open waiting area, between its two pillars and
- *  clear of the reception desk. Fixed regardless of the mode so it is the same for every room (DM only). */
-const PODIUM_ORIGIN = { x: 0, z: 20 };
-/** Camera transform while the podium is shown: close and roughly eye-level, so the models and the lobby
- *  signage behind them read clearly instead of shrinking into the player's normal, wider field of view. */
-const PODIUM_CAMERA_POS = new THREE.Vector3(0, 2.3, 12.5);
-const PODIUM_CAMERA_LOOK = new THREE.Vector3(0, 1.3, 20);
+/** Camera field of view while the podium is shown: narrow, so the models and the signage behind them read clearly
+ *  instead of shrinking into the player's normal, wider field of view. Where it stands and where the camera sits
+ *  is per map (`MapDef.podium`). */
 const PODIUM_FOV = 40;
 /** How far the room's own lights are dimmed while the podium is lit, so its own spotlights still stand out
  *  without making the room go black. */
 const PODIUM_DIM = 0.4;
-/** Fog held a little darker and thicker than the lobby's own while the podium is up, just enough to soften
- *  the background; the normal per-room atmosphere is suspended for this (see `game/loop.ts`), otherwise it
- *  would ease the fog straight back to the lobby's own look every frame. */
-const PODIUM_FOG_COLOR = new THREE.Color(0x242a36);
-const PODIUM_FOG_DENSITY = 0.016;
 
 /** Controls the post-match podium: building it into the real scene and swapping the camera to view it. */
 export interface PodiumControl {
@@ -100,7 +92,13 @@ const concatSolids = (doors: Doors): readonly Aabb[] => [...SOLIDS, ...doors.box
  * @param hud - The HUD, so the FPS counter follows the settings.
  */
 export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: Hud): SceneHandle {
-  setActiveMap(joined.rules.mode);
+  const map = mapFor(joined.rules);
+  setActiveMap(map);
+  // The map's podium: where it stands, where the camera sits and the fog held while it is up (the normal per-room
+  // atmosphere is suspended for this, see `game/loop.ts`, otherwise it would ease the fog straight back).
+  const podiumCamPos = new THREE.Vector3(...map.podium.camPos);
+  const podiumCamLook = new THREE.Vector3(...map.podium.camLook);
+  const podiumFogColor = new THREE.Color(map.podium.fogColor);
   const myId = joined.id;
   const view = { baseFov: settings.fov };
 
@@ -144,8 +142,8 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
   const lootBags = new LootVisuals(scene);
   const bulletHoles = new BulletHoles(scene);
   const sprays = new Sprays(scene);
-  // The range has no doors; the server's range room has none either, so the client must not invent the office's.
-  const doors = new Doors(joined.rules.mode === 'range' ? [] : undefined);
+  // The same door layout the server's room uses for this map (the range has none).
+  const doors = new Doors(map.doors);
   doors.applyWire(joined.doors);
   const doorVisuals = new DoorVisuals(scene, doors);
   const solids = concatSolids(doors);
@@ -158,7 +156,7 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
     active: false,
     show(entries) {
       podiumScene?.dispose();
-      podiumScene = addPodium(scene, PODIUM_ORIGIN, entries);
+      podiumScene = addPodium(scene, map.podium.origin, entries);
       // Dim the room's own light so the podium's own spotlights do the work.
       hemi.intensity = baseHemi * PODIUM_DIM;
       sun.intensity = baseSun * PODIUM_DIM;
@@ -175,17 +173,17 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
     },
     update(cam, t) {
       podiumScene?.update(t);
-      cam.position.copy(PODIUM_CAMERA_POS);
-      cam.lookAt(PODIUM_CAMERA_LOOK);
+      cam.position.copy(podiumCamPos);
+      cam.lookAt(podiumCamLook);
       if (cam.fov !== PODIUM_FOV) {
         cam.fov = PODIUM_FOV;
         cam.updateProjectionMatrix();
       }
       // Held here every frame: the normal per-room atmosphere is suspended while the podium is up (it would
-      // otherwise ease this straight back to the lobby's bright daylight fog).
-      fog.color.copy(PODIUM_FOG_COLOR);
-      fog.density = PODIUM_FOG_DENSITY;
-      if (scene.background instanceof THREE.Color) scene.background.copy(PODIUM_FOG_COLOR);
+      // otherwise ease this straight back to the room's own fog).
+      fog.color.copy(podiumFogColor);
+      fog.density = map.podium.fogDensity;
+      if (scene.background instanceof THREE.Color) scene.background.copy(podiumFogColor);
     },
   };
 

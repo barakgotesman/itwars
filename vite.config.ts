@@ -55,8 +55,37 @@ function saveCharacters(): Plugin {
   };
 }
 
+/**
+ * Dev only: lets `tools/maps.html` save the map pictures it renders into `public/maps/` (same slug rule as above).
+ */
+function saveMaps(): Plugin {
+  return {
+    name: 'save-maps',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__save-map', (req, res) => {
+        const slug = (req.url ?? '').replace(/^\//, '');
+        if (req.method !== 'POST' || !/^[a-z-]+$/.test(slug)) {
+          res.statusCode = 400;
+          res.end();
+          return;
+        }
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          const dataUrl = Buffer.concat(chunks).toString('utf8');
+          const dir = fileURLToPath(new URL('./public/maps/', import.meta.url));
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(`${dir}${slug}.jpg`, Buffer.from(dataUrl.replace(/^data:image\/jpeg;base64,/, ''), 'base64'));
+          res.end('ok');
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), siteUrlTags(), saveCharacters()],
+  plugins: [react(), tailwindcss(), siteUrlTags(), saveCharacters(), saveMaps()],
   resolve: {
     alias: {
       '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),

@@ -1,55 +1,54 @@
 /**
- * Which map the client is currently rendering. Map data is otherwise a set of frozen module-level
- * exports (the office in `@shared/world/map`, the practice range in `@shared/world/map/range`); this
- * module holds live, swappable bindings to the active one so `world.ts`, `lighting.ts`, `atmosphere.ts`,
+ * Which map the client is currently rendering. Map data is a `MapDef` in `@shared/world/map/maps`; this module
+ * holds live, swappable bindings to the active one so `world.ts`, `lighting.ts`, `atmosphere.ts`,
  * `light-field.ts`, `signs.ts` and `score-wall.ts` don't need the map threaded through every call.
- * `scene.ts` calls `setActiveMap` once, before anything else reads map data.
+ * `scene.ts` calls `setActiveMap` once, before anything else reads map data; the menu backdrop calls it again
+ * before building each of its maps (always set the map immediately before `buildWorld`).
  */
 import type { Aabb } from '@shared/core/physics';
-import type { ModeId } from '@shared/rules/modes';
-import * as office from '@shared/world/map';
-import { X0, X1, Z0, Z1 } from '@shared/world/map/builder';
-import * as range from '@shared/world/map/range';
-import { zoneAt as officeZoneAt, type Zone } from '@shared/world/map/zones';
+import { MAPS, type MapDef } from '@shared/world/map/maps';
+import type { Zone } from '@shared/world/map/zones';
 
-const OFFICE_BOUNDS = { x0: X0, x1: X1, z0: Z0, z1: Z1 };
+let active: MapDef = MAPS[0]!;
 
-/** Collision boxes; what `stepMovement` receives (the range's firing-line barrier is a plain `Aabb`, not a `MapBox`, since it is never drawn). */
-export let SOLIDS: readonly Aabb[] = office.SOLIDS;
+/** Collision boxes; what `stepMovement` receives. */
+export let SOLIDS: readonly Aabb[] = active.solids;
 /** Every box in the active map, solid or decorative. */
-export let MAP_BOXES = office.MAP_BOXES;
+export let MAP_BOXES = active.boxes;
 /** Baked light sources the client turns into vertex lighting. */
-export let LIGHTS = office.LIGHTS;
+export let LIGHTS = active.lights;
 /** Door nameplates, banners, wall plaques and (for the range) distance markers. */
-export let LABELS = office.LABELS;
+export let LABELS = active.labels;
 /** Live scoreboard screens. */
-export let BOARDS = office.BOARDS;
+export let BOARDS = active.boards;
 /** Pickup spots, in protocol order. */
-export let PICKUP_SPOTS = office.PICKUP_SPOTS;
+export let PICKUP_SPOTS = active.pickups;
 
-let mode: ModeId = 'dm';
-let bounds = OFFICE_BOUNDS;
+/**
+ * Switches every export above to the given map. Call before any map data is read, and again immediately before
+ * building a different map's world.
+ */
+export function setActiveMap(next: MapDef): void {
+  active = next;
+  SOLIDS = next.solids;
+  MAP_BOXES = next.boxes;
+  LIGHTS = next.lights;
+  LABELS = next.labels;
+  BOARDS = next.boards;
+  PICKUP_SPOTS = next.pickups;
+}
 
-/** Switches every export above to the given mode's map. Call once, before any map data is read. */
-export function setActiveMap(next: ModeId): void {
-  mode = next;
-  const m = mode === 'range' ? range : office;
-  SOLIDS = m.SOLIDS;
-  MAP_BOXES = m.MAP_BOXES;
-  LIGHTS = m.LIGHTS;
-  LABELS = m.LABELS;
-  BOARDS = m.BOARDS;
-  PICKUP_SPOTS = m.PICKUP_SPOTS;
-  bounds = mode === 'range' ? range.BOUNDS : OFFICE_BOUNDS;
+/** The map currently active. */
+export function activeMap(): MapDef {
+  return active;
 }
 
 /** The active map's bounding box, for the client's light-field grid. */
 export function mapBounds(): { x0: number; x1: number; z0: number; z1: number } {
-  return bounds;
+  return active.bounds;
 }
 
 /** The zone containing a point, in the active map. */
 export function zoneAt(x: number, z: number): Zone {
-  if (mode === 'range') return range.ZONES.find((z0) => x >= z0.x0 && x < z0.x1 && z >= z0.z0 && z < z0.z1) ?? range.ZONES[0]!;
-  return officeZoneAt(x, z);
+  return active.zoneAt(x, z);
 }

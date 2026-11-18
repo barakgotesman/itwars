@@ -1181,7 +1181,7 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
   const dm = MODES[0]!.options;
   const groups = groupOptions(dm);
   check('grouping keeps every option exactly once', groups.flatMap((g) => g.options).length === dm.length && dm.every((o) => groups.some((g) => g.options.includes(o))));
-  check('groups keep registry order', groups.map((g) => g.group).join(',') === 'Match,Weapons,Players,Visibility' || groups.map((g) => g.group).join(',') === 'Match,Players,Weapons,Visibility', groups.map((g) => g.group).join(','));
+  check('groups keep registry order', groups.map((g) => g.group).join(',') === 'Map,Match,Weapons,Players,Visibility' || groups.map((g) => g.group).join(',') === 'Map,Match,Players,Weapons,Visibility', groups.map((g) => g.group).join(','));
   check('bot skill sits in the same group as bots', groups.some((g) => g.options.some((o) => o.key === 'bots') && g.options.some((o) => o.key === 'botSkill')));
 }
 

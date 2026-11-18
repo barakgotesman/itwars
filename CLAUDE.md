@@ -14,7 +14,7 @@ Playable. Milestones 1-5 are built and the game runs end to end on a LAN (host, 
 - **LAN multiplayer**: a player hosts a room and gets a **room code**; others on the same network join with it.
 - Mode: **Deathmatch (DM)**; the host picks the loadout (next line), the kill limit (10/20/30/40/50, default 50) and an optional time limit (off by default; 5/10/15/20/30 min, 10 when switched on). Max 8 players per room, match restarts 10 s after it ends. Modes are a registry (`shared/rules/modes.ts`) so future modes/mods plug in.
 - **5 gun types** (four standard guns plus the **RPG**), the always-owned **A4 Paper** melee weapon (key 6), **2 grenade slots**, **100 HP**. Under the default **Loadout** ("Pistol only") everyone spawns with the Stapler .45 and finds the other guns as **3D pickups** placed in specific rooms; the host can pick "Full arsenal" on the setup screen to spawn with the four standard guns. The RPG is never in a spawn kit: it is found in the Server room under every loadout.
-- **Map**: a big office with rooms *and* open-plan space. **3D pickups**: ammo, HP, grenades.
+- **Maps**: the host picks the map in setup (`MatchRules.map`, an index into `MAP_INFO`/`MAPS`): **The Office** (default, big office with rooms *and* open-plan space) or the small **Data Center** (32 x 26 m, 2-4 players). See "Maps" below. **3D pickups**: ammo, HP, grenades.
 - **Main menu** with a **settings screen**; **rebindable controls**.
 - **60 FPS is a must.** Graphics are chosen once per computer (see "Graphics quality") and must never change while the player is playing.
 - Everything is **blocky** (voxel look): models, particles, tracers, explosions, bullet holes.
@@ -38,6 +38,7 @@ npm run test:smoke     # real server + two WebSocket clients
 npm run test:settings  # key rebinding rules and option defaults
 npm run test:quality   # graphics calibration and hardware guess
 npm run test:boards    # standings helpers, sign text templates, feed-line text, boards on free wall, one outward door sign per doorway
+npm run test:maps      # every selectable map: spawns/pickups free and reachable, doors, zones, lamps, boards, podium floor, `map` rule validation, bot rooms on each map
 npm run test:zones     # lighting design: zones tile the map, sane values, lamp budget, no lamp buried in a solid
 npm run make:icons     # regenerate public/ icons and the og-image from the pixel-art sprite (tools/make-icons.ts)
 ```
@@ -180,6 +181,13 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 ### Bullet holes
 - The server emits a `hole` event for **every** pellet that hits a surface (position + face normal), so all players see the same holes. Client draws black blocky decals that last ~15 s and shrink away in steps. No holes on players or open air.
 
+### Maps (registry)
+- `shared/world/map/maps.ts` holds one `MapDef` per map (solids, boxes, lights, labels, boards, pickups, spawns, doors, zones + `zoneAt`, bounds, `podium` spec, menu `backdrop` camera, `shot` camera for the setup picture). `MAPS` = selectable maps in `MAP_INFO` order (`map-info.ts`, geometry-free names/blurbs so UI and rules can list maps); `RANGE_MAP` is the shooting range's own map; `mapFor(rules)` resolves a room's map (range mode always uses the range). The server (`Room` constructor), the in-game client (`game/scene.ts`, `render/active-map.ts` `setActiveMap(mapDef)`), the podium and the menu backdrop all read the same `MapDef`. `sanitizeRules` falls back to the office for an unknown `map`.
+- **Add a map**: build it in its own module with `createLocalMap()` (`map/local-builder.ts`: local box/light/label/board registries, never the office's shared ones), keep it inside the office footprint (x -50..50, z -35..35) because the nav grid is fixed to that window, give it >= 8 spawns, pickups (no RPG unless intended), doors (`DoorDef[]`, index = wire id), zones, a clear ~11 x 5 m podium spot with camera run-back, then add an entry to `MAP_INFO` and `MAPS`, run `npm run test:maps`, and regenerate pictures (below).
+- **Data Center** (`map/datacenter.ts`): two rack blocks either side of a full-width central bay (podium at the origin), control room (glass door) north, tape vault (door) south-east, 12 spawns, 14 pickups, no RPG spot. Cold blue baked lighting, 29 lamps.
+- **Setup picture per map**: `public/maps/<id>.jpg`, rendered with the game's own world builder. Run `npm run dev`, open `http://localhost:5173/tools/maps.html` (dev-only `save-maps` plugin in `vite.config.ts` writes the JPEGs); each map's `shot` camera decides the view (no scoreboards in frame). Commit them like the character portraits. `ui/components/MapPicker.tsx` shows them as cards.
+- **Menu backdrop** (`render/menu-backdrop.ts`): one renderer, each map built once into its own scene (first after the menu paints, the rest in later tasks), camera drifts along each map's `backdrop` lane, every 26 s a 1.6 s crossfade (two render targets + a blend quad, only during the fade). Frozen while the tab is hidden; no cycling under reduced motion. `buildWorld` returns `{root, dispose}`; always `setActiveMap(map)` right before `buildWorld`.
+
 ### Map: "The Office" (about 100 x 70 m, ceiling 4.2 m)
 - Open-plan centre with 12 cubicle pods and a lounge; north row of rooms (Executive, meeting rooms, Server room, Print room, IT Helpdesk); south row (Break room, Storage, Lobby, Conference, phone booths). 3.2 m doors.
 - Generated from boxes; the client merges them per material. Keep decorative-only boxes `solid: false`. Every spawn and pickup must pass `npm run verify:map`.
@@ -269,6 +277,8 @@ Damage, falloff, reload, recoil and zoom are data in `shared/rules/weapons.ts`; 
 6. Polish and public demo deploy (Fly.io / Render): in progress / not started (deploy).
 
 ## Known gaps
+
+- Maps / Data Center: the rules, geometry checks and bot rooms are covered by `test:maps`, and the map was rendered in a real browser (pictures, setup cards, a Data Center room created with bots). **Not played**: a live match on the Data Center (balance of spawns, pickups, rack cover, door feel), its podium framing, the menu backdrop crossfade timing (the automation tab runs at ~1.5 FPS, so the 26 s hold was not watched), and other-device performance of the backdrop's extra scene.
 
 - Lobby browser: `RoomManager.list()` and `/api/rooms` are covered by `test:sim` and `test:smoke`; the screen was checked in a real browser (two rooms listed, hidden room absent, Join entered the room) but not with several humans and not the long-running refresh, empty or server-down states.
 
