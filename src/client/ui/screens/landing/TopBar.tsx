@@ -1,6 +1,5 @@
 /**
- * The slim bar pinned to the top: the small logo on the left, anchor links to the sections and the Settings
- * button on the right. The logo only fades in once the hero's big logo has scrolled out of view, so the two
+ * The slim bar pinned to the top: the small logo on the left and anchor links to the sections on the right. The logo only fades in once the hero's big logo has scrolled out of view, so the two
  * never show together. While the page scrolls the bar follows along: the link of the section you are in lights up
  * with a yellow underline, a thin yellow line under the bar fills with how far down the page you are, and the bar
  * gains an edge and a shadow once it leaves the top. The scroll position is read straight from the page's scroller
@@ -11,8 +10,6 @@ import { Logo } from '../../components/Logo';
 
 /** Props for {@link TopBar}. */
 interface TopBarProps {
-  /** Opens the settings screen. */
-  onOpenSettings(): void;
   /** True once the hero's own logo is off screen. */
   showLogo: boolean;
   /** The element that scrolls the landing page. */
@@ -33,7 +30,7 @@ const ACTIVE_LINE_PX = 160;
 const EDGE_AFTER_PX = 8;
 
 /** The top bar. */
-export function TopBar({ onOpenSettings, showLogo, scroller }: TopBarProps) {
+export function TopBar({ showLogo, scroller }: TopBarProps) {
   const [active, setActive] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const progress = useRef<HTMLDivElement>(null);
@@ -99,7 +96,6 @@ export function TopBar({ onOpenSettings, showLogo, scroller }: TopBarProps) {
               </a>
             );
           })}
-          <button type="button" className="btn-quiet" onClick={onOpenSettings}>Settings</button>
         </nav>
       </div>
       {/* How far down the page you are. */}

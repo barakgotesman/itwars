@@ -39,7 +39,7 @@ export function App() {
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_center,transparent_60%,rgba(0,0,0,0.45)_100%)]" />
       {room && locked && <Crosshair />}
       <HudView />
-      {!room && <Menu onOpenSettings={openSettings} />}
+      {!room && <Menu />}
       {room && !locked && !podiumActive && <Room onOpenSettings={openSettings} />}
       <PodiumView />
       {settingsOpen && <Settings onClose={() => appStore.set({ settingsOpen: false })} />}

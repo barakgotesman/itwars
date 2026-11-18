@@ -26,12 +26,6 @@ import { TopBar } from './landing/TopBar';
 import { LobbyBrowser } from './LobbyBrowser';
 import { Setup } from './Setup';
 
-/** Props for {@link Menu}. */
-interface MenuProps {
-  /** Opens the settings screen. */
-  onOpenSettings(): void;
-}
-
 /** Scroll distance after which the hero's big logo is out of view and the top bar shows its own. */
 const HERO_LOGO_PX = 200;
 
@@ -39,7 +33,7 @@ const HERO_LOGO_PX = 200;
 const SERVER_CHECK_MS = 4000;
 
 /** The main menu screen. */
-export function Menu({ onOpenSettings }: MenuProps) {
+export function Menu() {
   const [name, setName] = useState(initialName);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -168,7 +162,7 @@ export function Menu({ onOpenSettings }: MenuProps) {
         onScroll={(e) => setPastLogo(e.currentTarget.scrollTop > HERO_LOGO_PX)}
       >
         {serverDown && <ServerDownBanner />}
-        <TopBar onOpenSettings={onOpenSettings} showLogo={pastLogo} scroller={scroller} />
+        <TopBar showLogo={pastLogo} scroller={scroller} />
         <Hero
           previewCanvas={previewCanvas}
           model={look.model}
