@@ -153,16 +153,18 @@ export function buildGunInto(g: THREE.Object3D, w: number): void {
 }
 
 /**
- * The A4 sheet as others see it: a thin white slab held by its short edge in the hand and stood on its long edge, with
- * a pale cutting edge at the front and a few text lines and a red stamp a few mm proud of both faces.
+ * The A4 sheet as others see it: a slab of ruled notebook paper held by its short edge in the hand and stood on its long
+ * edge, with a pale cutting edge at the front and thin rules and a red margin line a few mm proud of both faces.
  */
 function buildPaperInto(g: THREE.Object3D): void {
-  // Barrel direction is -Y and up is -Z here: 0.297 m along the aim, 0.21 m tall, 8 mm thick.
-  part(g, 0xf4f4f1, 0.008, 0.297, 0.21, 0, -0.17, 0);
-  part(g, 0xd9dde2, 0.01, 0.008, 0.21, 0, -0.318, 0);
-  for (const x of [-0.006, 0.006]) {
-    for (const y of [-0.08, -0.14, -0.2]) part(g, 0x8d949c, 0.004, 0.008, 0.14, x, y, 0.02);
-    part(g, 0xc0392b, 0.004, 0.06, 0.04, x, -0.26, -0.05);
+  // Barrel direction is -Y and up is -Z here: 0.297 m along the aim, 0.21 m tall, 8 mm thick. Ruled notebook paper: thin
+  // cyan rules and a red margin line sink 0.5 mm into the sheet and stand 3 mm proud of both faces, so no two faces
+  // share a plane.
+  part(g, 0xe9efff, 0.008, 0.297, 0.21, 0, -0.17, 0);
+  part(g, 0xc4cee6, 0.012, 0.008, 0.214, 0, -0.318, 0);
+  for (const x of [-0.005, 0.005]) {
+    for (let i = 0; i < 28; i++) part(g, 0x7fd0f5, 0.0035, 0.0012, 0.206, x, -0.045 - i * 0.009, 0);
+    part(g, 0xe0476a, 0.0045, 0.28, 0.0018, x * 1.1, -0.17, -0.075);
   }
 }
 

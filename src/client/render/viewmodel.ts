@@ -365,22 +365,28 @@ function buildGun(weapon: number, glints: THREE.Texture[]): GunRig {
       };
     }
     case MELEE_WEAPON: {
-      // A4 Paper: a white sheet held by its short edge in the right hand and stood on its long edge like a blade. The
-      // front part hangs from a hinge so it flexes and flutters; grey text lines, a teal header and a red stamp sit a
-      // few mm proud of the face, and a pale strip marks the "sharp" leading edge.
+      // A4 Paper: a sheet of ruled notebook paper held by its short edge in the right hand and stood on its long edge like a
+      // blade. The front part hangs from a hinge so it flexes and flutters; a pale strip marks the "sharp" leading edge.
       const sheet = new THREE.Group();
       const tip = new THREE.Group();
       g.add(sheet);
       sheet.rotation.z = SHEET_ROLL;
-      box(sheet, 0xf4f4f1, 0.21, 0.008, 0.18, 0, 0, -0.09);
+      // Ruled notebook paper: a pale blue-white sheet, thin cyan rules across it, a red margin line along it and a blank
+      // band at the hand end. No two faces may share a plane (that is what flickers): the front part is a hair smaller
+      // than the rear part where they overlap at the hinge, every rule sinks 0.5 mm into the paper and stands 3 mm proud,
+      // and the margin line stands a little higher than the rules it crosses.
+      box(sheet, 0xe9efff, 0.21, 0.008, 0.19, 0, 0, -0.095);
       tip.position.set(0, 0, -0.18);
       sheet.add(tip);
-      box(tip, 0xf4f4f1, 0.21, 0.008, 0.117, 0, 0, -0.0585);
-      box(tip, 0xd9dde2, 0.21, 0.01, 0.008, 0, 0, -0.113);
-      box(sheet, 0x2b6d72, 0.07, 0.004, 0.022, 0.05, 0.006, -0.03);
-      for (const z of [-0.07, -0.1, -0.13, -0.16]) box(sheet, 0x8d949c, 0.15, 0.004, 0.008, -0.025, 0.006, z);
-      box(sheet, 0xc0392b, 0.05, 0.004, 0.035, 0.06, 0.006, -0.12);
-      for (const z of [-0.03, -0.06, -0.09]) box(tip, 0x8d949c, 0.15, 0.004, 0.008, -0.025, 0.006, z);
+      box(tip, 0xe5ecfd, 0.208, 0.0076, 0.12, 0, 0, -0.06);
+      box(tip, 0xc4cee6, 0.214, 0.011, 0.007, 0, 0, -0.116);
+      for (let i = 0; i < 28; i++) {
+        const z = -0.045 - i * 0.009;
+        if (z > -0.178) box(sheet, 0x7fd0f5, 0.206, 0.0035, 0.0012, 0, 0.00475, z);
+        else box(tip, 0x7fd0f5, 0.204, 0.0035, 0.0012, 0, 0.00475, z + 0.18);
+      }
+      box(sheet, 0xe0476a, 0.0018, 0.0045, 0.186, -0.075, 0.0055, -0.095);
+      box(tip, 0xe0476a, 0.0018, 0.0042, 0.114, -0.075, 0.0054, -0.057);
       return {
         group: g, muzzle: new THREE.Vector3(0, 0, -0.3), handR: new THREE.Vector3(0, -0.01, 0.01), handL: new THREE.Vector3(-0.2, -0.3, 0.3),
         // No sights to bring up: aiming stays where the hip pose is (the right click is the heavy stab).
