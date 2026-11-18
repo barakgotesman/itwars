@@ -68,18 +68,50 @@ export function standingFree(solids: readonly Aabb[], x: number, z: number): boo
   return true;
 }
 
-/** One grid per solids array: every room on the same map shares it. */
+/** How far from a cell's centre floor must reach on every side when the map has a void (keeps bots a body-width off the edge). */
+const FLOOR_MARGIN = 0.5;
+
+/** True if a floor slab (a solid whose top is at ground level) is under the point. */
+export function floorUnder(solids: readonly Aabb[], x: number, z: number): boolean {
+  for (const b of solids) {
+    if (Math.abs(b.maxY) < 0.05 && x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ) return true;
+  }
+  return false;
+}
+
+/** True if there is floor at a cell's centre and a margin beyond it in all four directions. */
+function floorAround(solids: readonly Aabb[], x: number, z: number): boolean {
+  return floorUnder(solids, x, z) && floorUnder(solids, x + FLOOR_MARGIN, z) && floorUnder(solids, x - FLOOR_MARGIN, z) &&
+    floorUnder(solids, x, z + FLOOR_MARGIN) && floorUnder(solids, x, z - FLOOR_MARGIN);
+}
+
+/** One grid per solids array: every room on the same map shares it. A map with a void gets its own table. */
 const cache = new WeakMap<readonly Aabb[], NavGrid>();
+const cacheNeedFloor = new WeakMap<readonly Aabb[], NavGrid>();
+
+/** Options for `buildNavGrid`. */
+export interface NavOptions {
+  /** The map has a void around its floor: cells without floor under (and around) them are not walkable, so paths never lead off an edge. */
+  needFloor?: boolean;
+}
 
 /**
  * Builds (or fetches the cached) navigation grid for a set of static solids.
  * @param solids - Static collision boxes; pass the list BEFORE door panels are appended.
+ * @param opts - `needFloor` for maps you can fall off.
  */
-export function buildNavGrid(solids: readonly Aabb[]): NavGrid {
-  const hit = cache.get(solids);
+export function buildNavGrid(solids: readonly Aabb[], opts: NavOptions = {}): NavGrid {
+  const needFloor = opts.needFloor === true;
+  const table = needFloor ? cacheNeedFloor : cache;
+  const hit = table.get(solids);
   if (hit) return hit;
   const walkable = new Uint8Array(NAV_NX * NAV_NZ);
-  for (let j = 0; j < NAV_NZ; j++) for (let i = 0; i < NAV_NX; i++) walkable[cellIdx(i, j)] = standingFree(solids, cellX(i), cellZ(j)) ? 1 : 0;
+  for (let j = 0; j < NAV_NZ; j++) {
+    for (let i = 0; i < NAV_NX; i++) {
+      const x = cellX(i), z = cellZ(j);
+      walkable[cellIdx(i, j)] = standingFree(solids, x, z) && (!needFloor || floorAround(solids, x, z)) ? 1 : 0;
+    }
+  }
   const edge = new Uint8Array(NAV_NX * NAV_NZ);
   for (let j = 0; j < NAV_NZ; j++) {
     for (let i = 0; i < NAV_NX; i++) {
@@ -93,7 +125,7 @@ export function buildNavGrid(solids: readonly Aabb[]): NavGrid {
     }
   }
   const grid = { walkable, edge };
-  cache.set(solids, grid);
+  table.set(solids, grid);
   return grid;
 }
 

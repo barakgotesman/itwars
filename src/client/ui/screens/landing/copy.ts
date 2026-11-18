@@ -75,6 +75,15 @@ export const MAP_STORIES: Readonly<Record<string, MapStory>> = {
       racks: { title: 'Rack row', line: 'Blue light on every cabinet. You can see them coming.' },
     },
   },
+  rooftop: {
+    tagline: 'Open air, city lights and an edge that does not forgive.',
+    captions: {
+      helipad: { title: 'The helipad', line: 'The middle of the roof. Wide open, and the edge is never far.' },
+      edge: { title: 'The edge', line: 'No railing on this side. One bad jump and the round is over.' },
+      'stair-hut': { title: 'Stair hut', line: 'A warm doorway and a shotgun, tucked in the north-east corner.' },
+      skyline: { title: 'The skyline', line: 'Neighbouring towers, an aircraft light on the mast, and a long way down.' },
+    },
+  },
 };
 
 /** The staff section. */

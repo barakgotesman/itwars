@@ -117,7 +117,8 @@ export interface MeState {
 export type GameEvent =
   | { k: 'shot'; id: number; w: number; ex: number; ey: number; ez: number; hit: 'none' | 'world' | 'player' }
   | { k: 'hit'; by: number; to: number; dmg: number; head: boolean }
-  | { k: 'kill'; by: number; to: number; w: number | 'frag'; head: boolean }
+  /** `w` is a weapon index, `'frag'` for an explosion or `'fall'` for falling off the map (`by === to` unless someone hurt the victim just before). */
+  | { k: 'kill'; by: number; to: number; w: number | 'frag' | 'fall'; head: boolean }
   | { k: 'spawn'; id: number; yaw: number }
   /** A pickup was taken; `w` is the gun for a weapon pickup, and `got` says whether it was a new gun or just its ammo. */
   | { k: 'pickup'; id: number; i: number; kind: PickupKind; w?: number; got?: 'gun' | 'ammo' }

@@ -30,6 +30,9 @@ export function MapPicker({ value, onPick }: MapPickerProps) {
               <span className="text-sm font-black uppercase tracking-wider">{info.name}</span>
               <span className={active ? 'text-xs font-bold' : 'text-xs font-bold text-dim'}>{info.size}</span>
             </span>
+            {info.hazard && (
+              <span className={active ? 'self-start border-2 border-ground px-1.5 text-[11px] font-black uppercase tracking-wider' : 'self-start border-2 border-danger px-1.5 text-[11px] font-black uppercase tracking-wider text-danger'}>{info.hazard}</span>
+            )}
             <span className={active ? 'text-xs font-semibold' : 'text-xs text-dim'}>{info.blurb}</span>
           </button>
         );

@@ -56,6 +56,8 @@ export const MAX_PLAYERS = 8;
 export const KILLS_TO_WIN = 50;
 export const RESPAWN_TICKS = 3 * TICK_RATE;
 export const SPAWN_PROTECT_TICKS = 2 * TICK_RATE;
+/** A fall off a map with a void counts as a kill for whoever hurt the victim within this long (so pushing someone off scores). */
+export const FALL_CREDIT_TICKS = 4 * TICK_RATE;
 /** Length of the podium screen after a match ends, before the automatic rematch. */
 export const INTERMISSION_TICKS = 15 * TICK_RATE;
 /** Delay between switching weapons and being able to fire. */

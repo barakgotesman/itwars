@@ -2,7 +2,8 @@
  * Headless server simulation tests: drives `Room` directly with fake connections (no sockets, no browser).
  * Run with `npm run test:sim`; exits non-zero on any failure.
  */
-import { INTERMISSION_TICKS, Key, KILLS_TO_WIN, MAX_HP, MAX_PLAYERS, RESPAWN_TICKS, SPRAY_COOLDOWN_TICKS, SPRINT_SPEED, TICK_DT } from '@shared/core/constants';
+import { damage } from '@server/sim/damage';
+import { FALL_CREDIT_TICKS, INTERMISSION_TICKS, Key, KILLS_TO_WIN, MAX_HP, MAX_PLAYERS, RESPAWN_TICKS, SPRAY_COOLDOWN_TICKS, SPRINT_SPEED, TICK_DT } from '@shared/core/constants';
 import { LOADOUTS } from '@shared/rules/loadout';
 import { SPRAYS, SPRAY_GRID, SPRAY_PALETTE } from '@shared/rules/sprays';
 import { PLAYER_COLORS } from '@shared/core/characters';
@@ -1546,6 +1547,86 @@ const pickupEvents = (c: FakeConn): PickEv[] => c.events().filter((e): e is Pick
       return Math.hypot(s.vx, s.vz);
     };
     check('walking with the paper is faster than with the pistol', speedOf(5) > speedOf(0) * 1.1, `${speedOf(5)} vs ${speedOf(0)}`);
+  }
+}
+
+// ---------------------------------------------------------------- falling off a map with a void
+
+{
+  /** A 10 x 10 m roof in the void: walk off an edge and you fall below `killY`. */
+  const ROOF: Aabb = { minX: -5, maxX: 5, minY: -1, maxY: 0, minZ: -5, maxZ: 5 };
+  const roomOnRoof = () => {
+    const room = new Room('FALL', { seed: 3, solids: [ROOF], spawns: [[0, 0], [1, 1], [-1, 1], [1, -1]], pickups: [], doors: [], rules: FULL_RULES, killY: -8 });
+    const add = (name: string): Who => {
+      const conn = new FakeConn();
+      const id = room.join(conn, name)!;
+      room.enter(id);
+      return { id, conn };
+    };
+    return { room, add };
+  };
+  /** Faces +x and walks east from `x` until the player has fallen (or 150 ticks pass). */
+  const walkOff = (room: Room, who: Who, x: number) => {
+    place(room, who.id, x, 0, -Math.PI / 2);
+    run(room, who, 150, { keys: Key.Forward, yaw: -Math.PI / 2 });
+  };
+
+  {
+    const { room, add } = roomOnRoof();
+    const a = add('Alice');
+    warm(room);
+    walkOff(room, a, 4);
+    const me = room.inspect(a.id)!;
+    check('walking off the roof kills the player', !me.alive && me.deaths === 1);
+    const ev = a.conn.events().find((e) => e.k === 'kill');
+    check('the fall is a kill event with weapon "fall" and no killer', ev?.k === 'kill' && ev.w === 'fall' && ev.by === ev.to && !ev.head, JSON.stringify(ev));
+    check('a plain fall costs no kill score', me.kills === 0);
+    check('a fall drops no loot bag', room.loot.length === 0);
+    idle(room, RESPAWN_TICKS);
+    check('the faller respawns on the roof', room.inspect(a.id)!.alive && room.inspect(a.id)!.state.y > -1);
+  }
+  {
+    // Spawn protection must not keep a faller alive forever.
+    const { room, add } = roomOnRoof();
+    const a = add('Alice');
+    walkOff(room, a, 4);
+    check('spawn protection does not stop a fall death', !room.inspect(a.id)!.alive);
+  }
+  {
+    const { room, add } = roomOnRoof();
+    const a = add('Alice');
+    const b = add('Bob');
+    warm(room);
+    damage(room, room.inspect(b.id)!, 10, room.inspect(a.id)!, 0, false);
+    walkOff(room, b, 4);
+    const ev = b.conn.events().find((e) => e.k === 'kill' && e.w === 'fall');
+    check('pushing someone off credits the one who hurt them', room.inspect(a.id)!.kills === 1 && ev?.k === 'kill' && ev.by === a.id && ev.to === b.id, JSON.stringify(ev));
+    check('the pushed player still counts the death', room.inspect(b.id)!.deaths === 1 && room.inspect(b.id)!.kills === 0);
+  }
+  {
+    const { room, add } = roomOnRoof();
+    const a = add('Alice');
+    const b = add('Bob');
+    warm(room);
+    damage(room, room.inspect(b.id)!, 10, room.inspect(a.id)!, 0, false);
+    idle(room, FALL_CREDIT_TICKS + 30);
+    walkOff(room, b, 4);
+    check('an old hit no longer counts as a push', !room.inspect(b.id)!.alive && room.inspect(a.id)!.kills === 0);
+  }
+  {
+    const { room, add } = roomOnRoof();
+    const a = add('Alice');
+    const b = add('Bob');
+    warm(room);
+    place(room, a.id, 0, 0);
+    place(room, b.id, 2, 0);
+    run(room, a, 60);
+    check('staying on the roof is safe', room.inspect(a.id)!.alive && room.inspect(b.id)!.alive);
+  }
+  {
+    const office = new Room('OFFC', { seed: 1 });
+    const dc = new Room('DCTR', { seed: 1, rules: { ...DEFAULT_RULES, map: 1 } });
+    check('the Office and the Data Center have no void', office.killY === null && dc.killY === null);
   }
 }
 

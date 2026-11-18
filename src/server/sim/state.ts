@@ -32,6 +32,8 @@ export interface Sim {
   /** Static collision plus the doors' moving boxes. */
   readonly solids: readonly Aabb[];
   readonly doors: Doors;
+  /** Height below which a player has fallen off the map and dies (maps with a void only), or null. */
+  readonly killY: number | null;
   /** A door moved since the last snapshot, so the next one carries door states. */
   doorsDirty: boolean;
   /** Tick at which the match clock runs out, or 0 while it is not running (no limit, or waiting for a second player). */

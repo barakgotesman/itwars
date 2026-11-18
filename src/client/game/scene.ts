@@ -212,7 +212,8 @@ export function createScene(canvas: HTMLCanvasElement, joined: JoinedMsg, hud: H
       antialiasOn = g.antialias;
       fx.setAntialias(g.antialias);
     }
-    dust.setEnabled(g.dust);
+    // Open-air maps (the rooftop) have no dust motes whatever the graphics setting says.
+    dust.setEnabled(g.dust && map.dust !== false);
     particles.enabled = g.particles;
     sfx.setVolume(settings.volume);
     hud.fps(settings.showFps ? '-- FPS' : null);

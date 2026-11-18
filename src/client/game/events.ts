@@ -130,8 +130,15 @@ export function createEventHandler(d: EventDeps): (e: GameEvent) => void {
         }
         break;
       case 'kill': {
-        // "X [weapon icon] [skull if a headshot] Y"; a self-kill reads "X [icon] X".
-        feed.push(e.head ? [who(e.by), { icon: e.w }, { icon: 'head' }, who(e.to)] : [who(e.by), { icon: e.w }, who(e.to)]);
+        // "X [weapon icon] [skull if a headshot] Y"; a self-kill reads "X [icon] X". A fall reads in words, since a
+        // plain fall has only one name and a push has two ("X pushed Y off").
+        if (e.w === 'fall') {
+          feed.push(e.by === e.to
+            ? [who(e.to), { text: ' fell off the roof', tone: 'kill' }, { icon: 'fall' }]
+            : [who(e.by), { text: ' pushed ', tone: 'kill' }, who(e.to), { text: ' off the roof', tone: 'kill' }, { icon: 'fall' }]);
+        } else {
+          feed.push(e.head ? [who(e.by), { icon: e.w }, { icon: 'head' }, who(e.to)] : [who(e.by), { icon: e.w }, who(e.to)]);
+        }
         if (e.by === myId && e.to !== myId) {
           hud.hitMarker('kill');
           sfx.hitMarker('kill');

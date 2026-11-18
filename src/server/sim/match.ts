@@ -40,6 +40,7 @@ export function spawn(sim: Sim, p: Player): void {
   p.nextFire = sim.tick + SWITCH_TICKS;
   p.fireLatch = false;
   p.protectUntil = sim.tick + SPAWN_PROTECT_TICKS;
+  p.lastHurtBy = -1;
   p.blindEnd = 0;
   // Stale inputs were made for the old position; clients drop their pending list on the 'spawn' event.
   p.queue.length = 0;

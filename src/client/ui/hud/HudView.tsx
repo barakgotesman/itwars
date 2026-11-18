@@ -351,7 +351,13 @@ function DeathScreen() {
     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/45">
       <div className="text-6xl font-black uppercase tracking-wider text-danger">Ticket closed</div>
       <div className="flex h-8 items-center gap-2 text-lg font-bold">
-        {by && (
+        {by && by.icon === 'fall' && (
+          <>
+            {by.name === 'yourself' ? 'You fell off the roof' : <>Pushed off the roof by <span className="text-accent">{by.name}</span></>}
+            <GunIcon kind="fall" className="inline-block h-6 w-12" />
+          </>
+        )}
+        {by && by.icon !== 'fall' && (
           <>
             Closed by <span className="text-accent">{by.name}</span>
             {by.icon !== undefined && <GunIcon kind={by.icon} className="inline-block h-6 w-12" />}

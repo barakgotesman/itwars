@@ -12,19 +12,22 @@ export interface MapInfo {
   blurb: string;
   /** Short size and player-count hint shown on the card, e.g. "Large · 4-8 players". */
   size: string;
+  /** A rule of the map worth warning about on its card (the Rooftop: a fall off the edge is death). */
+  hazard?: string;
 }
 
 /** Every selectable map; the first is the default. Index = the `map` rule's value. */
 export const MAP_INFO: readonly MapInfo[] = [
   { id: 'office', name: 'The Office', blurb: 'The full 100 m office: open plan, a ring of rooms, doors, the RPG in the Server room.', size: 'Large · 4-8 players' },
   { id: 'datacenter', name: 'Data Center', blurb: 'Rows of humming server racks, cold aisles, a control room and a tape vault. Tight and fast.', size: 'Small · 2-4 players' },
+  { id: 'rooftop', name: 'The Rooftop', blurb: 'Open air on top of the IT tower: AC units, a water tank and a stair hut under the city lights. The edges are open.', size: 'Small · 2-4 players', hazard: 'Fall = death' },
 ];
 
 /**
  * Version tag added to every map picture URL (`public/maps/*.jpg`). The pictures keep their file names when
  * `tools/maps.html` regenerates them, so browsers would keep showing the cached old ones: bump this after regenerating.
  */
-export const PICTURES_REV = 8;
+export const PICTURES_REV = 9;
 
 /** Values of the `map` rule (the indices of `MAP_INFO`), for the rules validator and the setup option. */
 export const MAP_IDS: readonly number[] = MAP_INFO.map((_, i) => i);

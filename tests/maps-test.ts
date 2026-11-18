@@ -9,7 +9,7 @@ import { DEFAULT_RULES, sanitizeRules } from '@shared/rules/modes';
 import { Doors } from '@shared/world/doors';
 import { MAP_INFO } from '@shared/world/map/map-info';
 import { MAPS, RANGE_MAP, mapFor, type MapDef } from '@shared/world/map/maps';
-import { buildNavGrid, cellAt, reachable, standingFree } from '@shared/world/nav';
+import { buildNavGrid, cellAt, floorUnder, reachable, standingFree } from '@shared/world/nav';
 import { Room } from '@server/rooms/room';
 import { FakeConn, mut } from './helpers';
 
@@ -27,16 +27,33 @@ check('map rule: unknown values fall back to the default', sanitizeRules({ map: 
 check('map rule: valid values survive', sanitizeRules({ map: 1 }).map === 1 && mapFor(sanitizeRules({ map: 1 })).id === 'datacenter');
 check('the range always uses the range map', mapFor({ mode: 'range', map: 1 }) === RANGE_MAP);
 
+/**
+ * True when no open edge is within 3 m of the point: walking 3 m in any of 16 directions either stays on floor or
+ * runs into a wall tall enough to stop you (a parapet is hoppable, but it is not an open edge).
+ */
+function farFromVoid(map: MapDef, x: number, z: number): boolean {
+  for (let a = 0; a < 16; a++) {
+    const dx = Math.cos((a / 16) * Math.PI * 2), dz = Math.sin((a / 16) * Math.PI * 2);
+    for (let r = 0.25; r <= 3; r += 0.25) {
+      const px = x + dx * r, pz = z + dz * r;
+      if (map.solids.some((b) => b.maxY > 0.5 && px > b.minX && px < b.maxX && pz > b.minZ && pz < b.maxZ)) break;
+      if (!floorUnder(map.solids, px, pz)) return false;
+    }
+  }
+  return true;
+}
+
 /** Runs every per-map check. */
 function checkMap(map: MapDef): void {
   const tag = (s: string) => `${map.id}: ${s}`;
-  const grid = buildNavGrid(map.solids);
+  const grid = buildNavGrid(map.solids, { needFloor: map.voidEdges === true });
   const first = map.spawns[0]!;
   const seen = reachable(grid, cellAt(first[0], first[1]));
   const point = (label: string, x: number, z: number) => {
     check(tag(`${label} (${x}, ${z}) is outside every solid`), standingFree(map.solids, x, z));
     const n = cellAt(x, z);
     check(tag(`${label} (${x}, ${z}) is reachable on foot`), n >= 0 && seen[n] === 1);
+    if (map.killY !== undefined) check(tag(`${label} (${x}, ${z}) is at least 3 m from an open edge`), farFromVoid(map, x, z));
   };
   // The range's armory pickups stand on a table and its one spawn is by design: `verify:range-map` covers it.
   if (map !== RANGE_MAP) {
@@ -132,10 +149,12 @@ function coplanarClashes(boxes: MapDef['boxes']): string[] {
   }
   return out;
 }
-const dc = MAPS.find((x) => x.id === 'datacenter')!;
-// The hidden solid floor is never drawn, so it cannot flicker against the glossy layer.
-const clashes = coplanarClashes(dc.boxes).filter((c) => !c.includes('floorHidden'));
-check('datacenter: no coplanar same-facing faces (z-fighting)', clashes.length === 0, `${clashes.length}: ${clashes.slice(0, 8).join(' | ')}`);
+for (const id of ['datacenter', 'rooftop']) {
+  const map = MAPS.find((x) => x.id === id)!;
+  // The hidden solid floor is never drawn, so it cannot flicker against the glossy layer.
+  const clashes = coplanarClashes(map.boxes).filter((c) => !c.includes('floorHidden'));
+  check(`${id}: no coplanar same-facing faces (z-fighting)`, clashes.length === 0, `${clashes.length}: ${clashes.slice(0, 8).join(' | ')}`);
+}
 
 // A real room on each selectable map: everyone spawns on that map's spawns, bots roam 
 // and the map's doors and pickups are the ones sent to the client.
@@ -145,6 +164,7 @@ for (const [index, map] of MAPS.entries()) {
   room.enter(id);
   const start = new Map<number, string>();
   let outside = 0;
+  let fell = 0;
   const near = (x: number, z: number) => map.spawns.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < 0.01);
   for (let t = 0; t < 60 * 40; t++) {
     room.step();
@@ -153,10 +173,13 @@ for (const [index, map] of MAPS.entries()) {
       if (!start.has(pid) && t > 5) start.set(pid, `${st.x.toFixed(1)},${st.z.toFixed(1)}`);
       const b = map.bounds;
       if (st.x < b.x0 || st.x > b.x1 || st.z < b.z0 || st.z > b.z1) outside++;
+      if (st.y < -1) fell++;
     }
   }
   check(`${map.id}: a room plays on the map's own geometry`, room.spots === map.pickups && room.spawns === map.spawns && room.doors.defs === map.doors);
   check(`${map.id}: nobody leaves the map in 40 s of bot play`, outside === 0, `${outside} samples outside`);
+  check(`${map.id}: nobody falls off the map in 40 s of bot play`, fell === 0, `${fell} samples below the floor`);
+  check(`${map.id}: the room's kill plane matches the map`, room.killY === (map.killY ?? null));
   const moved = [...room.players.keys()].filter((pid) => {
     const st = mut(room, pid).state;
     return start.get(pid) !== `${st.x.toFixed(1)},${st.z.toFixed(1)}`;

@@ -77,7 +77,9 @@ export function createBackdrop(canvas: HTMLCanvasElement): Backdrop {
       scene.background = new THREE.Color(map.backdrop.background);
       scene.fog = new THREE.FogExp2(map.backdrop.fog.color, map.backdrop.fog.density);
       const world = buildWorld(scene);
-      return { map, scene, world, dust: createDust(scene), clock: 0 };
+      const dust = createDust(scene);
+      if (map.dust === false) dust.setEnabled(false);
+      return { map, scene, world, dust, clock: 0 };
     };
 
     const stages: Stage[] = [build(MAPS[0]!)];

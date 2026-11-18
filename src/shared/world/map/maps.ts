@@ -1,7 +1,7 @@
 /**
  * The map registry. A `MapDef` bundles everything one map is made of (collision, visuals, lights, signs, doors,
  * pickups, spawns, lighting zones, podium and menu-backdrop camera) so the server, the in-game client and the menu
- * backdrop all read one value instead of switching on the mode. The office and the Data Center are selectable
+ * backdrop all read one value instead of switching on the mode. The office, the Data Center and the Rooftop are selectable
  * (`MatchRules.map` indexes `MAP_INFO` and `MAPS` alike); the shooting range is its own map, chosen by the range mode.
  * Importing this module builds every map once.
  */
@@ -13,6 +13,7 @@ import * as office from './index';
 import { MAP_INFO } from './map-info';
 import type { PickupSpot } from './pickups';
 import * as range from './range';
+import * as rooftop from './rooftop';
 import type { BoardSpec, LabelSpec, LightSource, MapBox, ScreenSpec, CameraSpec } from './types';
 import { ZONES as OFFICE_ZONES, zoneAt as officeZoneAt, type Zone } from './zones';
 import { X0, X1, Z0, Z1 } from './builder';
@@ -92,6 +93,12 @@ export interface MapDef {
   gallery: readonly GalleryShot[];
   /** The map has a glossy floor (`floorGloss`): the client also draws a mirrored copy of the room under it. */
   glossy?: boolean;
+  /** Players who fall below this height die (an open-air map with edges to fall off). None = the map has no void. */
+  killY?: number;
+  /** The map has a void around its floor, so the bots' navigation grid needs floor under a cell (see `buildNavGrid`). */
+  voidEdges?: boolean;
+  /** False for open-air maps: no floating dust motes (default true). */
+  dust?: boolean;
 }
 
 /** Zone lookup shared by the small maps: first match wins, the last zone is the fallback. */
@@ -136,6 +143,26 @@ const DATACENTER: MapDef = {
   glossy: true,
 };
 
+/** The open-air roof: a fall off any edge is death (`killY`), bots keep to floor (`voidEdges`), no dust in the air. */
+const ROOFTOP: MapDef = {
+  id: 'rooftop', name: 'The Rooftop',
+  solids: rooftop.SOLIDS, boxes: rooftop.MAP_BOXES, lights: rooftop.LIGHTS, labels: rooftop.LABELS, boards: rooftop.BOARDS, screens: rooftop.SCREENS, cameras: rooftop.CAMERAS,
+  pickups: rooftop.PICKUP_SPOTS, spawns: rooftop.SPAWNS, doors: [],
+  zones: rooftop.ZONES, zoneAt: zoneLookup(rooftop.ZONES), bounds: rooftop.BOUNDS,
+  // The helipad in the middle of the roof, filmed from the north with the open south edge and the skyline behind the pedestals.
+  podium: { origin: { x: 0, z: 0 }, camPos: [0, 2.3, -7.5], camLook: [0, 1.3, 0], fogColor: 0x4a2c3e, fogDensity: 0.012 },
+  // Looks north across the roof from the open south side: the tank, the AC units and the stair hut, with the glowing skyline beyond.
+  backdrop: { from: [-9, 1.8, 10], to: [9, 1.8, 10], period: 120, pitch: -0.03, sway: 0.4, background: 0xf0a878, fog: { color: 0xf0a878, density: 0.008 } },
+  shot: { pos: [-12, 2, 11], yaw: -0.6, pitch: -0.05, fov: 70 },
+  gallery: [
+    { slug: 'helipad', shot: { pos: [-9, 1.8, 9], yaw: -0.35, pitch: -0.04, fov: 72 } },
+    { slug: 'edge', shot: { pos: [-2, 1.8, 3.5], yaw: Math.PI + 0.25, pitch: -0.22, fov: 84 } },
+    { slug: 'stair-hut', shot: { pos: [8, 1.8, 3], yaw: -0.5, pitch: -0.04, fov: 70 } },
+    { slug: 'skyline', shot: { pos: [3, 1.8, -2.5], yaw: -1.35, pitch: 0.02, fov: 80 } },
+  ],
+  killY: rooftop.KILL_Y, voidEdges: true, dust: false,
+};
+
 /** The shooting range: not selectable, used by `rules.mode === 'range'`. It has no podium and no menu backdrop of its own. */
 export const RANGE_MAP: MapDef = {
   id: 'range', name: 'Shooting Range',
@@ -146,7 +173,7 @@ export const RANGE_MAP: MapDef = {
 };
 
 /** The selectable maps, indexed by the `map` rule (the same order as `MAP_INFO`). */
-export const MAPS: readonly MapDef[] = [OFFICE, DATACENTER];
+export const MAPS: readonly MapDef[] = [OFFICE, DATACENTER, ROOFTOP];
 
 if (MAPS.length !== MAP_INFO.length) throw new Error('MAPS and MAP_INFO must list the same maps in the same order');
 

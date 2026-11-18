@@ -8,8 +8,8 @@ import type { PodiumEntry } from '@client/render/podium';
 
 export type { PodiumEntry };
 
-/** Which icon a feed line or HUD slot shows: a weapon index 0-3, a grenade, or a headshot skull. */
-export type IconKind = number | 'frag' | 'flash' | 'head';
+/** Which icon a feed line or HUD slot shows: a weapon index 0-3, a grenade, a headshot skull, or a falling figure. */
+export type IconKind = number | 'frag' | 'flash' | 'head' | 'fall';
 
 /** Everything the podium screen shows after a match ends. */
 export interface MatchEndInfo {
@@ -79,7 +79,8 @@ export interface Feed {
 export function feedLineText(parts: readonly FeedPart[], myName: string): string {
   const names = parts.filter((p): p is { text: string; tone?: Tone } => 'text' in p);
   const nameOf = (p: { text: string; tone?: Tone }) => (p.tone === 'me' && p.text === 'You' ? myName : p.text);
-  if (parts.some((p) => 'icon' in p) && names.length === 2) {
+  // Fall lines already read as words ("X fell off the roof"), so only weapon icons switch to "A killed B".
+  if (parts.some((p) => 'icon' in p && p.icon !== 'fall') && names.length === 2) {
     const a = nameOf(names[0]!), b = nameOf(names[1]!);
     return a === b ? `${a} got killed` : `${a} killed ${b}`;
   }

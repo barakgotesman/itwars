@@ -17,6 +17,7 @@ import { TARGETS as RANGE_TARGETS } from '@shared/world/map/range';
 import { buildNavGrid, type NavGrid } from '@shared/world/nav';
 import { addBots, stepBots } from '@server/sim/bots';
 import type { BotState } from '@server/sim/bots/state';
+import { killByFall } from '@server/sim/damage';
 import { stepDoors } from '@server/sim/doors';
 import type { Grenade } from '@server/sim/grenades';
 import { tickGrenades } from '@server/sim/grenades';
@@ -56,6 +57,8 @@ export interface RoomOptions {
    * startup capacity measurement (`server/capacity.ts`), which must measure bots actually playing.
    */
   botsPlayImmediately?: boolean;
+  /** Height below which a player dies by falling; defaults to the map's `killY` (none for custom `solids`). */
+  killY?: number | null;
 }
 
 /** The authoritative game simulation for one room. */
@@ -76,6 +79,9 @@ export class Room implements Sim {
   /** Sliding doors; their collision boxes are part of `solids` and move in place. */
   readonly doors: Doors;
   doorsDirty = false;
+  readonly killY: number | null;
+  /** The map has edges you can fall off: the navigation grid then needs floor under a cell for bots to use it. */
+  private readonly voidEdges: boolean;
   endsAt = 0;
   restartAt = 0;
   readonly spawns: readonly (readonly [number, number])[];
@@ -112,6 +118,8 @@ export class Room implements Sim {
     // Tests pass their own solids: those rooms get no doors unless the test also passes some.
     this.doors = new Doors(opts.doors ?? (opts.solids ? [] : map.doors));
     this.staticSolids = opts.solids ?? map.solids;
+    this.killY = opts.killY !== undefined ? opts.killY : opts.solids ? null : map.killY ?? null;
+    this.voidEdges = !opts.solids && map.voidEdges === true;
     this.solids = [...this.staticSolids, ...this.doors.boxes];
     this.spawns = opts.spawns ?? map.spawns;
     this.spots = opts.pickups ?? map.pickups;
@@ -122,7 +130,7 @@ export class Room implements Sim {
 
   /** Walkable grid of the static map, built on first use (rooms without bots never pay for it). */
   get nav(): NavGrid {
-    return (this.navGrid ??= buildNavGrid(this.staticSolids));
+    return (this.navGrid ??= buildNavGrid(this.staticSolids, { needFloor: this.voidEdges }));
   }
 
   /** True once anyone has entered the match (false while everyone is still in the lobby). */
@@ -293,6 +301,7 @@ export class Room implements Sim {
     if (this.rules.mode === 'range') stepRangeDummies(this);
     for (const p of this.players.values()) {
       applyInputs(this, p);
+      if (this.killY !== null && p.alive && p.state.y < this.killY) killByFall(this, p);
       if (p.playing && !p.alive && !p.rangeDummy && this.phase === 'play' && this.tick >= p.respawnAt) spawn(this, p);
       if (p.alive) tickWeapons(this, p);
     }

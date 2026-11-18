@@ -14,6 +14,7 @@ import type { Conn, Player } from '../player';
 import type { Sim } from '../state';
 import { turnToward, yawTo } from './angles';
 import { decide } from './decide';
+import { keepOnFloor } from './edge';
 import { fight } from './fight';
 import { considerGrenade, lineUpThrow } from './grenade';
 import { chooseWeapon, reloadKey } from './gun';
@@ -78,7 +79,8 @@ export function stepBots(sim: Sim): void {
     }
     perceive(sim, p, st, tune);
     const input = st.visible ? fightInput(sim, p, st, tune) : null;
-    queueInput(p, { t: 'input', seq: ++st.seq, ...(input ?? roamInput(sim, p, st, tune)) });
+    // On a map with a void the brain's keys are checked first, so a bot never strafes or hops off the roof.
+    queueInput(p, { t: 'input', seq: ++st.seq, ...keepOnFloor(sim, p, input ?? roamInput(sim, p, st, tune)) });
   }
 }
 
